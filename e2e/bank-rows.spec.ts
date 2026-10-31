@@ -58,6 +58,17 @@ test('rows arrive and add up: saved with no press, shown on the card until close
   /* Pending money was not written: two rows, not three. */
   await card(page).click()
   const sheet = page.getByRole('dialog')
+  /* Clean list (31 Oct): the sync is one pill on top, never a card in
+     the list; the day says what went out; its rows carry a dot. */
+  const pill = sheet.getByTestId('sync-pill')
+  await expect(pill).toContainText(/synced with bank/i)
+  await expect(pill).toContainText('2 new')
+  await expect(
+    sheet.getByText('Synced with bank', { exact: true }),
+  ).toHaveCount(0)
+  await expect(sheet.getByTestId('day-out').first()).toContainText('2 out')
+  await expect(sheet.getByTestId('day-out').first()).toContainText('−€42.40')
+  await expect(sheet.getByTestId('row-new')).toHaveCount(2)
   await expect(sheet.getByText('TRF P/ ANDREI PAVLOV')).toBeVisible()
   await expect(sheet.getByText(/PINGO DOCE/)).toBeVisible()
   /* Each row reads as who was paid, the bank's line underneath (13 Oct). */

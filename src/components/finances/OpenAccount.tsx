@@ -18,6 +18,8 @@ import { TakenStrip } from './AccountFileBack'
 import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, PendingLine, RowLine, fmt, short } from './AccountSheetRows'
+import { DayHead, Said, Synced, fromBank, newestSync } from './AccountSync'
+import { dayLine } from '@/lib/sheetDays'
 import { Row as CameRow } from './AccountCame'
 import { TypedBalance } from './AccountTypedBalance'
 import { shownBalance } from './sheetBalances'
@@ -34,7 +36,6 @@ type SheetData = NonNullable<
   FunctionReturnType<typeof api.aggregate.accountSheet>
 >
 type Row = SheetData['rows'][number]
-type Check = SheetData['checks'][number]
 type FileInfo = SheetData['files'][number]
 
 /* The year only on a day that is not this year's. */
@@ -208,6 +209,7 @@ function Ledger({
           />
           {taken ? <TakenStrip taken={taken} /> : null}
           <SheetCheck data={data} account={account} onUpdate={onUpdate} />
+          <Synced data={data} account={account} onFile={onFile} />
           <span className="label-caps">
             {data.total} {data.total === 1 ? 'row' : 'rows'} ·{' '}
             {data.files.length} {data.files.length === 1 ? 'file' : 'files'} ·
@@ -224,44 +226,6 @@ function Ledger({
           />
         </>
       )}
-    </div>
-  )
-}
-
-/* Why a balance adds up although its rows alone do not: said, in grey,
-   never asked (3 Oct: ActivoBank's 27 Sep screenshot already had the
-   −€100 its statement books on the 28th; €505.20 pending on 3 Oct). */
-function Said({ check: c }: { check: Check }) {
-  /* Pending alone: a badge and its amount (17 Oct, no sentences). */
-  if (c.bookedLater === null && c.pendingPart !== null)
-    return (
-      <div className="my-2 flex items-center gap-2.5 rounded-[12px] bg-lift/[0.035] px-3 py-2.5 ring-1 ring-lift/10 ring-inset">
-        <span className="font-mono text-[11px] tracking-[0.14em] text-ink-400 uppercase">
-          pending
-        </span>
-        <b className="ml-auto font-mono text-[13px] font-medium whitespace-nowrap text-ink-200">
-          <Veiled>{fmt(c.pendingPart, c.currency, true)}</Veiled>
-        </b>
-      </div>
-    )
-  return (
-    <div className="my-2 flex items-start gap-2.5 rounded-[12px] bg-lift/[0.035] px-3 py-2.5 text-[12.5px] text-ink-300 ring-1 ring-lift/10 ring-inset">
-      <span className="mt-px font-mono text-[11px] text-ink-500">i</span>
-      <span>
-        {c.bookedLater !== null ? (
-          <>
-            <Veiled>{fmt(c.bookedLater.amount, c.currency, true)}</Veiled>{' '}
-            already counted in this balance · booked by the bank on{' '}
-            {short(c.bookedLater.at)}
-          </>
-        ) : null}
-        {c.pendingPart !== null ? (
-          <>
-            <Veiled>{fmt(c.pendingPart, c.currency, true)}</Veiled> pending on
-            this day · not in a statement yet
-          </>
-        ) : null}
-      </span>
     </div>
   )
 }
@@ -326,7 +290,12 @@ function Timeline({
     ...data.rows.map((row) => ({ t: 'row' as const, at: row.at, row })),
     ...pend.map((p) => ({ t: 'pend' as const, at: p.at, p })),
     ...data.readings
-      .filter((bal) => bal.at >= since && shownBalance(data, bal, latest))
+      .filter(
+        (bal) =>
+          bal.at >= since &&
+          !fromBank(data, bal) &&
+          shownBalance(data, bal, latest),
+      )
       .map((bal) => ({ t: 'bal' as const, at: bal.at, bal })),
     /* A file that set no balance (a broker's orders) still has a place:
        where its rows end. One that read rows the account already had,
@@ -345,6 +314,19 @@ function Timeline({
   const rank = { bal: 0, file: 0, pend: 1, row: 2 }
   items.sort((a, b) => b.at - a.at || rank[a.t] - rank[b.t])
   const gaps = data.checks.filter((c) => c.missing !== 0)
+  /* The day line: that day's listed rows and its own reading. */
+  const lineOf = (at: number) => {
+    const start = new Date(at).setHours(0, 0, 0, 0)
+    const end = new Date(start).setDate(new Date(start).getDate() + 1)
+    return dayLine(
+      data.rows.filter((r) => r.at >= start && r.at < end),
+      data.readings,
+      start,
+      end,
+    )
+  }
+  /* Rows the newest sync saved carry a dot. */
+  const newSync = newestSync(data)?.fileId ?? null
 
   let day = ''
   let i = 0
@@ -359,9 +341,7 @@ function Timeline({
           return (
             <Fragment key={`pend-${it.at}-${it.p.merchant}-${it.p.amount}`}>
               {head ? (
-                <span className="px-0.5 pt-3 pb-1 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase">
-                  {dayLabel(it.at)}
-                </span>
+                <DayHead label={dayLabel(it.at)} line={lineOf(it.at)} />
               ) : null}
               <PendingLine
                 merchant={it.p.merchant}
@@ -445,9 +425,7 @@ function Timeline({
         return (
           <Fragment key={r.id}>
             {head ? (
-              <span className="px-0.5 pt-3 pb-1 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase">
-                {dayLabel(r.at)}
-              </span>
+              <DayHead label={dayLabel(r.at)} line={lineOf(r.at)} />
             ) : null}
             {r.line ? (
               <div className="@container rounded-[10px] px-2.5 hover:bg-lift/[0.035]">
@@ -457,6 +435,7 @@ function Timeline({
               <RowLine
                 row={r}
                 booked={booked(r)}
+                fresh={newSync !== null && r.fileId === newSync}
                 inside={r.inside === null ? null : dayOf(data, r.inside)}
                 index={i++}
                 onDelete={

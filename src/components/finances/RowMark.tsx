@@ -81,7 +81,7 @@ export function RowMark({
           : 'bg-lift/[0.07] text-ink-200'
       }`}
     >
-      <Icon className="size-3.5" />
+      <Icon className={size > 30 ? 'size-4' : 'size-3.5'} />
     </span>
   )
 }

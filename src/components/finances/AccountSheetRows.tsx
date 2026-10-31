@@ -250,8 +250,11 @@ export function RowLine({
   onDelete,
   onNotHere,
   booked = false,
+  fresh = false,
 }: {
   row: Row
+  /** Saved by the bank's newest sync: a green dot by its amount. */
+  fresh?: boolean
   /** The day of the balance that already covers this typed row. */
   inside: number | null
   index: number
@@ -296,15 +299,16 @@ export function RowLine({
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 20) * 18}ms` }}
-      className={`motion-land group flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 hover:bg-lift/[0.035] ${booked ? 'motion-booked' : ''}`}
+      className={`motion-land group flex items-center gap-3 rounded-[12px] px-2.5 py-2 hover:bg-lift/[0.035] ${booked ? 'motion-booked' : ''}`}
     >
       <RowMark
         name={moved || traded ? '' : r.text}
         category={moved || traded ? null : r.category}
         income={r.amount > 0}
+        size={36}
       >
         <span
-          className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${
+          className={`grid size-9 shrink-0 place-items-center rounded-[11px] ${
             moved || traded
               ? 'bg-lav-400/12 text-lav-300'
               : r.amount > 0
@@ -312,13 +316,13 @@ export function RowLine({
                 : 'bg-lift/[0.06] text-ink-400'
           }`}
         >
-          <Icon className="size-3.5" />
+          <Icon className="size-4" />
         </span>
       </RowMark>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span
           data-testid="row-name"
-          className="truncate text-[13.5px] text-foreground"
+          className="truncate text-[14px] font-medium text-foreground"
         >
           {named?.name ?? r.text}
         </span>
@@ -397,7 +401,15 @@ export function RowLine({
           delete
         </button>
       ) : null}
-      <span className={`font-mono text-[13.5px] whitespace-nowrap ${cls}`}>
+      <span
+        className={`flex items-center gap-2 font-mono text-[14px] font-medium whitespace-nowrap ${cls}`}
+      >
+        {fresh ? (
+          <i
+            data-testid="row-new"
+            className="size-[7px] rounded-full bg-state-good shadow-[0_0_6px_var(--color-state-good)]"
+          />
+        ) : null}
         <Veiled>{fmt(r.amount, r.currency, true)}</Veiled>
       </span>
     </div>

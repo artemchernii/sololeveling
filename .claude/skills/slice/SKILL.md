@@ -68,8 +68,9 @@ convex-test cases for any write. They fail. Commit them.
 While building, run the short loop: `pnpm typecheck && pnpm lint`, the
 unit tests of what changed, and only this slice's spec files
 (`pnpm exec playwright test e2e/<file>`). When those are green and the
-branch is final, run the full `pnpm verify` once — it must pass, and
-any commit after it owes it again. A slice split over several PRs owes
+branch is final, run the full `pnpm verify` once, in the background — it
+must pass. A fix after it owes only its own checks (CLAUDE.md, Workflow
+2), not the full run again. A slice split over several PRs owes
 one full run per PR, not one per commit. Look at every screenshot in `e2e/screens/`
 against the mockup — layout, words, motion. Fix before he sees it.
 Update `docs/journeys/<area>.md` with the path the slice touches.

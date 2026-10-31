@@ -74,7 +74,7 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* ==========================================================================
-     APP ADDITIONS — not Nocturne. Eleven groups, each with the reason it exists.
+     APP ADDITIONS — not Nocturne. Twelve groups, each with the reason it exists.
      ======================================================================= */
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
@@ -206,6 +206,22 @@
   --kind-idea: oklch(var(--area-l) var(--area-c) 80);
   --kind-book: oklch(var(--area-l) var(--area-c) 150);
   --kind-reference: oklch(var(--area-l) var(--area-c) 20);
+
+  /* 12. Money groups (31 Oct). Artem on the account list: "ui is so crap
+        and still no icons" — every group's tile was the same grey, and the
+        approved mockup (sync-line.html) had eating out in orange. A group
+        is a category like a note kind, built the same way: a hue at the
+        area lightness and chroma, none louder than another, clear of the
+        lavender accent (265–305°). What it is, never how much. */
+  --grp-groceries: oklch(var(--area-l) var(--area-c) 145);
+  --grp-eating: oklch(var(--area-l) var(--area-c) 55);
+  --grp-transport: oklch(var(--area-l) var(--area-c) 230);
+  --grp-home: oklch(var(--area-l) var(--area-c) 30);
+  --grp-bills: oklch(var(--area-l) var(--area-c) 195);
+  --grp-health: oklch(var(--area-l) var(--area-c) 350);
+  --grp-fun: oklch(var(--area-l) var(--area-c) 320);
+  --grp-shopping: oklch(var(--area-l) var(--area-c) 85);
+  --grp-travel: oklch(var(--area-l) var(--area-c) 210);
 
   /* 8. State (20 Sep). Artem: "entire platform is boring and bland… overdue
         we can make RED or warning and icon to HIGHLIGHT". Until today colour

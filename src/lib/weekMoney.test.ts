@@ -40,6 +40,32 @@ describe('weekMoney', () => {
     expect(m?.total).toBe('€2,750 in companies that reported')
   })
 
+  test('rates on the Fed: the US holdings, not euro cash (31 Oct, "why we show this")', () => {
+    const m = weekMoney('rates', ['fed', 'mkt-us10y', 'us-2y'], input())
+    expect(m?.chips.map((c) => c.symbol)).toEqual([
+      'VUAA.L',
+      'GOOGL',
+      'MSFT',
+      'META',
+    ])
+    expect(m?.total).toBe('€16,380 · 87% of investments in the US')
+    /* The ECB named too: euro cash, as before. */
+    expect(weekMoney('rates', ['fed', 'ecb'], input())?.total).toBe(
+      'follows the ECB rate',
+    )
+  })
+
+  test('crash: the named companies held, else none held', () => {
+    const m = weekMoney('crash', ['mov-RDDT', 'mov-GOOGL', 'mov-INTC'], input())
+    expect(m?.chips.map((c) => c.symbol)).toEqual(['GOOGL'])
+    expect(m?.total).toBe('€1,240 in these companies')
+    expect(weekMoney('crash', ['mov-RDDT'], input())).toEqual({
+      chips: [],
+      total: 'none held',
+      zero: true,
+    })
+  })
+
   test('earn: none reported is a grey row', () => {
     const m = weekMoney('earn', [], input({ reported: new Set() }))
     expect(m).toEqual({

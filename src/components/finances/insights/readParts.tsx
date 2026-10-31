@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 
+import { DrawnMark, Flag } from './Flag'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { MARKETS } from '@/lib/insightsMarket'
 import type { Fact, Kind, Tone } from '@/lib/marketRead'
@@ -177,7 +178,8 @@ export function FactMark({ k }: { k: string }) {
     if (m && 'site' in m)
       return <AccountLogo name={m.site} domain={m.site} size={18} />
     if (m && 'coin' in m) return <TickerLogo symbol={m.coin} size={18} />
-    if (m && 'metal' in m) return <TickerLogo symbol={m.metal} size={18} />
+    if (m && 'flag' in m) return <Flag code={m.flag} size={18} />
+    if (m && 'icon' in m) return <DrawnMark icon={m.icon} size={18} />
     return <Tinted n="chart" />
   }
   if (k.startsWith('co-') || k.startsWith('pos-'))

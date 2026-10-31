@@ -66,6 +66,7 @@ export const marketReadBody = v.object({
         line: v.string(),
         factKeys: v.array(v.string()),
         move: v.union(v.object({ ticker: v.string() }), v.null()),
+        why: v.optional(v.string()),
       }),
     ),
   ),

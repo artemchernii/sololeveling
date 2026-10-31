@@ -195,7 +195,7 @@ describe('the whole market (31 Oct)', () => {
   })
 
   test('a story of companies keeps six keys, any other three; why is kept', () => {
-    const keys = facts.map((f) => f.key)
+    const all = facts.map((f) => f.key)
     const w = parseWeek(
       {
         week: [
@@ -203,7 +203,7 @@ describe('the whole market (31 Oct)', () => {
             kind: 'crash',
             title: 'Four names fell',
             line: '',
-            factKeys: keys,
+            factKeys: all,
             move: '',
             why: 'Big falls in one week often come from results.',
           },
@@ -217,7 +217,7 @@ describe('the whole market (31 Oct)', () => {
           },
         ],
       },
-      keys,
+      all,
     )
     expect(w.week[0].factKeys).toHaveLength(6)
     expect(w.week[0].why).toBe('Big falls in one week often come from results.')

@@ -1,12 +1,18 @@
 name: e2e
 
-# The full browser suite, on every PR, so it never runs on Artem's Mac (31
-# Oct: two sessions' full runs at once took 40 minutes while he waited).
+# The full browser suite, off his Mac (31 Oct: two sessions' full runs at
+# once took 40 minutes while he waited). Not on PRs: on GitHub's runners a
+# shard took over 20 minutes, and he chose "nightly please, lets make
+# development faster for real". Once a night on master, and by hand from
+# the Actions tab (Run workflow). It never blocks a merge.
 # Each shard starts its own throwaway Convex backend and app, exactly as
 # `pnpm e2e` does locally — four backends, four copies of the test user's
 # data, so the shards never reset each other.
 on:
-  pull_request:
+  schedule:
+    # 03:00 UTC, while he sleeps.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +22,7 @@ jobs:
   e2e:
     name: e2e ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     strategy:
       # A red shard should not hide what the other three found.
       fail-fast: false
@@ -25,8 +31,7 @@ jobs:
     env:
       # No TZ here: the Convex backend refuses to start with TZ set. The
       # browser and the test workers get Lisbon in playwright.config.ts.
-      # A fresh runner's first boot of the local backend passed the CLI's
-      # 30 s default (31 Oct).
+      # Room for a fresh runner's first boot of the local backend.
       CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS: 120
     steps:
       - uses: actions/checkout@v5

@@ -423,14 +423,18 @@ These are rules, not advice.
      Oct), and only the spec files the journey map
      names for the screens touched
      (`pnpm exec playwright test e2e/<file>`). About two minutes.
-   - **The full e2e runs on GitHub, on the PR** (31 Oct: two chats' full
-     runs at once took 40 minutes while he waited — "stupid to run 1h
-     tests after small fucking changes"). `.github/workflows/e2e.yml`
-     splits it into four shards; GitHub also runs typecheck, lint,
-     format, every unit test and the build. Never run `pnpm e2e` whole
-     on his Mac. `pnpm verify` (everything but e2e) is the local check
-     before a slice's push, in the background.
-   - Red means no merge. A red shard's report and traces are the run's
+   - **The full e2e runs on GitHub, nightly — not on PRs** (31 Oct: two
+     chats' full runs at once took 40 minutes while he waited — "stupid
+     to run 1h tests after small fucking changes"; on PRs a GitHub shard
+     took over 20 minutes, and he chose "nightly please, lets make
+     development faster for real"). `.github/workflows/e2e.yml` runs it
+     at 03:00 UTC on master in four shards, and by hand from the Actions
+     tab. It never blocks a merge; a red night is fixed like any bug.
+     Never run `pnpm e2e` whole on his Mac. On the PR GitHub runs
+     typecheck, lint, format, every unit test and the build.
+     `pnpm verify` (everything but e2e) is the local check before a
+     slice's push, in the background.
+   - Red means no merge. A red night's report and traces are the run's
      artifacts (`gh run download`).
 3. **Tests run on mock data only** — the `e2e` skill. Never press a
    write on his real account to check something.

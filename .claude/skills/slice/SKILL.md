@@ -69,8 +69,8 @@ While building, run the short loop: `pnpm typecheck && pnpm lint`,
 `pnpm exec vitest related <changed files>`, and only this slice's spec
 files (`pnpm exec playwright test e2e/<file>`). When the branch is
 final, run `pnpm verify` once in the background (everything but e2e).
-The full e2e runs on GitHub on the PR, in four shards — never whole on
-his Mac. Look at every screenshot in `e2e/screens/`
+The full e2e runs on GitHub nightly on master, in four shards — never
+whole on his Mac, never on the PR. Look at every screenshot in `e2e/screens/`
 against the mockup — layout, words, motion. Fix before he sees it.
 Update `docs/journeys/<area>.md` with the path the slice touches.
 

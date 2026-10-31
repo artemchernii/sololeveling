@@ -6,10 +6,11 @@ description: Writing and running SOLO LEVELING browser tests (Playwright) on the
 # e2e on mock data
 
 - Run: `pnpm exec playwright test e2e/<file>` while building — only the
-  spec files the change touches. The full suite runs on GitHub on every
-  PR (`.github/workflows/e2e.yml`, four shards, Clerk keys from the
-  `E2E_CLERK_*` Actions secrets); never run `pnpm e2e` whole on his Mac.
-  A red shard: `gh run download <run id>` gets its report and traces.
+  spec files the change touches. The full suite runs on GitHub nightly
+  on master and by hand (`gh workflow run e2e.yml`; `.github/workflows/e2e.yml`,
+  four shards, Clerk keys from the `E2E_CLERK_*` Actions secrets); never
+  run `pnpm e2e` whole on his Mac. A red shard: `gh run download <run id>`
+  gets its report and traces.
   Starts the test backend (`e2e/backend`) and the app on this checkout's
   own ports (`e2e/ports.ts`; `node e2e/ports.ts` prints them), so two
   worktrees run at the same time. Each has its own test data

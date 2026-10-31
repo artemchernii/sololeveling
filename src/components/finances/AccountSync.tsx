@@ -133,7 +133,7 @@ export function DayHead({
       {line && line.outCount > 0 ? (
         <span
           data-testid="day-out"
-          className="font-mono text-[10px] whitespace-nowrap text-ink-500"
+          className="font-mono text-[10px] tracking-[0.1em] whitespace-nowrap text-ink-500 uppercase"
         >
           {line.outCount} out <Veiled>{fmt(line.outSum, line.currency)}</Veiled>
         </span>

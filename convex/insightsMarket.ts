@@ -29,6 +29,7 @@ import {
   parseEcb,
   parseEurostat,
   parseFred,
+  parseFredCpi,
   parseFredMonthly,
 } from '../src/lib/insightsRates'
 import type { Inflation, Policy } from '../src/lib/insightsRates'
@@ -201,7 +202,7 @@ async function readRates(now: number): Promise<Array<Rate>> {
           `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${encodeURIComponent(key)}&file_type=json&observation_start=${twoYears}`,
         )
       : Promise.resolve(null)
-  const [bls, euro, ecb, fedHigh, fedLow, jobs, us2y] = await Promise.all([
+  const [bls, euro, ecb, fedHigh, fedLow, jobs, us2y, cpi] = await Promise.all([
     getJson('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -221,10 +222,11 @@ async function readRates(now: number): Promise<Array<Rate>> {
     fred('DFEDTARL'),
     fred('UNRATE'),
     fred('DGS2'),
+    fred('CPIAUCNSL'),
   ])
   const today = day(now)
   return rateCards({
-    us: parseBls(bls),
+    ...usCpi(bls, cpi),
     euro: parseEurostat(euro),
     ecb: parseEcb(ecb),
     fedHigh: parseFred(fedHigh),
@@ -235,9 +237,20 @@ async function readRates(now: number): Promise<Array<Rate>> {
   })
 }
 
+/** US inflation from BLS, else the same series from FRED, named as such. */
+function usCpi(bls: unknown, fred: unknown) {
+  const direct = parseBls(bls)
+  if (direct) return { us: direct, usSource: BLS_SOURCE }
+  const copy = parseFredCpi(fred)
+  return copy
+    ? { us: copy, usSource: `${BLS_SOURCE} · ${FRED_SOURCE}` }
+    : { us: null, usSource: BLS_SOURCE }
+}
+
 /** The four cards from what was read; a source that gave nothing is not reached. */
 export function rateCards(r: {
   us: Inflation | null
+  usSource?: string
   euro: Inflation | null
   ecb: Policy | null
   fedHigh: Policy | null
@@ -266,7 +279,7 @@ export function rateCards(r: {
       : { ...none, id, source, reached: false }
   const fed = r.fedHigh && r.fedLow
   return [
-    inflation('us-cpi', BLS_SOURCE, r.us),
+    inflation('us-cpi', r.usSource ?? BLS_SOURCE, r.us),
     inflation('eu-hicp', EUROSTAT_SOURCE, r.euro),
     fed
       ? {

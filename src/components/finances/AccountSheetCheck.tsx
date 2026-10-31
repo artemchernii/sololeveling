@@ -39,34 +39,20 @@ const OPT_QUIET = `${OPT} bg-lift/[0.03] ring-lift/15`
 const OPT_LOUD = `${OPT} bg-lav-400/15 ring-lav-400/50`
 
 /** Under the amount: do the rows reach the balances? */
-export function BalanceTick({
-  data,
-  fallback,
-}: {
-  data: SheetData | null | undefined
-  /** What the line says while there is nothing to check. */
-  fallback: string
-}) {
+export function BalanceTick({ data }: { data: SheetData | null | undefined }) {
   const gap = data?.checks.find((c) => c.missing !== 0)
   if (gap)
     return (
-      <span className="font-mono text-[11px] text-state-warn">
+      <span
+        data-testid="no-row-warn"
+        className="font-mono text-[11px] text-state-warn"
+      >
         <Veiled>{fmt(Math.abs(gap.missing), gap.currency)}</Veiled> has no row
       </span>
     )
-  if (data && data.checks.length > 0)
-    return (
-      /* A tick, no words (31 Oct: "row match do we need this text?"):
-         the day it holds from is its title. */
-      <span
-        data-testid="rows-match"
-        title={`rows match · since ${short(dayOf(data, Math.min(...data.checks.map((c) => c.from))), true)}`}
-        className="grid size-5 place-items-center rounded-full bg-state-good/14 text-state-good"
-      >
-        <Tick className="motion-pop size-3" strokeWidth={3} />
-      </span>
-    )
-  return <span className="font-mono text-[11px] text-ink-400">{fallback}</span>
+  /* Nothing when it adds up (31 Oct: "that checked logo is random"): the
+     sheet speaks only when a row is missing. */
+  return null
 }
 
 type Added = {

@@ -3,6 +3,7 @@
    Google's icon service, as before. */
 
 export const SAVED_LOGOS: ReadonlySet<string> = new Set([
+  '100montaditos.com',
   'activobank.pt',
   'airbnb.com',
   'aldi.pt',

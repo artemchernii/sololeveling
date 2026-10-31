@@ -149,7 +149,6 @@ function Ledger({
         ? null
         : { ...head, rows: page.rows }
   const unseen = useUnseen(account._id)
-  const tails = account.ibanTails?.[0] ? ` · ••${account.ibanTails[0]}` : ''
 
   return (
     <div className="flex flex-col gap-4">
@@ -164,26 +163,12 @@ function Ledger({
               <KindBadge key={k} kind={k} />
             ))}
           </span>
-          {/* Not the card's freshness line (31 Oct: "USD from the bank
-              today????"): the pill says when the bank answered. */}
-          {tails ? (
-            <span className="font-mono text-[11px] text-ink-400">
-              {tails.replace(' · ', '')}
-            </span>
-          ) : null}
         </span>
         <span className="flex flex-col items-end gap-1">
           <span className="text-[30px] leading-none font-light tracking-tight text-foreground">
             <Veiled>{fmt(total)}</Veiled>
           </span>
-          <BalanceTick
-            data={data}
-            fallback={
-              account.kinds.includes('broker')
-                ? 'cash and shares'
-                : `free cash · ${account.currencies.join(' · ')}`
-            }
-          />
+          <BalanceTick data={data} />
         </span>
       </div>
 

@@ -19,6 +19,7 @@ const SITES: ReadonlyArray<readonly [string, string]> = [
   ['minipreco', 'minipreco.pt'],
   ['el corte ingles', 'elcorteingles.pt'],
   ['celeiro', 'celeiro.pt'],
+  ['100 montaditos', '100montaditos.com'],
   /* Fuel and getting around */
   ['bp', 'bp.com'],
   ['galp', 'galp.com'],

@@ -36,7 +36,7 @@ const BADGE =
   'inline-flex items-center gap-1 rounded-full px-2 py-[3px] font-mono text-[9.5px] font-bold tracking-[0.1em] whitespace-nowrap uppercase ring-1 ring-inset'
 
 function range(t: Target | undefined) {
-  if (t === undefined) return 'target · not set'
+  if (t === undefined) return ''
   if (t.min === t.max) return `target ${euros(t.min)}`
   if (t.min === 0) return `target up to ${euros(t.max)}`
   return `target ${euros(t.min)}–${euros(t.max)}`

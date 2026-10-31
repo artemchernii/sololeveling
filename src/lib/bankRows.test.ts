@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { bankRow, dateFrom, rowsSince } from './bankRows'
+import { askFrom, bankRow, dateFrom, rowsSince } from './bankRows'
 import type { BankTx } from './bankRows'
 
 const NOW = Date.UTC(2026, 9, 12, 20)
@@ -87,4 +87,36 @@ test('booked rows from the held balance on, every pending one; newest first', ()
     NOW,
   )
   expect(rows.map((r) => r.amount)).toEqual([-25, -9, -3, -4])
+})
+
+test('a booked row an earlier reading had as pending is taken however old; the bank is asked from its day', () => {
+  /* His Revolut: pending on the 24 Oct reading, booked under 23 Oct. */
+  const at = Date.UTC(2026, 9, 23, 12)
+  const heldAt = Date.UTC(2026, 9, 31, 12, 26)
+  const now = heldAt + 3_600_000
+  const list: Array<BankTx> = [
+    {
+      status: 'BOOK',
+      amount: '15.00',
+      currency: 'EUR',
+      indicator: 'DBIT',
+      bookingDate: '2026-10-23',
+      remittance: ['Watashi'],
+    },
+    {
+      status: 'BOOK',
+      amount: '9.00',
+      currency: 'EUR',
+      indicator: 'DBIT',
+      bookingDate: '2026-10-23',
+      remittance: ['Other'],
+    },
+  ]
+  const was = [{ amount: -15, at }]
+  expect(rowsSince(list, heldAt, now).map((r) => r.merchant)).toEqual([])
+  expect(rowsSince(list, heldAt, now, was).map((r) => r.merchant)).toEqual([
+    'Watashi',
+  ])
+  expect(askFrom(heldAt, was)).toBe(dateFrom(at))
+  expect(askFrom(heldAt, [])).toBe(dateFrom(heldAt))
 })

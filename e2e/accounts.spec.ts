@@ -69,7 +69,7 @@ test('account sheet with many rows: 60 first, older on a press, the year on last
   const rows = sheet.locator('div.group')
   expect(await rows.count()).toBeLessThanOrEqual(60)
   /* The check is over rows that are not on screen. */
-  await expect(sheet.getByText(/rows match · since/)).toBeVisible()
+  await expect(sheet.getByTestId('no-row-warn')).toHaveCount(0)
   await expect(sheet.getByText('Coffee 200', { exact: true })).toHaveCount(0)
   await page.screenshot(shot('account-sheet-many'))
 

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · a clean account list</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* An opened account, 31 Oct. Artem on the Revolut window: "we have this
+     huge blocks and now 2 blocks... they are taking so much space". Left:
+     the sheet as built (a sync = BALANCE card around a Synced card).
+     Right: an ordinary sync is one line, a row's height; a card stays only
+     when something needs a look. Balances invented (public repo); the
+     payees are his Revolut week. Light theme, as on his screen. */
+  :root {
+    --bg: #e9e5df; --panel: #f3f0ea; --card: #e7e3ec; --inner: #d8d4d9;
+    --ink-100: #1b1a24; --ink-300: #4a4858; --ink-400: #6c6a7a; --ink-500: #8b8997;
+    --lav: #6b5fd6; --lav-soft: rgba(107,95,214,.10); --lav-edge: rgba(107,95,214,.28);
+    --good: #2f8f5b; --good-soft: rgba(47,143,91,.12); --warn: #b7791f; --danger: #c2413a; --danger-soft: rgba(194,65,58,.10);
+    --edge: rgba(27,26,36,.10); --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .top { display: flex; gap: 6px; justify-content: center; padding: 18px 16px 0; flex-wrap: wrap }
+  .top button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--edge); background: none; color: var(--ink-400) }
+  .top button.on { color: var(--ink-100); background: var(--lav-soft); border-color: var(--lav-edge) }
+  .cols { display: flex; gap: 24px; justify-content: center; padding: 18px 16px 60px; flex-wrap: wrap; align-items: flex-start }
+  .col { width: 520px; max-width: 100% }
+  .lab { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--ink-500); text-align: center; margin-bottom: 10px }
+  .sheet { border-radius: 26px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 24px 60px -24px rgba(0,0,0,.35); overflow: hidden }
+  .shead { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--edge) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .4em; color: var(--lav) }
+  .close { width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--edge); background: none; display: grid; place-items: center; color: var(--ink-300) }
+  .body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px }
+  .acct { display: flex; gap: 14px; align-items: flex-start }
+  .alogo { width: 44px; height: 44px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex: none; font-weight: 700; font-size: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.15) }
+  .alogo.sm { width: 30px; height: 30px; border-radius: 8px; font-size: 16px }
+  .aname { flex: 1; display: flex; flex-direction: column; gap: 5px }
+  .aname b { font-size: 18px; font-weight: 500 }
+  .tags { display: flex; gap: 5px }
+  .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--edge); color: var(--ink-400) }
+  .sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
+  .total { text-align: right }
+  .total b { font-size: 26px; font-weight: 300; letter-spacing: -.02em }
+  .total .ok { font-family: var(--mono); font-size: 10.5px; color: var(--good); display: block; margin-top: 4px }
+  .count { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--ink-400) }
+  /* as built */
+  .bal { border-radius: 14px; border: 1px solid var(--lav-edge); background: var(--card); padding: 12px }
+  .bal .h { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--lav); margin-bottom: 10px }
+  .bal .h b { font-size: 13px; letter-spacing: 0; color: var(--ink-100); font-weight: 500 }
+  .syn { border-radius: 10px; background: var(--inner); padding: 10px 12px; display: flex; gap: 10px; align-items: center }
+  .syn .t { flex: 1; display: flex; flex-direction: column; gap: 5px }
+  .syn .t span:first-child { display: flex; gap: 6px; align-items: center; font-size: 13px }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap }
+  .chip { white-space: nowrap; font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; padding: 2px 7px; border-radius: 999px; background: rgba(27,26,36,.07); color: var(--ink-400) }
+  .chip.good { background: var(--good-soft); color: var(--good) }
+  .chip.bad { background: var(--danger-soft); color: var(--danger) }
+  .open { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--lav) }
+  .day { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-400); margin-top: 4px }
+  .row { display: flex; gap: 10px; align-items: center; min-height: 40px }
+  .ico { width: 28px; height: 28px; border-radius: 8px; background: rgba(27,26,36,.06); display: grid; place-items: center; color: var(--ink-300); flex: none }
+  .row .n { flex: 1; display: flex; flex-direction: column; gap: 2px }
+  .row .n small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
+  .row .a { font-family: var(--mono); font-size: 13px }
+  /* the line */
+  .line { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; margin: 0 -10px; border-radius: 10px; border-top: 1px dashed var(--lav-edge); border-bottom: 1px dashed var(--lav-edge); background: linear-gradient(90deg, var(--lav-soft), transparent 70%) }
+  .line .lk { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--lav); display: flex; gap: 6px; align-items: center; white-space: nowrap }
+  .line .lk svg { color: var(--lav) }
+  .line .when { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); white-space: nowrap }
+  .line .sp { flex: 1 }
+  .line .v { font-family: var(--mono); font-size: 12.5px; font-weight: 500 }
+  .line .open { margin-left: 4px }
+  .line.new { animation: land 900ms ease-out }
+  @keyframes land { from { background-color: rgba(47,143,91,.18) } to { background-color: transparent } }
+  /* a card that stays: something needs a look */
+  .bal.look { border-color: rgba(194,65,58,.35) }
+  .bal.look .h { color: var(--danger) }
+  .strip { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--lav); padding: 8px 0; border-bottom: 1px solid var(--edge) }
+  .strip.bad { color: var(--danger) }
+  .strip .sp { flex: 1 }
+  .dayh { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-400); margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--edge) }
+  .strip + .dayh { border-top: 0 }
+  .dayh span:last-child { letter-spacing: 0; color: var(--ink-500) }
+  .row .a .dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: var(--good); margin-right: 7px; vertical-align: middle; box-shadow: 0 0 6px var(--good) }
+  /* polished clean list */
+  .sync { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--lav-edge); background: linear-gradient(100deg, rgba(107,95,214,.13), rgba(107,95,214,.03) 70%) }
+  .sync .alogo.sm { width: 30px; height: 30px; font-size: 16px }
+  .sync .st { flex: 1; display: flex; flex-direction: column; gap: 2px }
+  .sync .st b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--lav); font-weight: 600; display: flex; gap: 6px; align-items: center }
+  .sync .st span { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .sync .spin { animation: spin 1.2s ease-out 1 }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .alert { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(194,65,58,.32); background: var(--danger-soft); color: var(--danger); font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em }
+  .alert .sp { flex: 1 }
+  .alert b { font-weight: 600 }
+  .dh { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 0 2px }
+  .dh .d { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--ink-300); font-weight: 600 }
+  .dh .o { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .dh .sp { flex: 1; height: 1px; background: var(--edge) }
+  .dh .b { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .dh .b i { font-style: normal; letter-spacing: .14em; font-size: 9px; margin-right: 6px }
+  .tx { display: flex; align-items: center; gap: 12px; padding: 9px 8px; margin: 0 -8px; border-radius: 12px; transition: background .15s }
+  .tx:hover { background: rgba(27,26,36,.04) }
+  .tile { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; overflow: hidden }
+  .tile img { width: 100%; height: 100%; object-fit: cover; background: #fff }
+  .tile.food { background: rgba(214,120,40,.14); color: #c4661f }
+  .tile.move { background: rgba(27,26,36,.06); color: var(--ink-300) }
+  .tile svg.i { width: 17px; height: 17px }
+  .tx .n { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+  .tx .n b { font-weight: 500; font-size: 14px }
+  .tx .n small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); letter-spacing: .04em }
+  .tx .a { font-family: var(--mono); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px }
+  .tx .a.in { color: var(--good) }
+  .tx .new { width: 7px; height: 7px; border-radius: 999px; background: var(--good); box-shadow: 0 0 0 0 rgba(47,143,91,.5); animation: ping 1.6s ease-out 2 }
+  @keyframes ping { to { box-shadow: 0 0 0 8px rgba(47,143,91,0) } }
+  .tx.landed { animation: land 1.4s ease-out }
+  .note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); text-align: center; margin-top: 12px; letter-spacing: .08em }
+  @media (max-width: 600px) { .line .when { display: none } }
+</style>
+</head>
+<body>
+<div class="top" id="scen">
+  <button data-s="week" class="on">HIS WEEK</button>
+  <button data-s="look">ONE NEEDS A LOOK</button>
+  <button data-v="before">BEFORE</button>
+</div>
+<div class="cols">
+  <div class="col"><div id="sheet"></div></div>
+</div>
+<script>
+const I = {
+  sync: '<svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/></svg>',
+  fork: '<svg class="i" viewBox="0 0 24 24"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 22V2c2 1 3 4 3 7s-1 4-3 4"/></svg>',
+  up: '<svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+  x: '<svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+}
+const eur = (n) => (n < 0 ? '−' : '') + '€' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2 })
+/* a sync: day, time, balance, chips [text, tone], open */
+const WEEK = [
+  { s: ['31 OCT', '12:36', 1240.0, [['5 NEW', 'good']], true] },
+  { s: ['24 OCT', '11:14', 1240.0, [['3 WAS PENDING', '']], false] },
+  { d: 'FRI 23 OCT', rows: [['fork', 'Ori Asian Food', 'eating out', -13.9], ['up', '100 Montaditos', '', -2.5], ['up', 'Watashi', '', -15]] },
+  { s: ['21 OCT', '14:03', 1271.4, [['2 SAVED', '']], true] },
+  { d: 'WED 21 OCT', rows: [['fork', 'Bnp Toc', 'eating out', -6.7]] },
+  { s: ['20 OCT', '21:28', 1278.1, [['1 SAVED', ''], ['1 WAS PENDING', '']], true] },
+  { d: 'TUE 20 OCT', rows: [['up', '100 Montaditos', '', -4]] },
+]
+const MONTH = [
+  ...['31 OCT', '30 OCT', '29 OCT', '28 OCT', '27 OCT', '26 OCT', '25 OCT'].map((d, i) => ({ s: [d, ['12:36', '16:26', '15:44', '21:05', '09:00', '09:00', '12:47'][i], 1240.0, i === 0 ? [['5 NEW', 'good']] : [], i === 0] })),
+  ...WEEK.slice(1),
+]
+const LOOK = [
+  { s: ['31 OCT', '12:36', 1240.0, [['5 NEW', 'good']], true] },
+  { look: ['30 OCT', '16:26', 1240.0, [['2 IN THE FILE · 3 IN THE ACCOUNT', 'bad'], ['MISSING €6.00', 'bad']]] },
+  ...WEEK.slice(1),
+]
+const head = (n) => `<div class="sheet"><div class="shead"><span class="title">[ REVOLUT ]</span><button class="close">${I.x}</button></div><div class="body">
+  <div class="acct"><span class="alogo">R</span><span class="aname"><b>Revolut</b><span class="tags"><span class="tag">BANK</span><span class="tag">BROKER</span></span><span class="sub">EUR from the bank today · ••0000</span></span>
+  <span class="total"><b>€1,240.00</b><span class="ok">✓ rows match · since 27 Sept 2026</span></span></div>
+  <div class="count">${n} ROWS · 19 FILES · NEWEST FIRST</div>`
+const chip = ([t, k]) => `<span class="chip ${k}">${k === 'good' ? '● ' : ''}${t}</span>`
+const chips = (c) => `<span class="chips">${c.map(chip).join('')}</span>`
+const rows = (x) => `<div class="day">${x.d}</div>${x.rows.map(([ic, n, w, a]) => `<div class="row"><span class="ico">${I[ic]}</span><span class="n">${n}${w ? `<small>${w}</small>` : ''}</span><span class="a">${eur(a)}</span></div>`).join('')}`
+const card = ([d, t, v, c, open], look) => `<div class="bal ${look ? 'look' : ''}"><div class="h"><span>BALANCE · ${d}</span><b>${eur(v)}</b></div><div class="syn"><span class="alogo sm">R</span><span class="t"><span>${I.sync} Synced with bank</span><span class="chips"><span class="chip">${d} · ${t}</span>${c.map(chip).join('')}</span></span>${open ? '<span class="open">OPEN ›</span>' : ''}</div></div>`
+const line = ([d, t, v, c, open], first) => `<div class="line ${first ? 'new' : ''}"><span class="lk">${I.sync} SYNCED · ${d}</span><span class="when">${t}</span>${chips(c)}<span class="sp"></span><span class="v">${eur(v)}</span>${open ? '<span class="open">OPEN ›</span>' : ''}</div>`
+/* Clean: day headers with that day's last balance, the rows, nothing
+   between them. One strip says the last sync; a row it saved has a green
+   dot. Something to check is one red strip on top, never a card in the list. */
+const SITE = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=64`
+/* his Revolut week as rows: [tile, name, words, amount, new] */
+const DAYS = [
+  ['FRI 23 OCT', 1240.0, [['food', 'Ori Asian Food', 'eating out', -13.9, 1], ['100montaditos.com', '100 Montaditos', 'eating out', -2.5, 1], ['food', 'Watashi', 'eating out', -15, 1]]],
+  ['WED 21 OCT', 1271.4, [['food', 'Bnp Toc', 'eating out', -6.7, 0]]],
+  ['TUE 20 OCT', 1278.1, [['100montaditos.com', '100 Montaditos', 'eating out', -4, 0]]],
+]
+const tile = (t) =>
+  t === 'food' ? `<span class="tile food">${I.fork}</span>`
+  : t === 'move' ? `<span class="tile move">${I.up}</span>`
+  : `<span class="tile"><img src="${SITE(t)}" alt=""></span>`
+function clean(list, look) {
+  return head(3777) +
+    (look ? `<div class="alert">${I.x}<b>MISSING €6.00</b> · 30 OCT · 2 IN THE FILE · 3 IN THE ACCOUNT<span class="sp"></span><span>CHECK ›</span></div>` : '') +
+    `<div class="sync"><span class="alogo sm">R</span><span class="st"><b><span class="spin" style="display:inline-flex">${I.sync}</span> SYNCED WITH BANK</b><span>31 OCT · 12:36</span></span><span class="chip good">● 5 NEW</span><span class="open">ALL ›</span></div>` +
+    DAYS.map(([d, bal, rs]) => {
+      const out = rs.filter((r) => r[3] < 0)
+      const sum = out.reduce((t, r) => t + r[3], 0)
+      return `<div class="dh"><span class="d">${d}</span><span class="o">${out.length} OUT ${eur(sum)}</span><span class="sp"></span><span class="b"><i>BALANCE</i>${eur(bal)}</span></div>` +
+        rs.map(([t, n, w, a, nw]) => `<div class="tx ${nw ? 'landed' : ''}">${tile(t)}<span class="n"><b>${n}</b><small>${w}</small></span><span class="a ${a > 0 ? 'in' : ''}">${nw ? '<span class="new"></span>' : ''}${a > 0 ? '+' : ''}${eur(a)}</span></div>`).join('')
+    }).join('') +
+    '</div></div>'
+}
+function before(list) {
+  return head(3777) + list.map((x) => (x.s ? card(x.s) : x.look ? card([...x.look, true], true) : rows(x))).join('') + '</div></div>'
+}
+let scene = 'week', old = false
+function draw() {
+  const list = scene === 'look' ? LOOK : WEEK
+  document.getElementById('sheet').innerHTML = old ? before(list) : clean(list, scene === 'look')
+}
+document.getElementById('scen').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  if (b.dataset.v) { old = !old; b.classList.toggle('on', old) }
+  else { scene = b.dataset.s; document.querySelectorAll('#scen [data-s]').forEach((x) => x.classList.toggle('on', x === b)) }
+  draw()
+}
+draw()
+</script>
+</body>
+</html>

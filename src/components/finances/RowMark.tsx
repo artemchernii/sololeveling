@@ -50,6 +50,25 @@ const GROUP_ICON: Record<string, LucideIcon> = {
   freelance: Laptop,
 }
 
+/* Each group's own colour (tokens.css 12, 31 Oct): what it is, never how
+   much. A group not here keeps the plain tile. */
+const GROUP_TONE: Record<string, string> = {
+  groceries: 'var(--grp-groceries)',
+  'eating out': 'var(--grp-eating)',
+  transport: 'var(--grp-transport)',
+  car: 'var(--grp-transport)',
+  home: 'var(--grp-home)',
+  phone: 'var(--grp-bills)',
+  subscriptions: 'var(--grp-bills)',
+  services: 'var(--grp-bills)',
+  fees: 'var(--grp-bills)',
+  health: 'var(--grp-health)',
+  fun: 'var(--grp-fun)',
+  shopping: 'var(--grp-shopping)',
+  clothes: 'var(--grp-shopping)',
+  travel: 'var(--grp-travel)',
+}
+
 export function RowMark({
   name,
   category,
@@ -69,19 +88,29 @@ export function RowMark({
   if (site !== null)
     return <AccountLogo name={name} domain={site} size={size} />
   const Icon = category === null ? undefined : GROUP_ICON[category]
+  const tone = category === null ? undefined : GROUP_TONE[category]
   if (Icon === undefined) return <>{children}</>
   return (
     <span
       data-group={category}
       title={category ?? undefined}
-      style={{ width: size, height: size, borderRadius: size / 3.2 }}
+      style={
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 3.2,
+          '--g': tone,
+        } as React.CSSProperties
+      }
       className={`grid shrink-0 place-items-center ${
         income
           ? 'bg-state-good/14 text-state-good'
-          : 'bg-lift/[0.07] text-ink-200'
+          : tone
+            ? 'bg-(--g)/16 text-(--g)'
+            : 'bg-lift/[0.07] text-ink-200'
       }`}
     >
-      <Icon className="size-3.5" />
+      <Icon className={size > 30 ? 'size-4' : 'size-3.5'} />
     </span>
   )
 }

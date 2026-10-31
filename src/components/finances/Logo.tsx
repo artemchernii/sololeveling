@@ -4,6 +4,7 @@ import { Banknote } from 'lucide-react'
 import { metalOf } from '@/lib/holdingLine'
 import { isCoin, isFullMark, logoSrc, shareFallback } from '@/lib/logo'
 import { payeeSite } from '@/lib/payeeSites'
+import { siteIcon } from '@/lib/logoFiles'
 
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
    logo comes from its own site's icon, by the domain he gave it; a ticker's
@@ -47,7 +48,7 @@ export function AccountLogo({
   }
   return (
     <img
-      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`}
+      src={siteIcon(domain)}
       alt=""
       aria-hidden
       referrerPolicy="no-referrer"
@@ -145,7 +146,10 @@ export function TickerLogo({
   /* A fund's mark is its issuer's site icon, which cannot be read for its
      colours (no CORS): asked for plainly, or it fails and shows letters
      (13 Oct: "why etfs dont have icons?"). */
-  const site = (src?.includes('/s2/favicons') ?? false) || full
+  const site =
+    (src?.includes('/s2/favicons') ?? false) ||
+    (src?.startsWith('/logos/') ?? false) ||
+    full
   const base = symbol.split(/[.-]/)[0]
   const box = {
     width: size,

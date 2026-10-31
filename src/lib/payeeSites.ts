@@ -5,6 +5,8 @@
    see, matched on whole words of the row's name; a payee not in it gets
    its two letters. Add a line here when one keeps showing letters. */
 
+import { FOUND } from './payeeSitesFound'
+
 const SITES: ReadonlyArray<readonly [string, string]> = [
   /* Groceries */
   ['continente', 'continente.pt'],
@@ -17,6 +19,7 @@ const SITES: ReadonlyArray<readonly [string, string]> = [
   ['minipreco', 'minipreco.pt'],
   ['el corte ingles', 'elcorteingles.pt'],
   ['celeiro', 'celeiro.pt'],
+  ['100 montaditos', '100montaditos.com'],
   /* Fuel and getting around */
   ['bp', 'bp.com'],
   ['galp', 'galp.com'],
@@ -130,7 +133,7 @@ const SITES: ReadonlyArray<readonly [string, string]> = [
 
 /* Longest name first, so "uber eats" is not "uber" and "prime video" is
    not "amazon". */
-const BY_LENGTH = [...SITES].sort((a, b) => b[0].length - a[0].length)
+const BY_LENGTH = [...SITES, ...FOUND].sort((a, b) => b[0].length - a[0].length)
 
 /** Lower case, accents and apostrophes gone, everything else a space. */
 function plain(name: string): string {

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useAction } from 'convex/react'
 import { CalendarClock } from 'lucide-react'
-import { GB } from 'country-flag-icons/react/3x2'
 
 import { Flag } from './Flag'
 import { Info, clock, dayWord } from './parts'
 import { api } from '../../../../convex/_generated/api'
 import type { ComingAnswer } from '../../../../convex/marketSources/coming'
-import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
+import { TickerLogo } from '@/components/finances/Logo'
 import { MACRO_NAME, comingDays } from '@/lib/coming'
 import type { MacroEvent, Reporter } from '@/lib/coming'
 
@@ -57,12 +56,7 @@ const monthBefore = (d: string) =>
   MONTHS[(Number(d.slice(5, 7)) + 10) % 12] ?? ''
 
 function MacroMark({ flag }: { flag: MacroEvent['flag'] }) {
-  if (flag !== 'GB') return <Flag code={flag} size={24} />
-  return (
-    <span className="ins-flag" style={{ width: 24, height: 24 }} data-flag="GB">
-      <GB title="" aria-hidden preserveAspectRatio="xMidYMid slice" />
-    </span>
-  )
+  return <Flag code={flag} size={24} />
 }
 
 function MacroChip({ e }: { e: MacroEvent }) {
@@ -85,11 +79,13 @@ function ReporterChip({ r }: { r: Reporter }) {
       data-testid="coming-results"
       data-symbol={r.symbol}
     >
-      {r.domain ? (
-        <AccountLogo name={r.name} domain={r.domain} size={24} />
-      ) : (
-        <TickerLogo symbol={r.symbol} name={r.name} size={24} />
-      )}
+      <TickerLogo
+        symbol={r.symbol}
+        type="EQUITY"
+        name={r.name}
+        domain={r.domain ?? undefined}
+        size={24}
+      />
       {r.name}
       {r.held ? <span className="ins-badge lav">HELD</span> : null}
       <span className="x2">

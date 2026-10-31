@@ -517,10 +517,10 @@ test('S9 COMING and MINE · THIS WEEK: the days ahead with flags and HELD; a car
   const boe = coming.locator('[data-testid=coming-macro][data-kind=boe]')
   await expect(boe).toContainText('Bank of England')
   await expect(boe).toContainText('RATE · 12:00')
-  await expect(boe.locator('[data-flag=GB] svg')).toHaveCount(1)
+  await expect(boe.locator('[data-flag=GB] img')).toHaveCount(1)
   const jobs = coming.locator('[data-testid=coming-macro][data-kind=jobs]')
   await expect(jobs).toContainText('US jobs report')
-  await expect(jobs.locator('[data-flag=US] svg')).toHaveCount(1)
+  await expect(jobs.locator('[data-flag=US] img')).toHaveCount(1)
   await expect(
     coming.locator('[data-testid=coming-macro][data-kind=ecb] [data-flag=EU]'),
   ).toHaveCount(1)

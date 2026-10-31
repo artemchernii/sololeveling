@@ -93,6 +93,15 @@ jobs:
             --instance-name diag --instance-secret "$(openssl rand -hex 32)" \
             --local-storage /tmp/cb/storage /tmp/cb/db.sqlite3 2>&1 | tail -40 || true
 
+      # The app's server runs in the Cloudflare dev runtime, which reads
+      # its keys from .env.local, not from the shell. Only the two Clerk
+      # keys, written to the throwaway runner, never printed.
+      - name: Write the Clerk keys for the app's server
+        env:
+          PK: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          SK: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+        run: printf 'VITE_CLERK_PUBLISHABLE_KEY=%s\nCLERK_SECRET_KEY=%s\n' "$PK" "$SK" > .env.local
+
       - name: Playwright, shard ${{ matrix.shard }}/4
         run: pnpm exec playwright test --shard=${{ matrix.shard }}/4
         env:

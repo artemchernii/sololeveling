@@ -25,6 +25,8 @@ import {
   dotsOf,
   fill,
   makeRoom,
+  price,
+  priceFormat,
   tint,
 } from '@/components/finances/chartSeries'
 import type { Main, Tone, View } from '@/components/finances/chartSeries'
@@ -33,7 +35,6 @@ import { drawLines, drawnIds } from '@/components/finances/lineSeries'
 import type { Drawn } from '@/components/finances/lineSeries'
 import { LineKeys, LineReads } from '@/components/finances/LineKeys'
 import type { LineId } from '@/lib/indicators'
-import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
 import {
   firstSince,
@@ -67,16 +68,6 @@ const DOT_REACH = 9
 const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
 /* With RSI 14's pane under the price (mockup indicators.html). */
 const PLOT_RSI = 'h-[390px] rounded-[14px] sm:h-[480px]'
-
-/* The price axis in the position's currency, for every line on it. */
-const priceFormat = (currency: string) => ({
-  type: 'custom' as const,
-  minMove: 0.01,
-  formatter: (p: number) => price(p, currency),
-})
-
-const price = (v: number, currency: string) =>
-  money(Math.round(v * 100) / 100, currency)
 
 /* A close in euros where the server worked one out, and the day's open,
    high, low and shares traded where it is stored as a bar

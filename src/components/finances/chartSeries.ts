@@ -14,6 +14,7 @@ import type {
   WhitespaceData,
 } from 'lightweight-charts'
 
+import { money } from '@/lib/currency'
 import { candleRows, seconds } from '@/lib/priceChart'
 import type { Mark, Pt } from '@/lib/priceChart'
 import { css } from '@/lib/tokenColour'
@@ -144,3 +145,14 @@ export function addVolume(c: IChartApi, pts: ReadonlyArray<Pt>) {
 
 export const makeRoom = (main: Main, volume: boolean) =>
   main.priceScale().applyOptions({ scaleMargins: volume ? WITH_VOLUME : ALONE })
+
+/** A price in the position's currency, to the cent. */
+export const price = (v: number, currency: string) =>
+  money(Math.round(v * 100) / 100, currency)
+
+/* The price axis in the position's currency, for every line on it. */
+export const priceFormat = (currency: string) => ({
+  type: 'custom' as const,
+  minMove: 0.01,
+  formatter: (p: number) => price(p, currency),
+})

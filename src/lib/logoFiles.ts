@@ -31,6 +31,7 @@ export const SAVED_LOGOS: ReadonlySet<string> = new Set([
   'cloudflare.com',
   'coinbase.com',
   'continente.pt',
+  'copenhagencoffeelab.com',
   'cp.pt',
   'ctt.pt',
   'decathlon.pt',

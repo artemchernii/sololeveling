@@ -340,7 +340,11 @@ function Plot({
     const ids = drawnIds(lines)
     const arrive = new Set(ids.filter((id) => !lit.current.includes(id)))
     lit.current = ids
-    return drawLines(c, pts, lines, priceFormat(currency), arrive)
+    const undraw = drawLines(c, pts, lines, priceFormat(currency), arrive)
+    /* Closing the page removes the chart first; its lines went with it. */
+    return () => {
+      if (chart.current === c) undraw()
+    }
   }, [lines, pts, view, currency])
 
   useEffect(() => {

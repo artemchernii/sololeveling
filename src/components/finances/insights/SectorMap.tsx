@@ -9,6 +9,7 @@ import {
   Zap,
 } from 'lucide-react'
 
+import { DrawnMark, Flag } from './Flag'
 import { Info, PeriodSwitch, signed } from './parts'
 import type { Answer } from './useMarket'
 import { TickerLogo } from '@/components/finances/Logo'
@@ -143,7 +144,11 @@ export function SectorMap({
           const c = shown?.regions.find((x) => x.id === r.id)?.change ?? null
           return (
             <div key={r.id} data-testid="region" className="ins-sr">
-              <span className="si ins-chip">{r.chip}</span>
+              {r.chip === 'EM' ? (
+                <DrawnMark icon="globe" size={26} />
+              ) : (
+                <Flag code={r.chip} size={26} />
+              )}
               <span className="nm">{r.name}</span>
               <Bar change={c} />
               <span className="pc" style={{ color: tone(c) }}>

@@ -31,7 +31,29 @@ export type Mark =
   | { coin: string }
 
 /** The flags the app draws (`Flag` in parts.tsx), ISO codes and EU. */
-export type FlagCode = 'US' | 'EU' | 'JP' | 'HK' | 'BR' | 'MX' | 'AR'
+export type FlagCode =
+  | 'US'
+  | 'CN'
+  | 'EU'
+  | 'JP'
+  | 'HK'
+  | 'BR'
+  | 'MX'
+  | 'AR'
+  | 'DK'
+  | 'FR'
+  | 'DE'
+  | 'CH'
+  | 'GB'
+  | 'NL'
+  | 'ES'
+  | 'IT'
+  | 'SE'
+  | 'TW'
+  | 'KR'
+  | 'IN'
+  | 'CL'
+  | 'PE'
 
 export type MarketId =
   | 'sp500'
@@ -138,7 +160,7 @@ export const REGIONS = [
   { id: 'emerging', name: 'Emerging', chip: 'EM', symbol: 'EEM' },
   { id: 'china', name: 'China', chip: 'CN', symbol: 'MCHI' },
   { id: 'brazil', name: 'Brazil', chip: 'BR', symbol: '^BVSP' },
-]
+] as const
 
 /** A row's bar from the zero line: its share of half the track, full at 12%. */
 export const zeroBar = (change: number) =>

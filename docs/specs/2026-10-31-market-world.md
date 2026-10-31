@@ -28,8 +28,9 @@ week that really influenced my holdings").
 3. **THE WEEK, whole market**: stories from market-wide facts (movers,
    reporters) — one EARNINGS story and one CRASHES story with a row per
    company, `52W LOW` / `BEAT` badges, ⓘ WHY IT MATTERS. Next.
-4. **OPPORTUNITIES**: DOWN FROM HIGH · CHEAP · TARGET ABOVE · BONDS · GOLD
-   · SILVER, stocks by region. Needs a CLAUDE.md rule before building.
+4. **OPPORTUNITIES** (built): DOWN FROM HIGH · CHEAP · TARGET ABOVE · BONDS
+   · GOLD · SILVER, stocks by region, by the rule in CLAUDE.md (his "yes,
+   the rule"). Icons on MARKET redone with it (his "icons are still bad").
 5. **COMING** (next 7 days: Finnhub earnings calendar, Fed/ECB/BoE, CPI,
    jobs) and **MINE · THIS WEEK** (cards for holdings that moved 5% or had
    news; the full table behind ▸).
@@ -43,6 +44,10 @@ week that really influenced my holdings").
   `$100.00 → $75.90`, its headline and publisher; a row with no headline
   has no line; ASIA not reached → `✕ NOT REACHED`; back to US from page
   memory. (`insights.spec` S7, `movers.test`)
+- S8 OPPORTUNITIES: READING, then ALL with NOVO-B.CO first (▼ 52.0%),
+  Broadcom HELD, ✕ ASIA NOT REACHED; US two rows; SOUTH AMERICA NONE;
+  CHEAP one row; BONDS with US 2Y not reached; GOLD · SILVER; ✦ fills
+  ASK. (`insights.spec` S8, `opportunities.test`)
 - US inflation from FRED when BLS gives nothing. (`insightsMarket.test`)
 
 ## Data

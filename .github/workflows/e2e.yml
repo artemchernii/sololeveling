@@ -1,0 +1,94 @@
+name: e2e
+
+# The full browser suite, on every PR, so it never runs on Artem's Mac (31
+# Oct: two sessions' full runs at once took 40 minutes while he waited).
+# Each shard starts its own throwaway Convex backend and app, exactly as
+# `pnpm e2e` does locally — four backends, four copies of the test user's
+# data, so the shards never reset each other.
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: e2e ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # A red shard should not hide what the other three found.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      # The specs count "today" in local midnights, written on his Mac in
+      # Lisbon; the runner's UTC would move days near midnight.
+      TZ: Europe/Lisbon
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Names only, never a value: the repo is public.
+      - name: Check the Clerk test secrets are set
+        env:
+          E2E_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          E2E_CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+        run: |
+          for name in E2E_CLERK_PUBLISHABLE_KEY E2E_CLERK_SECRET_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Actions secret $name is not set (Settings → Secrets and variables → Actions)"
+              exit 1
+            fi
+          done
+
+      - name: Cache the browser
+        id: browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - if: steps.browser.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - if: steps.browser.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      # The Convex CLI downloads the local backend binary on first start.
+      - name: Cache the Convex local backend
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/convex
+          key: convex-backend-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: convex-backend-${{ runner.os }}-
+
+      - name: Start the test backend once
+        run: pnpm e2e:setup
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+
+      - name: Playwright, shard ${{ matrix.shard }}/4
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/4
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            e2e/.results/
+            e2e/screens/
+          retention-days: 7

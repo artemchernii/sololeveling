@@ -9,8 +9,12 @@ import { assertFree, claimPorts } from './e2e/ports.ts'
    The app talks to the test backend, whatever .env.local points at;
    both run on this checkout's own ports (e2e/ports.ts). .env.local only
    adds the Clerk keys. */
+/* On GitHub the Clerk keys are Actions secrets, already in the
+   environment; there is no .env.local (31 Oct, the full run moved off
+   his Mac). */
+const ci = !!process.env.CI
 /* A new worktree has neither: say so, not ENOENT or a failed sign-in. */
-for (const need of ['.env.local', 'e2e/backend/.convex'])
+for (const need of [...(ci ? [] : ['.env.local']), 'e2e/backend/.convex'])
   if (!existsSync(need))
     throw new Error(
       `${need} is missing — run pnpm e2e:setup once in this checkout.`,
@@ -24,7 +28,7 @@ process.env.VITE_CONVEX_URL = `http://127.0.0.1:${ports.backend}`
 process.env.VITE_CONVEX_SITE_URL = `http://127.0.0.1:${ports.site}`
 /* Only the two Clerk keys come from .env.local — never its deployment
    (5 Oct: loading the whole file sent a test run's backend to his dev). */
-const local = parseEnv(readFileSync('.env.local', 'utf8'))
+const local = ci ? process.env : parseEnv(readFileSync('.env.local', 'utf8'))
 process.env.CLERK_SECRET_KEY = local.CLERK_SECRET_KEY
 process.env.CLERK_PUBLISHABLE_KEY = local.VITE_CLERK_PUBLISHABLE_KEY
 process.env.VITE_CLERK_PUBLISHABLE_KEY = local.VITE_CLERK_PUBLISHABLE_KEY
@@ -36,6 +40,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
+  /* On GitHub: the report and traces are uploaded when a shard fails. */
+  reporter: ci ? [['github'], ['html', { open: 'never' }]] : 'list',
   expect: { timeout: 15_000 },
   globalSetup: './e2e/global.setup.ts',
   use: {

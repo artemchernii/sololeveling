@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Treasury · a sync as one line</title>
+<title>Treasury · a clean account list</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   /* An opened account, 31 Oct. Artem on the Revolut window: "we have this
@@ -77,6 +77,13 @@
   /* a card that stays: something needs a look */
   .bal.look { border-color: rgba(194,65,58,.35) }
   .bal.look .h { color: var(--danger) }
+  .strip { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--lav); padding: 8px 0; border-bottom: 1px solid var(--edge) }
+  .strip.bad { color: var(--danger) }
+  .strip .sp { flex: 1 }
+  .dayh { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-400); margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--edge) }
+  .strip + .dayh { border-top: 0 }
+  .dayh span:last-child { letter-spacing: 0; color: var(--ink-500) }
+  .row .a .dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: var(--good); margin-right: 7px; vertical-align: middle; box-shadow: 0 0 6px var(--good) }
   .note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); text-align: center; margin-top: 12px; letter-spacing: .08em }
   @media (max-width: 600px) { .line .when { display: none } }
 </style>
@@ -84,12 +91,11 @@
 <body>
 <div class="top" id="scen">
   <button data-s="week" class="on">HIS WEEK</button>
-  <button data-s="month">A MONTH OF SYNCS</button>
   <button data-s="look">ONE NEEDS A LOOK</button>
+  <button data-v="before">BEFORE</button>
 </div>
 <div class="cols">
-  <div class="col"><div class="lab">NOW</div><div id="now"></div></div>
-  <div class="col"><div class="lab">ONE LINE</div><div id="line"></div></div>
+  <div class="col"><div id="sheet"></div></div>
 </div>
 <script>
 const I = {
@@ -127,18 +133,35 @@ const chips = (c) => `<span class="chips">${c.map(chip).join('')}</span>`
 const rows = (x) => `<div class="day">${x.d}</div>${x.rows.map(([ic, n, w, a]) => `<div class="row"><span class="ico">${I[ic]}</span><span class="n">${n}${w ? `<small>${w}</small>` : ''}</span><span class="a">${eur(a)}</span></div>`).join('')}`
 const card = ([d, t, v, c, open], look) => `<div class="bal ${look ? 'look' : ''}"><div class="h"><span>BALANCE · ${d}</span><b>${eur(v)}</b></div><div class="syn"><span class="alogo sm">R</span><span class="t"><span>${I.sync} Synced with bank</span><span class="chips"><span class="chip">${d} · ${t}</span>${c.map(chip).join('')}</span></span>${open ? '<span class="open">OPEN ›</span>' : ''}</div></div>`
 const line = ([d, t, v, c, open], first) => `<div class="line ${first ? 'new' : ''}"><span class="lk">${I.sync} SYNCED · ${d}</span><span class="when">${t}</span>${chips(c)}<span class="sp"></span><span class="v">${eur(v)}</span>${open ? '<span class="open">OPEN ›</span>' : ''}</div>`
-function draw(list) {
-  const n = 3777
-  document.getElementById('now').innerHTML = head(n) + list.map((x) => (x.s ? card(x.s) : x.look ? card([...x.look, true], true) : rows(x))).join('') + '</div></div>'
-  document.getElementById('line').innerHTML = head(n) + list.map((x, i) => (x.s ? line(x.s, i === 0) : x.look ? card([...x.look, true], true) : rows(x))).join('') + '</div></div>'
+/* Clean: day headers with that day's last balance, the rows, nothing
+   between them. One strip says the last sync; a row it saved has a green
+   dot. Something to check is one red strip on top, never a card in the list. */
+const NEW = new Set(['Ori Asian Food', 'Watashi', '100 Montaditos·-2.5'])
+const BAL = { 'FRI 23 OCT': 1240.0, 'WED 21 OCT': 1271.4, 'TUE 20 OCT': 1278.1 }
+function clean(list, look) {
+  const days = list.filter((x) => x.d)
+  return head(3777) +
+    (look ? `<div class="strip bad">✕ MISSING €6.00 · 30 OCT · 2 IN THE FILE · 3 IN THE ACCOUNT<span class="sp"></span><span class="open" style="color:var(--danger)">CHECK ›</span></div>` : '') +
+    `<div class="strip">${I.sync} SYNCED · 31 OCT 12:36 <span class="chip good">● 5 NEW</span><span class="sp"></span><span class="open">ALL SYNCS ›</span></div>` +
+    days.map((x) => `<div class="dayh"><span>${x.d}</span><span>${eur(BAL[x.d])}</span></div>` +
+      x.rows.map(([ic, n, w, a]) => `<div class="row"><span class="ico">${I[ic]}</span><span class="n">${n}${w ? `<small>${w}</small>` : ''}</span><span class="a">${NEW.has(n) || NEW.has(n + '·' + a) ? '<span class="dot"></span>' : ''}${eur(a)}</span></div>`).join('')).join('') +
+    '</div></div>'
 }
-const S = { week: WEEK, month: MONTH, look: LOOK }
+function before(list) {
+  return head(3777) + list.map((x) => (x.s ? card(x.s) : x.look ? card([...x.look, true], true) : rows(x))).join('') + '</div></div>'
+}
+let scene = 'week', old = false
+function draw() {
+  const list = scene === 'look' ? LOOK : WEEK
+  document.getElementById('sheet').innerHTML = old ? before(list) : clean(list, scene === 'look')
+}
 document.getElementById('scen').onclick = (e) => {
   const b = e.target.closest('button'); if (!b) return
-  document.querySelectorAll('#scen button').forEach((x) => x.classList.toggle('on', x === b))
-  draw(S[b.dataset.s])
+  if (b.dataset.v) { old = !old; b.classList.toggle('on', old) }
+  else { scene = b.dataset.s; document.querySelectorAll('#scen [data-s]').forEach((x) => x.classList.toggle('on', x === b)) }
+  draw()
 }
-draw(WEEK)
+draw()
 </script>
 </body>
 </html>

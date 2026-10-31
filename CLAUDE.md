@@ -416,21 +416,26 @@ These are rules, not advice.
 2. **Checks sized to the change (12 Oct).** Artem, waiting ten minutes
    on a two-line fix: "all this verification slow down everything badly
    … We need to verify not on every turn." Before the 12th every PR owed
-   the full `pnpm verify`; now:
-   - **Every change:** `pnpm typecheck && pnpm lint`, `pnpm exec vitest
-related <changed files>` (every unit test importing them, `convex/`
-     included — picking tests by hand missed one on 31 Oct), and only the
-     spec files the journey map names for the screens touched
-     (`pnpm exec playwright test e2e/<file>`). About two minutes. GitHub
-     runs typecheck, lint, format, every unit test and the build on the PR.
-   - **A new screen or a slice:** the full `pnpm verify` once, on the
-     final branch — in the background, never while he waits on a reply,
-     and never while another chat's full run is going (31 Oct: two at
-     once turned 8 minutes into 40). A fix after it does not owe it
-     again — only its own checks above (his "stupid to run 1h tests after
-     small fucking changes"). Once the full e2e runs on GitHub, it is
-     never run on his Mac at all.
-   - Red means no PR. Say in the PR which was run.
+   the full `pnpm verify` with e2e; now:
+   - **Every change, on the Mac:** `pnpm typecheck && pnpm lint`,
+     `pnpm exec vitest related <changed files>` (every unit test importing
+     them, `convex/` included — picking tests by hand missed one on 31
+     Oct), and only the spec files the journey map
+     names for the screens touched
+     (`pnpm exec playwright test e2e/<file>`). About two minutes.
+   - **The full e2e runs on GitHub, nightly — not on PRs** (31 Oct: two
+     chats' full runs at once took 40 minutes while he waited — "stupid
+     to run 1h tests after small fucking changes"; on PRs a GitHub shard
+     took over 20 minutes, and he chose "nightly please, lets make
+     development faster for real"). `.github/workflows/e2e.yml` runs it
+     at 03:00 UTC on master in four shards, and by hand from the Actions
+     tab. It never blocks a merge; a red night is fixed like any bug.
+     Never run `pnpm e2e` whole on his Mac. On the PR GitHub runs
+     typecheck, lint, format, every unit test and the build.
+     `pnpm verify` (everything but e2e) is the local check before a
+     slice's push, in the background.
+   - Red means no merge. A red night's report and traces are the run's
+     artifacts (`gh run download`).
 3. **Tests run on mock data only** — the `e2e` skill. Never press a
    write on his real account to check something.
 4. **Every write answers**: "saving…" at once, a landed screen, then it

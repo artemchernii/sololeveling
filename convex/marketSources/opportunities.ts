@@ -24,7 +24,7 @@ import type { SectorRow } from '../../src/lib/sectorAverages'
    Insights). `stocks`: a region's MOVERS companies from Yahoo's
    quoteSummary (one call each, eight at a time) and Damodaran's table,
    picked by src/lib/opportunities.ts. `levels`: US 10Y, gold and silver
-   from Yahoo's spark over a year, US 2Y and Germany 10Y from FRED.
+   from Yahoo's spark over a year, US 2Y and Germany 10Y (the OECD's month) from FRED.
    Nothing is written. Not reached → `reached: false`. Canned on the test
    backend. */
 
@@ -151,7 +151,7 @@ export const levels = action({
       rows: [
         { id: 'us10y', source: 'Yahoo Finance', level: yahoo('^TNX') },
         { id: 'us2y', source: 'FRED', level: levelOf(us2y) },
-        { id: 'de10y', source: 'FRED · OECD', level: levelOf(de10y) },
+        { id: 'de10y', source: 'FRED', level: levelOf(de10y) },
         { id: 'gold', source: 'Yahoo Finance', level: yahoo('GC=F') },
         { id: 'silver', source: 'Yahoo Finance', level: yahoo('SI=F') },
       ],
@@ -371,7 +371,7 @@ function cannedLevels(now: number): LevelsAnswer {
     rows: [
       { id: 'us10y', source: 'Yahoo Finance', level: lv(4.93, 4.21, 5.1, 17) },
       { id: 'us2y', source: 'FRED', level: null },
-      { id: 'de10y', source: 'FRED · OECD', level: lv(2.71, 2.38, 2.84, 29) },
+      { id: 'de10y', source: 'FRED', level: lv(2.71, 2.38, 2.84, 29) },
       { id: 'gold', source: 'Yahoo Finance', level: lv(3899, 2765, 4148, 22) },
       {
         id: 'silver',

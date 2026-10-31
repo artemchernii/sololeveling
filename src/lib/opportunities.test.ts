@@ -9,6 +9,7 @@ import {
   oppOf,
   parseFred,
   parseQuote,
+  plainName,
 } from './opportunities'
 import type { Quote } from './opportunities'
 
@@ -76,7 +77,7 @@ describe('parseQuote', () => {
     }
     expect(parseQuote('NOVO-B.CO', json)).toEqual({
       symbol: 'NOVO-B.CO',
-      name: 'Novo Nordisk A/S',
+      name: 'Novo Nordisk',
       currency: 'DKK',
       price: 342,
       high: 712,
@@ -170,6 +171,19 @@ describe('parseFred', () => {
         ],
       }),
     ).toEqual([{ t: Date.parse('2026-10-29'), v: 3.61 }])
+  })
+})
+
+describe('plainName', () => {
+  it('drops the legal ending, as a person says the name', () => {
+    expect(plainName('Coinbase Global, Inc.')).toBe('Coinbase Global')
+    expect(plainName('Alibaba Group Holding Limited')).toBe('Alibaba')
+    expect(plainName('Rheinmetall AG')).toBe('Rheinmetall')
+    expect(plainName('Grupo Financiero Galicia S.A.')).toBe(
+      'Grupo Financiero Galicia',
+    )
+    expect(plainName('Oracle Corporation')).toBe('Oracle')
+    expect(plainName('SK hynix Inc.')).toBe('SK hynix')
   })
 })
 

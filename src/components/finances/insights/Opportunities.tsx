@@ -4,7 +4,7 @@ import { Telescope } from 'lucide-react'
 
 import { AskOn } from './AskOn'
 import { DrawnMark, Flag } from './Flag'
-import { Info, changeWord, clock, dayWord } from './parts'
+import { Info, changeWord, clock, dayWord, monthWord } from './parts'
 import { api } from '../../../../convex/_generated/api'
 import type { Rate } from '../../../../convex/insightsMarket'
 import type {
@@ -288,12 +288,10 @@ const fromHighCell = (o: OppRow): CellText => ({
 })
 function analystsCell(o: OppRow): CellText {
   const r = o.rating
-  return {
-    k: r
-      ? `Buy ${r.buy} · Hold ${r.hold}${r.sell ? ` · Sell ${r.sell}` : ''}`
-      : '—',
-    w: o.target ? `${o.target.count} ANALYSTS` : 'NO RATING',
-  }
+  if (r === null) return { k: '—', w: 'NO RATING' }
+  return r.sell > 0
+    ? { k: `${r.buy} · ${r.hold} · ${r.sell}`, w: 'BUY · HOLD · SELL' }
+    : { k: `${r.buy} · ${r.hold}`, w: 'BUY · HOLD' }
 }
 const targetCell = (o: OppRow): CellText =>
   o.target && o.toTarget !== null
@@ -347,10 +345,19 @@ const BONDS: Array<{
   flag: 'US' | 'DE'
   tag: string
   what: string
+  /** The OECD's monthly yield: its month, not a day. */
+  monthly?: true
 }> = [
   { id: 'us10y', name: 'US 10Y', flag: 'US', tag: '10Y', what: 'TREASURY' },
   { id: 'us2y', name: 'US 2Y', flag: 'US', tag: '2Y', what: 'TREASURY' },
-  { id: 'de10y', name: 'GERMANY 10Y', flag: 'DE', tag: '10Y', what: 'BUND' },
+  {
+    id: 'de10y',
+    name: 'GERMANY 10Y',
+    flag: 'DE',
+    tag: '10Y',
+    what: 'BUND',
+    monthly: true,
+  },
 ]
 
 function LevelRows({
@@ -415,6 +422,12 @@ function LevelRows({
           {kind === 'BONDS'
             ? BONDS.map((b) => {
                 const l = get(b.id)?.level ?? null
+                const when = (t: number) => {
+                  if (!b.monthly) return dayWord(t)
+                  const d = new Date(t).toISOString()
+                  const year = d.slice(0, 4)
+                  return `${monthWord(d.slice(0, 7))}${year === new Date().toISOString().slice(0, 4) ? '' : ` ${year}`}`
+                }
                 const policy =
                   b.flag === 'US'
                     ? { k: fedWord, w: 'FED' }
@@ -435,20 +448,16 @@ function LevelRows({
                     </div>
                     {l ? (
                       <>
-                        <Cell
-                          h={heads[0]}
-                          k={pct(l.now.v)}
-                          w={dayWord(l.now.t)}
-                        />
+                        <Cell h={heads[0]} k={pct(l.now.v)} w={when(l.now.t)} />
                         <Cell
                           h={heads[1]}
                           k={pct(l.yearAgo.v)}
-                          w={dayWord(l.yearAgo.t)}
+                          w={when(l.yearAgo.t)}
                         />
                         <Cell
                           h={heads[2]}
                           k={pct(l.high.v)}
-                          w={dayWord(l.high.t)}
+                          w={when(l.high.t)}
                         />
                       </>
                     ) : (

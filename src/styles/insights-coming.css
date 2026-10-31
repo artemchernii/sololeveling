@@ -42,9 +42,6 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--color-ink-100);
-  & .ins-flag {
-    border-radius: 7px;
-  }
   & .ins-badge {
     padding: 1px 6px;
   }

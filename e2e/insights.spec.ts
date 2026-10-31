@@ -58,11 +58,11 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
     'METALS',
     'MONEY',
   ])
-  await expect(market(page, 'stoxx').locator('[data-flag=EU] svg')).toHaveCount(
+  await expect(market(page, 'stoxx').locator('[data-flag=EU] img')).toHaveCount(
     1,
   )
   await expect(
-    market(page, 'eurusd').locator('[data-flag=EU-US] svg'),
+    market(page, 'eurusd').locator('[data-flag=EU-US] img'),
   ).toHaveCount(2)
   await expect(market(page, 'silver')).toContainText('46.20')
   await expect(market(page, 'bvsp')).toContainText('BOVESPA')
@@ -449,7 +449,64 @@ test('S7 MOVERS: the week up and down with both closes and a headline; a region 
   await expect(tile.locator('[data-side=up]')).toHaveCount(5)
 })
 
-test('S8 COMING and MINE · THIS WEEK: the days ahead with flags and HELD; a card per held move with WAS and NOW', async ({
+test('S8 OPPORTUNITIES: the two lists by region, bonds and metals, each number beside its place', async ({
+  page,
+}) => {
+  await open(page)
+  const tile = page.locator('[data-tile=opportunities]')
+  const opp = (s: string) =>
+    tile.locator(`[data-testid=opp][data-symbol="${s}"]`)
+  await expect(tile.getByTestId('opps-reading')).toBeVisible()
+  /* ALL: US and EUROPE together, furthest down first; ASIA not reached. */
+  await expect(tile.getByTestId('opp')).toHaveCount(3, { timeout: 15_000 })
+  await expect(tile.getByTestId('opp').first()).toHaveAttribute(
+    'data-symbol',
+    'NOVO-B.CO',
+  )
+  await expect(opp('NOVO-B.CO')).toContainText('▼ 52.0%')
+  await expect(opp('NOVO-B.CO')).toContainText('HIGH 712.00 DKK')
+  await expect(opp('NOVO-B.CO')).toContainText('20 · 12')
+  await expect(opp('NOVO-B.CO')).toContainText('BUY · HOLD')
+  await expect(opp('AVGO')).toContainText('HELD')
+  await expect(opp('ADBE')).not.toContainText('HELD')
+  await expect(tile.getByTestId('opps-missing')).toHaveText(
+    '✕ ASIA NOT REACHED',
+  )
+  await expect(tile.getByTestId('opps-foot')).toContainText(
+    /YAHOO FINANCE · DAMODARAN 2026 · FETCHED \d\d:\d\d · NOT SAVED/,
+  )
+  await tile.screenshot(shot('insights-opps'))
+
+  await tile.getByRole('tab', { name: 'US', exact: true }).click()
+  await expect(tile.getByTestId('opp')).toHaveCount(2)
+  await tile.getByRole('tab', { name: 'SOUTH AMERICA' }).click()
+  await expect(tile.getByTestId('opps-none')).toHaveText('NONE')
+
+  await tile.getByRole('tab', { name: 'CHEAP · TARGET ABOVE' }).click()
+  await tile.getByRole('tab', { name: 'ALL' }).click()
+  await expect(tile.getByTestId('opp')).toHaveCount(1)
+  await expect(opp('PYPL')).toContainText('11 · 19')
+  await expect(opp('PYPL')).toContainText('▲ 26.1%')
+
+  await tile.getByRole('tab', { name: 'BONDS' }).click()
+  await expect(tile.getByTestId('opp-region')).toHaveCount(0)
+  await expect(opp('us10y')).toContainText('4.93%')
+  await expect(opp('us10y')).toContainText('4.21%')
+  await expect(opp('us10y')).toContainText('5.10%')
+  await expect(opp('us2y').getByTestId('level-missing')).toBeVisible()
+  await expect(opp('de10y')).toContainText('ECB')
+
+  await tile.getByRole('tab', { name: 'GOLD · SILVER' }).click()
+  await expect(opp('gold')).toContainText('▼ 6.0%')
+  await expect(opp('gold')).toContainText('HIGH $4,148')
+  await expect(opp('silver')).toContainText('NOT HELD')
+
+  /* ✦ opens ASK with the row's question in the box, not sent. */
+  await opp('gold').getByTestId('ask-on').click()
+  await expect(page.getByRole('textbox').last()).toHaveValue(/Gold/)
+})
+
+test('S9 COMING and MINE · THIS WEEK: the days ahead with flags and HELD; a card per held move with WAS and NOW', async ({
   page,
 }) => {
   await open(page)
@@ -460,10 +517,10 @@ test('S8 COMING and MINE · THIS WEEK: the days ahead with flags and HELD; a car
   const boe = coming.locator('[data-testid=coming-macro][data-kind=boe]')
   await expect(boe).toContainText('Bank of England')
   await expect(boe).toContainText('RATE · 12:00')
-  await expect(boe.locator('[data-flag=GB] svg')).toHaveCount(1)
+  await expect(boe.locator('[data-flag=GB] img')).toHaveCount(1)
   const jobs = coming.locator('[data-testid=coming-macro][data-kind=jobs]')
   await expect(jobs).toContainText('US jobs report')
-  await expect(jobs.locator('[data-flag=US] svg')).toHaveCount(1)
+  await expect(jobs.locator('[data-flag=US] img')).toHaveCount(1)
   await expect(
     coming.locator('[data-testid=coming-macro][data-kind=ecb] [data-flag=EU]'),
   ).toHaveCount(1)

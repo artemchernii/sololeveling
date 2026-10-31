@@ -20,10 +20,6 @@
   color: var(--color-ink-300);
   cursor: pointer;
   transition: background 0.15s;
-  & .ins-flag {
-    border-radius: 4px;
-    height: 12px !important;
-  }
   &.on {
     color: var(--color-ink-100);
     border-color: color-mix(in oklch, var(--color-lav-400) 45%, transparent);

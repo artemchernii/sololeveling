@@ -89,6 +89,7 @@ import type * as marketSources_companies from "../marketSources/companies.js";
 import type * as marketSources_crowd from "../marketSources/crowd.js";
 import type * as marketSources_funds from "../marketSources/funds.js";
 import type * as marketSources_movers from "../marketSources/movers.js";
+import type * as marketSources_opportunities from "../marketSources/opportunities.js";
 import type * as migrations from "../migrations.js";
 import type * as milestones from "../milestones.js";
 import type * as money from "../money.js";
@@ -220,6 +221,7 @@ declare const fullApi: ApiFromModules<{
   "marketSources/crowd": typeof marketSources_crowd;
   "marketSources/funds": typeof marketSources_funds;
   "marketSources/movers": typeof marketSources_movers;
+  "marketSources/opportunities": typeof marketSources_opportunities;
   migrations: typeof migrations;
   milestones: typeof milestones;
   money: typeof money;

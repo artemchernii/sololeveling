@@ -12,6 +12,7 @@ import { OnReddit } from './OnReddit'
 import { useCompanies, useFunds } from './YourCompanies'
 import { WeekStories } from './WeekStories'
 import { Movers, useAllMovers } from './Movers'
+import { Opportunities } from './Opportunities'
 import { Coming, useComing } from './Coming'
 import { MineWeek } from './MineWeek'
 import { allocFacts, allocRows } from './Allocation'
@@ -199,6 +200,11 @@ export function Insights({ shown }: { shown: boolean }) {
               onIdea={goIdea}
             />
             <Movers all={allMovers} />
+            <Opportunities
+              held={held}
+              owned={owned}
+              rates={(market.answer ?? market.shown)?.rates ?? null}
+            />
             <Coming c={coming} />
             <MineWeek held={equities} c={comp} f={funds} />
             <SectorMap

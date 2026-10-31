@@ -172,6 +172,22 @@ mockup `design/treasury-mockup/insights.html`, spec
   evening job, never stored, two days before a results day and on the
   first stored close after it — that close and the stored close before
   it both on the push (`src/lib/investAlert.ts`).
+- **OPPORTUNITIES** (31 Oct, "yes, the rule" on the mockup
+  `design/treasury-mockup/market-world.html`; his words: "good company
+  down but still good investments, and cheap companies with good
+  targets"): on MARKET only, from the MOVERS companies, picked by the
+  app by two rules written in `src/lib/opportunities.ts` and nothing
+  else — DOWN FROM HIGH: 20% or more below its 52-week high, analysts'
+  mean Buy or better (Yahoo's mean 2.5 or under) from 5 or more, target
+  above the price; CHEAP · TARGET ABOVE: forward P/E under its sector's
+  (Damodaran), target 15% or more above the price, 5 or more analysts.
+  BONDS and GOLD · SILVER pick nothing: the yield or price now, a year
+  ago and the 1-year high. All are external readings fetched on open
+  (Yahoo Finance, Damodaran, FRED), attributed and timed, never stored,
+  kept on the page at most 10 minutes, never an input to `verdict()`.
+  A % is two fetched numbers by `between()`, both on the row. Every
+  number that put a name on the list is on its row; no score, no rank
+  beyond the stated sort.
 - **CLOSE, the day's report** (22 Oct, his "report opens in Insights as
   CLOSE, one push at 21:30, rules 1 and 2 as you say"): one push a day
   at 21:30 Lisbon, after the US close, opening Insights' CLOSE tab. Two

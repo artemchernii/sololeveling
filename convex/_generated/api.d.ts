@@ -84,6 +84,7 @@ import type * as market from "../market.js";
 import type * as marketAsk from "../marketAsk.js";
 import type * as marketReadFields from "../marketReadFields.js";
 import type * as marketReads from "../marketReads.js";
+import type * as marketSources_coming from "../marketSources/coming.js";
 import type * as marketSources_companies from "../marketSources/companies.js";
 import type * as marketSources_crowd from "../marketSources/crowd.js";
 import type * as marketSources_funds from "../marketSources/funds.js";
@@ -215,6 +216,7 @@ declare const fullApi: ApiFromModules<{
   marketAsk: typeof marketAsk;
   marketReadFields: typeof marketReadFields;
   marketReads: typeof marketReads;
+  "marketSources/coming": typeof marketSources_coming;
   "marketSources/companies": typeof marketSources_companies;
   "marketSources/crowd": typeof marketSources_crowd;
   "marketSources/funds": typeof marketSources_funds;

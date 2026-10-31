@@ -1,0 +1,122 @@
+/* COMING and MINE · THIS WEEK on MARKET (31 Oct, part 5 of
+   market-world.html): a row per day of chips, each a flag or a logo, its
+   name and what it is; then a card per holding that moved, red or green. */
+.ins-dy {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--glass-edge);
+  animation: ins-ea-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  &:first-child {
+    border-top: 0;
+    padding-top: 2px;
+  }
+  & .d {
+    font: 700 11px var(--font-mono);
+    letter-spacing: 0.1em;
+    color: var(--color-ink-200);
+    & span {
+      display: block;
+      font-weight: 500;
+      color: var(--color-ink-400);
+    }
+  }
+  & .ev {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+  }
+}
+.ins-evc {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 4px 10px 4px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 5%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-100);
+  & .ins-badge {
+    padding: 1px 6px;
+  }
+  & .x2 {
+    font: 500 10.5px var(--font-mono);
+    color: var(--color-ink-400);
+    white-space: nowrap;
+  }
+  &.big {
+    border-color: color-mix(in oklch, var(--color-lav-400) 45%, transparent);
+  }
+}
+.ins-mw {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  @media (max-width: 720px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ins-mc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 4%, transparent);
+  animation: ins-ea-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  &.bad {
+    border-color: color-mix(in oklch, var(--state-danger) 35%, transparent);
+    background: color-mix(in oklch, var(--state-danger) 7%, transparent);
+  }
+  &.good {
+    border-color: color-mix(in oklch, var(--state-good) 35%, transparent);
+    background: color-mix(in oklch, var(--state-good) 7%, transparent);
+  }
+  & .h {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    & b {
+      font-size: 14px;
+    }
+    & .pc {
+      margin-left: auto;
+      font: 700 18px var(--font-mono);
+    }
+  }
+  & .l {
+    font-size: 13px;
+    color: var(--color-ink-200);
+  }
+  & .n2 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font: 11px var(--font-mono);
+    color: var(--color-ink-400);
+    & b {
+      color: var(--color-ink-100);
+      font-weight: 600;
+    }
+  }
+}
+.ins-more {
+  align-self: flex-start;
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--color-lav-300);
+  cursor: pointer;
+  text-align: left;
+  &:hover {
+    color: var(--color-lav-200);
+  }
+}

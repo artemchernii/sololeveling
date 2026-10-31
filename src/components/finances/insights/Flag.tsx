@@ -1,4 +1,26 @@
-import { AR, BR, EU, HK, JP, MX, US } from 'country-flag-icons/react/3x2'
+import {
+  AR,
+  BR,
+  CH,
+  CL,
+  DE,
+  DK,
+  ES,
+  EU,
+  FR,
+  GB,
+  HK,
+  IN,
+  IT,
+  JP,
+  KR,
+  MX,
+  NL,
+  PE,
+  SE,
+  TW,
+  US,
+} from 'country-flag-icons/react/3x2'
 import { Globe } from 'lucide-react'
 
 import type { FlagCode } from '@/lib/insightsMarket'
@@ -8,7 +30,29 @@ import type { FlagCode } from '@/lib/insightsMarket'
    tile, two overlapped for a pair, a small tag for what of the country it
    is (TECH, 10Y). Gold and silver are bars, MSCI World the globe. */
 
-const FLAGS: Record<FlagCode, typeof US> = { US, EU, JP, HK, BR, MX, AR }
+const FLAGS: Record<FlagCode, typeof US> = {
+  US,
+  EU,
+  JP,
+  HK,
+  BR,
+  MX,
+  AR,
+  DK,
+  FR,
+  DE,
+  CH,
+  GB,
+  NL,
+  ES,
+  IT,
+  SE,
+  TW,
+  KR,
+  IN,
+  CL,
+  PE,
+}
 
 export function Flag({
   code,

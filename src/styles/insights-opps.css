@@ -1,0 +1,130 @@
+/* OPPORTUNITIES on MARKET (31 Oct, market-world.html): kind chips, region
+   chips on the two stock lists, then a table — a logo, the name with its
+   flag and price, four cells each a value over its place, and ✦. On a
+   phone the cells wrap two by two and carry their own heads. */
+.ins-chipbtn.plain {
+  padding-left: 11px;
+}
+.opp-reg {
+  margin-top: -4px;
+}
+.opp {
+  display: flex;
+  flex-direction: column;
+}
+.opp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr)) 32px;
+  gap: 0 14px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--glass-edge);
+  animation: ins-ea-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  &.hd {
+    border-top: 0;
+    padding: 0 0 4px;
+    font: 700 9px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-400);
+    animation: none;
+  }
+  & > div {
+    min-width: 0;
+  }
+  & .c1 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    & b {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13.5px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    & .s {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font: 500 10.5px var(--font-mono);
+      color: var(--color-ink-400);
+      & .ins-flag {
+        border-radius: 3px;
+        height: 9px !important;
+      }
+    }
+  }
+  & i.held {
+    font: 700 8px var(--font-mono);
+    font-style: normal;
+    letter-spacing: 0.1em;
+    color: var(--color-lav-300);
+    border: 1px solid color-mix(in oklch, var(--color-lav-400) 45%, transparent);
+    border-radius: 5px;
+    padding: 1px 4px;
+  }
+  & .cell {
+    & .k {
+      display: block;
+      font: 700 13px var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      &.good {
+        color: var(--state-good);
+      }
+      &.bad {
+        color: var(--state-danger);
+      }
+    }
+    & .w {
+      display: block;
+      font: 500 10px var(--font-mono);
+      color: var(--color-ink-400);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    &.span3 {
+      grid-column: span 3;
+    }
+  }
+  & .ask {
+    justify-self: end;
+  }
+  @media (max-width: 720px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    &.hd {
+      display: none;
+    }
+    & .c1 {
+      grid-column: 1;
+    }
+    & .ask {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    & .cell::before {
+      content: attr(data-h);
+      display: block;
+      font: 700 8.5px var(--font-mono);
+      letter-spacing: 0.14em;
+      color: var(--color-ink-500);
+    }
+    & .cell.span3 {
+      grid-column: 1 / -1;
+    }
+  }
+}
+.opp-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  &:empty {
+    display: none;
+  }
+}

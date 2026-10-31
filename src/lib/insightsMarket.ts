@@ -31,7 +31,28 @@ export type Mark =
   | { coin: string }
 
 /** The flags the app draws (`Flag` in parts.tsx), ISO codes and EU. */
-export type FlagCode = 'US' | 'EU' | 'JP' | 'HK' | 'BR' | 'MX' | 'AR'
+export type FlagCode =
+  | 'US'
+  | 'EU'
+  | 'JP'
+  | 'HK'
+  | 'BR'
+  | 'MX'
+  | 'AR'
+  | 'DK'
+  | 'FR'
+  | 'DE'
+  | 'CH'
+  | 'GB'
+  | 'NL'
+  | 'ES'
+  | 'IT'
+  | 'SE'
+  | 'TW'
+  | 'KR'
+  | 'IN'
+  | 'CL'
+  | 'PE'
 
 export type MarketId =
   | 'sp500'

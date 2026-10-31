@@ -33,6 +33,10 @@ process.env.CLERK_SECRET_KEY = local.CLERK_SECRET_KEY
 process.env.CLERK_PUBLISHABLE_KEY = local.VITE_CLERK_PUBLISHABLE_KEY
 process.env.VITE_CLERK_PUBLISHABLE_KEY = local.VITE_CLERK_PUBLISHABLE_KEY
 delete process.env.CONVEX_DEPLOYMENT
+/* The specs count days in local midnights, written in Lisbon. On GitHub
+   the runner is UTC, and the Convex backend refuses any TZ, so only the
+   test workers (and the browser, below) move to Lisbon. */
+if (ci && process.env.TEST_WORKER_INDEX) process.env.TZ = 'Europe/Lisbon'
 
 export default defineConfig({
   testDir: 'e2e',
@@ -51,6 +55,7 @@ export default defineConfig({
     video: { mode: 'on', size: { width: 1280, height: 720 } },
     /* He uses the app dark. */
     colorScheme: 'dark',
+    ...(ci ? { timezoneId: 'Europe/Lisbon' } : {}),
     ...devices['Desktop Chrome'],
   },
   webServer: [

@@ -23,9 +23,8 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     env:
-      # The specs count "today" in local midnights, written on his Mac in
-      # Lisbon; the runner's UTC would move days near midnight.
-      TZ: Europe/Lisbon
+      # No TZ here: the Convex backend refuses to start with TZ set. The
+      # browser and the test workers get Lisbon in playwright.config.ts.
       # A fresh runner's first boot of the local backend passed the CLI's
       # 30 s default (31 Oct).
       CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS: 120
@@ -76,6 +75,7 @@ jobs:
           restore-keys: convex-backend-${{ runner.os }}-
 
       - name: Start the test backend once
+        id: setup
         run: pnpm e2e:setup
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}

@@ -279,6 +279,22 @@ export default defineSchema({
     demoFilledOn: v.optional(v.string()),
   }).index('by_owner', ['ownerId']),
 
+  /* His own targets for where the money is (31 Oct, docs/specs/
+     2026-10-31-targets.md): one row per bucket, in euros — "up to 2k max,
+     3-5k gold, 5k bonds, and rest are stocks". Stocks is the rest and has
+     no row; `keep` is the cash kept out of the split (min only). */
+  targets: defineTable({
+    ownerId: v.string(),
+    bucket: v.union(
+      v.literal('gold'),
+      v.literal('bonds'),
+      v.literal('crypto'),
+      v.literal('keep'),
+    ),
+    min: v.number(),
+    max: v.number(),
+  }).index('by_owner_bucket', ['ownerId', 'bucket']),
+
   goals: defineTable({
     ownerId: v.string(),
     title: v.string(),

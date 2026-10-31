@@ -201,7 +201,9 @@ function Synced({
   )
 }
 
-/** A row the bank shows pending: never saved, named under its day. */
+/** A row the bank shows pending: never saved, named under its day. The
+    money is gone for him (31 Oct: "I already send money so for me its
+    gone"): a row like the others, its amount in ink, PENDING beside it. */
 export function PendingLine({
   merchant,
   amount,
@@ -216,17 +218,15 @@ export function PendingLine({
   return (
     <div
       data-testid="pending-row"
-      className="motion-land flex items-center gap-2.5 rounded-[10px] px-2.5 py-2"
+      className="motion-land flex items-center gap-3 rounded-[12px] px-2.5 py-2"
     >
-      <span className="opacity-70">
-        <RowMark name={merchant} category={null}>
-          <span className="grid size-[26px] shrink-0 place-items-center rounded-[8px] bg-lift/[0.06] text-ink-400">
-            <ArrowUp className="size-3.5" />
-          </span>
-        </RowMark>
-      </span>
+      <RowMark name={merchant} category={null} size={36}>
+        <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-lift/[0.06] text-ink-400">
+          <ArrowUp className="size-4" />
+        </span>
+      </RowMark>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-[13.5px] text-foreground">
+        <span className="truncate text-[14px] font-medium text-foreground">
           {named.name}
         </span>
         <span
@@ -236,7 +236,7 @@ export function PendingLine({
           pending
         </span>
       </span>
-      <span className="font-mono text-[13.5px] whitespace-nowrap text-ink-400">
+      <span className="font-mono text-[14px] font-medium whitespace-nowrap text-foreground">
         <Veiled>{fmt(amount, currency, true)}</Veiled>
       </span>
     </div>

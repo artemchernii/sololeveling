@@ -283,7 +283,6 @@ export function Accounts() {
               ) / 100
             : 0
         }
-        meta={openRow ? freshness(openRow.pockets, Date.now()).label : ''}
         onClose={() => setOpened(null)}
         onUpdate={() => openDoc && setUpdating(openDoc)}
       />

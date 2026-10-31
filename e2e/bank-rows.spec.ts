@@ -59,16 +59,17 @@ test('rows arrive and add up: saved with no press, shown on the card until close
   await card(page).click()
   const sheet = page.getByRole('dialog')
   /* Clean list (31 Oct): the sync is one pill on top, never a card in
-     the list; the day says what went out; its rows carry a dot. */
+     the list; the day says what went out. ✕ on the card was seeing the
+     rows: no NEW, no dots (his "We dont want to show NEW all the time"). */
   const pill = sheet.getByTestId('sync-pill')
   await expect(pill).toContainText(/synced with bank/i)
-  await expect(pill).toContainText('2 new')
+  await expect(pill).not.toContainText('new')
   await expect(
     sheet.getByText('Synced with bank', { exact: true }),
   ).toHaveCount(0)
   await expect(sheet.getByTestId('day-out').first()).toContainText('2 out')
   await expect(sheet.getByTestId('day-out').first()).toContainText('−€42.40')
-  await expect(sheet.getByTestId('row-new')).toHaveCount(2)
+  await expect(sheet.getByTestId('row-new')).toHaveCount(0)
   await expect(sheet.getByText('TRF P/ ANDREI PAVLOV')).toBeVisible()
   await expect(sheet.getByText(/PINGO DOCE/)).toBeVisible()
   /* Each row reads as who was paid, the bank's line underneath (13 Oct). */
@@ -156,4 +157,15 @@ test('a month at once, at phone width: sixty rows, the card stays a card', async
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
+  /* NEW until seen (31 Oct): the first open shows 60 NEW and the dots;
+     that open is seeing them, so the next one and the card show neither. */
+  await card(page).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByTestId('sync-pill')).toContainText('60 new')
+  await expect(sheet.getByTestId('row-new').first()).toBeVisible()
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await expect(arrived).toHaveCount(0)
+  await card(page).click()
+  await expect(sheet.getByTestId('sync-pill')).not.toContainText('new')
+  await expect(sheet.getByTestId('row-new')).toHaveCount(0)
 })

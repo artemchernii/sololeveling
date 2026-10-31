@@ -1,7 +1,10 @@
 import { RefreshCw, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
 
-import type { api } from '../../../convex/_generated/api'
+import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
@@ -36,9 +39,12 @@ export function SyncPill({
   file,
   name,
   domain,
+  unseen,
   onFile,
 }: {
   reading: Reading
+  /** Rows the bank brought, not seen yet: N NEW. */
+  unseen: boolean
   file: FileInfo | undefined
   name: string
   domain?: string
@@ -56,16 +62,10 @@ export function SyncPill({
           {short(reading.at)} · {clock(reading.at)}
         </span>
       </span>
-      {file && file.added > 0 ? (
+      {unseen && file && file.added > 0 ? (
         <span className={`${BADGE} bg-state-good/12 text-state-good`}>
           <i className="size-1.5 rounded-full bg-current" />
           {file.added} new
-        </span>
-      ) : null}
-      {reading.pendingRows.length > 0 ? (
-        <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
-          <i className="size-1.5 animate-pulse rounded-full bg-current" />
-          {reading.pendingRows.length} pending
         </span>
       ) : null}
       {file ? (
@@ -205,10 +205,12 @@ export const newestSync = (data: SheetData) =>
 export function Synced({
   data,
   account,
+  unseen,
   onFile,
 }: {
   data: SheetData
   account: Doc<'accounts'>
+  unseen: boolean
   onFile: (id: Id<'intakes'>) => void
 }) {
   const newest = newestSync(data)
@@ -238,8 +240,30 @@ export function Synced({
         file={data.files.find((f) => f.id === newest.fileId)}
         name={account.name}
         domain={account.domain}
+        unseen={unseen}
         onFile={onFile}
       />
     </>
   )
+}
+
+/** NEW only until seen (31 Oct: "We dont want to show NEW all the
+    time"): what the bank brought and the card still shows is new on this
+    open; opening the account is seeing it, as ✕ on the card is. */
+export function useUnseen(accountId: Id<'accounts'>): boolean {
+  const links = useQuery(api.bank.links, {})
+  const closeBank = useMutation(api.bankRows.close)
+  const closeT212 = useMutation(api.t212.close)
+  const [unseen, setUnseen] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (links === undefined || unseen !== null) return
+    const link = links.find((l) => l.accountId === accountId)
+    const was = link?.arrived != null
+    setUnseen(was)
+    if (link && was)
+      void (link.via === 't212' ? closeT212 : closeBank)({ accountId }).catch(
+        () => null,
+      )
+  }, [links, unseen, accountId, closeBank, closeT212])
+  return unseen === true
 }

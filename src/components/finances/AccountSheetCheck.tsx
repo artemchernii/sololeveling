@@ -56,12 +56,14 @@ export function BalanceTick({
     )
   if (data && data.checks.length > 0)
     return (
-      <span className="flex items-center gap-1 font-mono text-[11px] text-state-good">
+      /* A tick, no words (31 Oct: "row match do we need this text?"):
+         the day it holds from is its title. */
+      <span
+        data-testid="rows-match"
+        title={`rows match · since ${short(dayOf(data, Math.min(...data.checks.map((c) => c.from))), true)}`}
+        className="grid size-5 place-items-center rounded-full bg-state-good/14 text-state-good"
+      >
         <Tick className="motion-pop size-3" strokeWidth={3} />
-        rows match · since{' '}
-        {/* Always with its year (13 Oct): the rows under it go back
-            years, "since 27 Sept" could be any of them. */}
-        {short(dayOf(data, Math.min(...data.checks.map((c) => c.from))), true)}
       </span>
     )
   return <span className="font-mono text-[11px] text-ink-400">{fallback}</span>

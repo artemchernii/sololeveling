@@ -47,10 +47,10 @@ test('the same money is in ActivoBank: one press adds the transfer and its fee, 
   await expect(
     sheet.getByText('Transfer from ActivoBank added. Fee €4.57.'),
   ).toBeVisible()
-  await expect(sheet.getByText(/rows match · since/)).toBeVisible()
+  await expect(sheet.getByTestId('rows-match')).toBeVisible()
   await expect(sheet.getByText('came in with no row')).toHaveCount(0)
   await expect(sheet.getByText('+€505.20')).toBeVisible()
-  await expect(sheet.getByText('−€4.57')).toBeVisible()
+  await expect(sheet.locator('div.group').getByText('−€4.57')).toBeVisible()
   await expect(sheet.getByText('Transfer fee')).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('sheet-check-added'))
@@ -88,7 +88,7 @@ test('no account shows it: pick the day, add — saving, then the rows match', a
 
   await sheet.getByRole('button', { name: /^add \+€500\.63 on / }).click()
   await expect(sheet.getByText('saving…')).toBeVisible()
-  await expect(sheet.getByText(/rows match · since/)).toBeVisible()
+  await expect(sheet.getByTestId('rows-match')).toBeVisible()
   await expect(sheet.getByText('came in with no row')).toHaveCount(0)
   await expect(sheet.getByText('no row', { exact: true })).toHaveCount(0)
   await expect(sheet.getByText('Missing from the file')).toBeVisible()
@@ -105,5 +105,5 @@ test('one balance only: nothing to check yet, and no tick', async ({
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText(/One balance so far/)).toBeVisible()
   await expect(sheet.getByText('free cash · EUR')).toBeVisible()
-  await expect(sheet.getByText(/rows match/)).toHaveCount(0)
+  await expect(sheet.getByTestId('rows-match')).toHaveCount(0)
 })

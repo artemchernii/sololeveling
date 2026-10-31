@@ -18,7 +18,14 @@ import { TakenStrip } from './AccountFileBack'
 import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, PendingLine, RowLine, fmt, short } from './AccountSheetRows'
-import { DayHead, Said, Synced, fromBank, newestSync } from './AccountSync'
+import {
+  DayHead,
+  Said,
+  Synced,
+  fromBank,
+  newestSync,
+  useUnseen,
+} from './AccountSync'
 import { dayLine } from '@/lib/sheetDays'
 import { Row as CameRow } from './AccountCame'
 import { TypedBalance } from './AccountTypedBalance'
@@ -58,15 +65,12 @@ const dayKey = (t: number) => new Date(t).toDateString()
 export function OpenAccount({
   account,
   total,
-  meta,
   onClose,
   onUpdate,
 }: {
   account: Doc<'accounts'> | null
   /** What the card shows it holds, in euros. */
   total: number
-  /** The card's freshness line: "screenshot read 5d ago". */
-  meta: string
   onClose: () => void
   /** Drop a file into this account (its card's update). */
   onUpdate: () => void
@@ -101,7 +105,6 @@ export function OpenAccount({
           taken={taken}
           onRemoved={setTaken}
           total={total}
-          meta={meta}
           onFile={setFile}
           onUpdate={() => {
             close()
@@ -116,7 +119,6 @@ export function OpenAccount({
 function Ledger({
   account,
   total,
-  meta,
   taken,
   onRemoved,
   onFile,
@@ -126,7 +128,6 @@ function Ledger({
   taken: Taken | null
   onRemoved: (t: Taken) => void
   total: number
-  meta: string
   onFile: (id: Id<'intakes'>) => void
   onUpdate: () => void
 }) {
@@ -147,6 +148,7 @@ function Ledger({
       : head === null || page === null
         ? null
         : { ...head, rows: page.rows }
+  const unseen = useUnseen(account._id)
   const tails = account.ibanTails?.[0] ? ` · ••${account.ibanTails[0]}` : ''
 
   return (
@@ -162,10 +164,13 @@ function Ledger({
               <KindBadge key={k} kind={k} />
             ))}
           </span>
-          <span className="font-mono text-[11px] text-ink-400">
-            {meta}
-            {tails}
-          </span>
+          {/* Not the card's freshness line (31 Oct: "USD from the bank
+              today????"): the pill says when the bank answered. */}
+          {tails ? (
+            <span className="font-mono text-[11px] text-ink-400">
+              {tails.replace(' · ', '')}
+            </span>
+          ) : null}
         </span>
         <span className="flex flex-col items-end gap-1">
           <span className="text-[30px] leading-none font-light tracking-tight text-foreground">
@@ -209,7 +214,12 @@ function Ledger({
           />
           {taken ? <TakenStrip taken={taken} /> : null}
           <SheetCheck data={data} account={account} onUpdate={onUpdate} />
-          <Synced data={data} account={account} onFile={onFile} />
+          <Synced
+            data={data}
+            account={account}
+            unseen={unseen}
+            onFile={onFile}
+          />
           <span className="label-caps">
             {data.total} {data.total === 1 ? 'row' : 'rows'} ·{' '}
             {data.files.length} {data.files.length === 1 ? 'file' : 'files'} ·
@@ -223,6 +233,7 @@ function Ledger({
             onOlder={() => setShow((n) => n + MORE_ROWS)}
             onFile={onFile}
             onRemoved={onRemoved}
+            unseen={unseen}
           />
         </>
       )}
@@ -240,9 +251,12 @@ function Timeline({
   onOlder,
   onFile,
   onRemoved,
+  unseen,
 }: {
   data: SheetData
   account: Doc<'accounts'>
+  /** The bank's rows not seen yet: their dots. */
+  unseen: boolean
   /** Older rows are saved and not on screen yet. */
   older: boolean
   loading: boolean
@@ -326,7 +340,7 @@ function Timeline({
     )
   }
   /* Rows the newest sync saved carry a dot. */
-  const newSync = newestSync(data)?.fileId ?? null
+  const newSync = unseen ? (newestSync(data)?.fileId ?? null) : null
 
   let day = ''
   let i = 0

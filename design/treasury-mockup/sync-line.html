@@ -84,6 +84,38 @@
   .strip + .dayh { border-top: 0 }
   .dayh span:last-child { letter-spacing: 0; color: var(--ink-500) }
   .row .a .dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: var(--good); margin-right: 7px; vertical-align: middle; box-shadow: 0 0 6px var(--good) }
+  /* polished clean list */
+  .sync { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--lav-edge); background: linear-gradient(100deg, rgba(107,95,214,.13), rgba(107,95,214,.03) 70%) }
+  .sync .alogo.sm { width: 30px; height: 30px; font-size: 16px }
+  .sync .st { flex: 1; display: flex; flex-direction: column; gap: 2px }
+  .sync .st b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--lav); font-weight: 600; display: flex; gap: 6px; align-items: center }
+  .sync .st span { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .sync .spin { animation: spin 1.2s ease-out 1 }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .alert { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(194,65,58,.32); background: var(--danger-soft); color: var(--danger); font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em }
+  .alert .sp { flex: 1 }
+  .alert b { font-weight: 600 }
+  .dh { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 0 2px }
+  .dh .d { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--ink-300); font-weight: 600 }
+  .dh .o { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .dh .sp { flex: 1; height: 1px; background: var(--edge) }
+  .dh .b { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .dh .b i { font-style: normal; letter-spacing: .14em; font-size: 9px; margin-right: 6px }
+  .tx { display: flex; align-items: center; gap: 12px; padding: 9px 8px; margin: 0 -8px; border-radius: 12px; transition: background .15s }
+  .tx:hover { background: rgba(27,26,36,.04) }
+  .tile { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; overflow: hidden }
+  .tile img { width: 100%; height: 100%; object-fit: cover; background: #fff }
+  .tile.food { background: rgba(214,120,40,.14); color: #c4661f }
+  .tile.move { background: rgba(27,26,36,.06); color: var(--ink-300) }
+  .tile svg.i { width: 17px; height: 17px }
+  .tx .n { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+  .tx .n b { font-weight: 500; font-size: 14px }
+  .tx .n small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); letter-spacing: .04em }
+  .tx .a { font-family: var(--mono); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px }
+  .tx .a.in { color: var(--good) }
+  .tx .new { width: 7px; height: 7px; border-radius: 999px; background: var(--good); box-shadow: 0 0 0 0 rgba(47,143,91,.5); animation: ping 1.6s ease-out 2 }
+  @keyframes ping { to { box-shadow: 0 0 0 8px rgba(47,143,91,0) } }
+  .tx.landed { animation: land 1.4s ease-out }
   .note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); text-align: center; margin-top: 12px; letter-spacing: .08em }
   @media (max-width: 600px) { .line .when { display: none } }
 </style>
@@ -136,15 +168,27 @@ const line = ([d, t, v, c, open], first) => `<div class="line ${first ? 'new' : 
 /* Clean: day headers with that day's last balance, the rows, nothing
    between them. One strip says the last sync; a row it saved has a green
    dot. Something to check is one red strip on top, never a card in the list. */
-const NEW = new Set(['Ori Asian Food', 'Watashi', '100 Montaditos·-2.5'])
-const BAL = { 'FRI 23 OCT': 1240.0, 'WED 21 OCT': 1271.4, 'TUE 20 OCT': 1278.1 }
+const SITE = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=64`
+/* his Revolut week as rows: [tile, name, words, amount, new] */
+const DAYS = [
+  ['FRI 23 OCT', 1240.0, [['food', 'Ori Asian Food', 'eating out', -13.9, 1], ['100montaditos.com', '100 Montaditos', 'eating out', -2.5, 1], ['food', 'Watashi', 'eating out', -15, 1]]],
+  ['WED 21 OCT', 1271.4, [['food', 'Bnp Toc', 'eating out', -6.7, 0]]],
+  ['TUE 20 OCT', 1278.1, [['100montaditos.com', '100 Montaditos', 'eating out', -4, 0]]],
+]
+const tile = (t) =>
+  t === 'food' ? `<span class="tile food">${I.fork}</span>`
+  : t === 'move' ? `<span class="tile move">${I.up}</span>`
+  : `<span class="tile"><img src="${SITE(t)}" alt=""></span>`
 function clean(list, look) {
-  const days = list.filter((x) => x.d)
   return head(3777) +
-    (look ? `<div class="strip bad">✕ MISSING €6.00 · 30 OCT · 2 IN THE FILE · 3 IN THE ACCOUNT<span class="sp"></span><span class="open" style="color:var(--danger)">CHECK ›</span></div>` : '') +
-    `<div class="strip">${I.sync} SYNCED · 31 OCT 12:36 <span class="chip good">● 5 NEW</span><span class="sp"></span><span class="open">ALL SYNCS ›</span></div>` +
-    days.map((x) => `<div class="dayh"><span>${x.d}</span><span>${eur(BAL[x.d])}</span></div>` +
-      x.rows.map(([ic, n, w, a]) => `<div class="row"><span class="ico">${I[ic]}</span><span class="n">${n}${w ? `<small>${w}</small>` : ''}</span><span class="a">${NEW.has(n) || NEW.has(n + '·' + a) ? '<span class="dot"></span>' : ''}${eur(a)}</span></div>`).join('')).join('') +
+    (look ? `<div class="alert">${I.x}<b>MISSING €6.00</b> · 30 OCT · 2 IN THE FILE · 3 IN THE ACCOUNT<span class="sp"></span><span>CHECK ›</span></div>` : '') +
+    `<div class="sync"><span class="alogo sm">R</span><span class="st"><b><span class="spin" style="display:inline-flex">${I.sync}</span> SYNCED WITH BANK</b><span>31 OCT · 12:36</span></span><span class="chip good">● 5 NEW</span><span class="open">ALL ›</span></div>` +
+    DAYS.map(([d, bal, rs]) => {
+      const out = rs.filter((r) => r[3] < 0)
+      const sum = out.reduce((t, r) => t + r[3], 0)
+      return `<div class="dh"><span class="d">${d}</span><span class="o">${out.length} OUT ${eur(sum)}</span><span class="sp"></span><span class="b"><i>BALANCE</i>${eur(bal)}</span></div>` +
+        rs.map(([t, n, w, a, nw]) => `<div class="tx ${nw ? 'landed' : ''}">${tile(t)}<span class="n"><b>${n}</b><small>${w}</small></span><span class="a ${a > 0 ? 'in' : ''}">${nw ? '<span class="new"></span>' : ''}${a > 0 ? '+' : ''}${eur(a)}</span></div>`).join('')
+    }).join('') +
     '</div></div>'
 }
 function before(list) {

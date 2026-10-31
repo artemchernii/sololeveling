@@ -35,6 +35,20 @@ export type Quote = {
   dividend: number | null
 }
 
+/* "Coinbase Global, Inc." → "Coinbase Global": the legal ending
+   dropped, as a person says the name. */
+const ENDING =
+  /[,\s]+(inc\.?|corp(oration)?\.?|co\.?,? ltd\.?|ltd\.?|limited|plc|s\.?a\.?|s\.?p\.?a\.?|n\.?v\.?|ag|se|a\/s|asa|ab|holdings?|group)$/i
+export function plainName(n: string): string {
+  let s = n.trim()
+  for (let i = 0; i < 4; i++) {
+    const t = s.replace(ENDING, '').trim()
+    if (t === s || t.length < 2) break
+    s = t
+  }
+  return s
+}
+
 const obj = (x: unknown): Record<string, unknown> =>
   typeof x === 'object' && x !== null ? (x as Record<string, unknown>) : {}
 const raw = (x: unknown): number | null => {
@@ -56,13 +70,13 @@ export function parseQuote(symbol: string, json: unknown): Quote | null {
   const high = raw(sd.fiftyTwoWeekHigh)
   if (price === null || high === null || price <= 0) return null
   const s = parseSummary(json) ?? {}
-  const name = [p.shortName, p.longName].find(
+  const name = [p.longName, p.shortName].find(
     (n): n is string => typeof n === 'string' && n.length > 0,
   )
   const cur = p.currency ?? sd.currency
   return {
     symbol,
-    name: name ?? symbol,
+    name: name ? plainName(name) : symbol,
     currency: typeof cur === 'string' ? cur : null,
     price,
     high,

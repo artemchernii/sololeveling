@@ -462,8 +462,8 @@ test('S8 OPPORTUNITIES: the two lists by region, bonds and metals, each number b
   )
   await expect(opp('NOVO-B.CO')).toContainText('▼ 52.0%')
   await expect(opp('NOVO-B.CO')).toContainText('HIGH 712.00 DKK')
-  await expect(opp('NOVO-B.CO')).toContainText('Buy 20 · Hold 12')
-  await expect(opp('NOVO-B.CO')).toContainText('32 ANALYSTS')
+  await expect(opp('NOVO-B.CO')).toContainText('20 · 12')
+  await expect(opp('NOVO-B.CO')).toContainText('BUY · HOLD')
   await expect(opp('AVGO')).toContainText('HELD')
   await expect(opp('ADBE')).not.toContainText('HELD')
   await expect(tile.getByTestId('opps-missing')).toHaveText(

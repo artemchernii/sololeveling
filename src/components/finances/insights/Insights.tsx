@@ -11,6 +11,7 @@ import { Markets } from './Markets'
 import { OnReddit } from './OnReddit'
 import { YourCompanies, useCompanies, useFunds } from './YourCompanies'
 import { WeekStories } from './WeekStories'
+import { Movers } from './Movers'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
@@ -178,6 +179,7 @@ export function Insights({ shown }: { shown: boolean }) {
               board={board}
               onIdea={goIdea}
             />
+            <Movers />
             <YourCompanies c={comp} f={funds} />
             <SectorMap
               shown={market.shown}

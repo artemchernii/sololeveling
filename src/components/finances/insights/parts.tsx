@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import { DrawnMark, Flag } from './Flag'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { PERIODS } from '@/lib/insightsMarket'
 import type { Mark, Period, Point } from '@/lib/insightsMarket'
@@ -56,24 +57,15 @@ export function heatColour(change: number | null, mix: number) {
   return `color-mix(in srgb, ${state} ${Math.round(mix * 0.72)}%, var(--mark-ink))`
 }
 
-/** A market's mark: letters (US, EU), a site's icon, gold's bars, a coin. */
+/** A market's mark: a flag, a drawn icon, a site's icon, a coin. */
 export function MarkLogo({ mark, size = 30 }: { mark: Mark; size?: number }) {
-  if ('chip' in mark)
-    return (
-      <span className="ins-chip mark" style={{ width: size, height: size }}>
-        {mark.chip}
-      </span>
-    )
+  if ('flag' in mark)
+    return <Flag code={mark.flag} tag={mark.tag} size={size} />
+  if ('icon' in mark) return <DrawnMark icon={mark.icon} size={size} />
   if ('site' in mark)
     return (
       <span className="mark">
         <AccountLogo name={mark.site} domain={mark.site} size={size} />
-      </span>
-    )
-  if ('metal' in mark)
-    return (
-      <span className="mark">
-        <TickerLogo symbol={mark.metal} size={size} />
       </span>
     )
   return (

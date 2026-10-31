@@ -141,7 +141,7 @@ describe('rates', () => {
     })
     expect(parseBls({ Results: { series: [{ data: [] }] } })).toBeNull()
   })
-  it('FRED CPIAUCNSL: the same twelve-month change when BLS is not reached', () => {
+  it('FRED CPIAUCNS: the same twelve-month change when BLS is not reached', () => {
     const o = (date: string, value: string) => ({ date, value })
     expect(
       parseFredCpi({

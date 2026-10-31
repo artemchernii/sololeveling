@@ -45,7 +45,7 @@ export function parseBls(json: unknown): Inflation | null {
 
 /**
  * The same CPI-U, not seasonally adjusted, as FRED republishes it
- * (CPIAUCNSL) — read when BLS does not answer: its keyless API allows 25
+ * (CPIAUCNS) — read when BLS does not answer: its keyless API allows 25
  * requests a day per address, and Convex's addresses are shared.
  */
 export function parseFredCpi(json: unknown): Inflation | null {

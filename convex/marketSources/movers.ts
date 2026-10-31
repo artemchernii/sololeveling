@@ -10,6 +10,7 @@ import {
   MOVER_REGIONS,
   UNIVERSE,
   parseNames,
+  pickHeadline,
   weekMovers,
 } from '../../src/lib/movers'
 import type { Mover, MoverRegion } from '../../src/lib/movers'
@@ -67,7 +68,7 @@ export const movers = action({
     const { up, down } = weekMovers(args.region, series, names, now)
     const withNews = async (m: Mover): Promise<Row> => ({
       ...m,
-      headline: await newest(m.symbol),
+      headline: pickHeadline(await headlines(m.symbol), m),
     })
     return {
       region: args.region,
@@ -121,12 +122,12 @@ async function quoteNames(symbols: Array<string>) {
   }
 }
 
-async function newest(symbol: string) {
+async function headlines(symbol: string) {
   const json = await getJson(
-    `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=3`,
+    `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=10`,
     { headers: { 'User-Agent': UA } },
   )
-  return parseNews(json, 1)[0] ?? null
+  return parseNews(json, 10)
 }
 
 /* The test backend's week, a moment late so the loading rows are seen:

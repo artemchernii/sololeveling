@@ -222,7 +222,7 @@ async function readRates(now: number): Promise<Array<Rate>> {
     fred('DFEDTARL'),
     fred('UNRATE'),
     fred('DGS2'),
-    fred('CPIAUCNSL'),
+    fred('CPIAUCNS'),
   ])
   const today = day(now)
   return rateCards({

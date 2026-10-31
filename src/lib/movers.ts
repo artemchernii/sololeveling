@@ -139,3 +139,40 @@ export function parseNames(
   }
   return out
 }
+
+const GENERIC = new Set(
+  'and the company companies group holding holdings global technologies platforms international industries corporation'.split(
+    ' ',
+  ),
+)
+
+/**
+ * The newest headline that is about this company and from this week:
+ * published on or after the week's base day, its title naming the ticker
+ * or a word of the name (Yahoo's search answers with loose matches, like
+ * an old election story for Walmart). None when nothing fits.
+ */
+export function pickHeadline<THeadline extends { title: string; at: number }>(
+  news: ReadonlyArray<THeadline>,
+  m: { symbol: string; name: string; baseAt: number },
+): THeadline | null {
+  const words = [
+    m.symbol.split(/[.-]/)[0],
+    ...m.name
+      .split(/[\s,.&()]+/)
+      .filter((w) => w.length >= 4 && !GENERIC.has(w.toLowerCase())),
+  ].map((w) => w.toLowerCase())
+  const about = (t: string) => {
+    const lower = t.toLowerCase()
+    return words.some((w) =>
+      new RegExp(
+        `(^|[^a-z0-9])${w.replace(/[^a-z0-9]/g, '')}([^a-z0-9]|$)`,
+      ).test(lower),
+    )
+  }
+  return (
+    [...news]
+      .sort((a, b) => b.at - a.at)
+      .find((h) => h.at >= m.baseAt && about(h.title)) ?? null
+  )
+}

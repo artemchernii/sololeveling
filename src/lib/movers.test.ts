@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { MOVER_ROWS, UNIVERSE, parseNames, weekMovers } from './movers'
+import {
+  MOVER_ROWS,
+  UNIVERSE,
+  parseNames,
+  pickHeadline,
+  weekMovers,
+} from './movers'
 import type { Series } from './insightsMarket'
 
 const DAY = 86_400_000
@@ -75,5 +81,44 @@ describe('parseNames', () => {
     expect(n.get('ASML.AS')).toEqual({ name: 'ASML Holding', currency: 'EUR' })
     expect(n.has('X')).toBe(false)
     expect(parseNames(null).size).toBe(0)
+  })
+})
+
+describe('pickHeadline', () => {
+  const m = { symbol: 'WMT', name: 'Walmart', baseAt: 1_000 }
+  it('the newest of the week that names the company', () => {
+    const h = pickHeadline(
+      [
+        { title: 'Walmart lifts its forecast', at: 2_000 },
+        { title: 'Walmart (WMT) beats on sales', at: 3_000 },
+        { title: 'A 100-piece bag of candy costs more', at: 4_000 },
+      ],
+      m,
+    )
+    expect(h?.title).toBe('Walmart (WMT) beats on sales')
+  })
+  it('none when the only match is older than the week, or about something else', () => {
+    expect(
+      pickHeadline(
+        [
+          { title: 'Walmart opens stores', at: 500 },
+          { title: 'Stocks sell off as tech slides', at: 2_000 },
+        ],
+        m,
+      ),
+    ).toBeNull()
+  })
+  it('a word of a longer name, not a generic one', () => {
+    const lilly = { symbol: 'LLY', name: 'Eli Lilly and Company', baseAt: 0 }
+    expect(
+      pickHeadline(
+        [{ title: 'OmniAb earnings call highlights', at: 1 }],
+        lilly,
+      ),
+    ).toBeNull()
+    expect(
+      pickHeadline([{ title: 'Lilly raises its outlook', at: 1 }], lilly)
+        ?.title,
+    ).toBe('Lilly raises its outlook')
   })
 })

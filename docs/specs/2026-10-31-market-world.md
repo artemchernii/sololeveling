@@ -20,7 +20,7 @@ week that really influenced my holdings").
    pair, a tag (TECH, 10Y); drawn gold and silver bars; MSCI World a globe.
    New: Nikkei 225, Hang Seng, Bovespa, Latin America 40 (ILF), silver.
    Yahoo has no Merval or Bund yield. US inflation falls back to FRED's
-   CPIAUCNSL when BLS is not reached (`BLS · FRED`).
+   CPIAUCNS when BLS is not reached (`BLS · FRED`).
 2. **MOVERS** (built): US · EUROPE · ASIA · SOUTH AMERICA, the five up and
    five down over the week from each region's biggest companies, both
    closes and the base day on the row, the newest Yahoo headline under the

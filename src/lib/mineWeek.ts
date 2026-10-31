@@ -48,13 +48,20 @@ export type WeekCard = {
   reasons: Array<Reason>
 }
 
+/** "Alphabet Inc." → "Alphabet", "DoorDash, Inc." → "DoorDash". */
+export const plainName = (n: string) =>
+  n.replace(
+    /,? (Inc|Corp|Corporation|Incorporated|N\.V|S\.A|AG|SE|plc|Ltd|Limited)\.?$/i,
+    '',
+  )
+
 const within = (day: string, now: number) =>
   now - Date.parse(`${day}T12:00:00Z`) <= WEEK_DAYS * 86_400_000
 
 /**
  * The cards, biggest move first: a held company with a week's close
  * moving BIG_WEEK or more, or results out or an insider trade in the last
- * seven days, or a fund's shares moved NEWS_MOVE or more.
+ * seven days; a fund's shares moved NEWS_MOVE or more is a line on it.
  */
 export function weekCards(
   held: ReadonlyArray<HeldNow>,
@@ -78,15 +85,17 @@ export function weekCards(
       })
     if (r?.insider && within(r.insider.day, now))
       reasons.push({ kind: 'insider', ...r.insider })
+    const big = close !== null && Math.abs(close.change) >= BIG_WEEK
+    if (!big && reasons.length === 0) return []
+    /* A 13F is a quarter old: a line on a card, never a card alone (31 Oct,
+       it made 13 of 22 holdings cards). */
     const f = fundOf.get(h.symbol)
     if (f && Math.abs(fundMove(f)) >= NEWS_MOVE)
       reasons.push({ kind: 'fund', move: f })
-    const big = close !== null && Math.abs(close.change) >= BIG_WEEK
-    if (!big && reasons.length === 0) return []
     return [
       {
         symbol: h.symbol,
-        name: h.name,
+        name: plainName(h.name),
         close,
         nowEur: h.valueEur,
         wasEur:

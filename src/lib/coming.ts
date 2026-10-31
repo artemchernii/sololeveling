@@ -5,6 +5,7 @@
    stored. Pure: the fetch is in convex/marketSources/coming.ts. */
 
 import { ECB_MEETINGS, FED_MEETINGS } from './insightsRates'
+import { plainName } from './mineWeek'
 import { UNIVERSE } from './movers'
 
 /** The Bank of England's 2026 MPC announcements, as it publishes them
@@ -205,7 +206,7 @@ export function parseCalendar(
     out.push({
       day,
       symbol: listed?.symbol ?? s,
-      name: listed?.name ?? heldName ?? s,
+      name: listed?.name ?? (heldName ? plainName(heldName) : s),
       domain: listed?.domain ?? null,
       hour: HOURS[String(r.hour)] ?? null,
       expected: r.epsEstimate != null && Number.isFinite(eps) ? eps : null,

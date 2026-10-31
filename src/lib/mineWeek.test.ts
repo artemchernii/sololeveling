@@ -67,19 +67,19 @@ describe('MINE · THIS WEEK', () => {
   ]
 
   it('a card for a 5% move or news, biggest move first; a quiet one left out', () => {
-    const cards = weekCards(held, closes, rows, funds, NOW)
-    expect(cards.map((c) => c.symbol)).toEqual([
-      'GOOGL',
-      'MSFT',
-      'NFLX',
-      'META',
-    ])
-    expect(cards[0].reasons).toEqual([
-      { kind: 'results', day: '2026-10-28', actual: 2.12, expected: 3.11 },
-    ])
-    expect(cards[2].reasons[0]).toMatchObject({ kind: 'fund' })
-    expect(cards[3]).toMatchObject({ close: null, wasEur: null, nowEur: 1017 })
-    expect(cards[3].reasons[0]).toMatchObject({ kind: 'insider', usd: 669_000 })
+    const withGoogl = [...funds, { ...funds[0], symbol: 'GOOGL' }]
+    const cards = weekCards(held, closes, rows, withGoogl, NOW)
+    /* Netflix: a fund's 13F and a 1% move, no card. */
+    expect(cards.map((c) => c.symbol)).toEqual(['GOOGL', 'MSFT', 'META'])
+    expect(cards[0].reasons[0]).toEqual({
+      kind: 'results',
+      day: '2026-10-28',
+      actual: 2.12,
+      expected: 3.11,
+    })
+    expect(cards[0].reasons[1]).toMatchObject({ kind: 'fund' })
+    expect(cards[2]).toMatchObject({ close: null, wasEur: null, nowEur: 1017 })
+    expect(cards[2].reasons[0]).toMatchObject({ kind: 'insider', usd: 669_000 })
   })
 
   it('WAS is the same shares at the close a week back', () => {
@@ -115,4 +115,11 @@ describe('MINE · THIS WEEK', () => {
     )
     expect(cards).toEqual([])
   })
+})
+
+it('a name without Inc. or Corp.', async () => {
+  const { plainName } = await import('./mineWeek')
+  expect(plainName('Alphabet Inc.')).toBe('Alphabet')
+  expect(plainName('DoorDash, Inc.')).toBe('DoorDash')
+  expect(plainName('Microsoft Corporation')).toBe('Microsoft')
 })

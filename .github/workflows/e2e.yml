@@ -26,6 +26,9 @@ jobs:
       # The specs count "today" in local midnights, written on his Mac in
       # Lisbon; the runner's UTC would move days near midnight.
       TZ: Europe/Lisbon
+      # A fresh runner's first boot of the local backend passed the CLI's
+      # 30 s default (31 Oct).
+      CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS: 120
     steps:
       - uses: actions/checkout@v5
 

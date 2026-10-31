@@ -5,7 +5,7 @@
    see, matched on whole words of the row's name; a payee not in it gets
    its two letters. Add a line here when one keeps showing letters. */
 
-import { FOUND } from './payeeSitesFound.ts'
+import { FOUND } from './payeeSitesFound'
 
 const SITES: ReadonlyArray<readonly [string, string]> = [
   /* Groceries */

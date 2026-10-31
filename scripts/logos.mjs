@@ -27,7 +27,6 @@ for (const m of read('src/lib/logo.ts').matchAll(
 const found = []
 if (process.argv.includes('--payees')) {
   const { execSync } = await import('node:child_process')
-  const { payeeSite } = await import('../src/lib/payeeSites.ts')
   const lines = execSync(
     'npx convex data logs --limit 20000 --format jsonLines',
     {
@@ -36,6 +35,19 @@ if (process.argv.includes('--payees')) {
       stdio: ['ignore', 'pipe', 'ignore'],
     },
   ).split('\n')
+  const plainOf = (x) =>
+    x
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  /* Shops payeeSites already names: not asked again. */
+  const listed = [
+    ...read('src/lib/payeeSites.ts').matchAll(
+      /\['([a-z0-9 &.-]+)', '[a-z0-9.-]+'\]/g,
+    ),
+  ].map((m) => m[1])
   const count = new Map()
   for (const l of lines) {
     if (!l.trim()) continue
@@ -48,16 +60,13 @@ if (process.argv.includes('--payees')) {
       .replace(/\d{3,}.*$/, '')
       .replace(/\s+/g, ' ')
       .trim()
-    if (name.length < 3 || payeeSite(name) !== null) continue
+    if (
+      name.length < 3 ||
+      listed.some((w) => ` ${plainOf(name)} `.includes(` ${w} `))
+    )
+      continue
     count.set(name, (count.get(name) ?? 0) + 1)
   }
-  const plainOf = (x) =>
-    x
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim()
   const names = [...count]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 200)

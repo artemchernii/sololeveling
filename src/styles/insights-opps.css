@@ -51,10 +51,6 @@
       gap: 5px;
       font: 500 10.5px var(--font-mono);
       color: var(--color-ink-400);
-      & .ins-flag {
-        border-radius: 3px;
-        height: 9px !important;
-      }
     }
   }
   & i.held {

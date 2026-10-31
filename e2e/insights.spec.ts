@@ -58,11 +58,11 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
     'METALS',
     'MONEY',
   ])
-  await expect(market(page, 'stoxx').locator('[data-flag=EU] svg')).toHaveCount(
+  await expect(market(page, 'stoxx').locator('[data-flag=EU] img')).toHaveCount(
     1,
   )
   await expect(
-    market(page, 'eurusd').locator('[data-flag=EU-US] svg'),
+    market(page, 'eurusd').locator('[data-flag=EU-US] img'),
   ).toHaveCount(2)
   await expect(market(page, 'silver')).toContainText('46.20')
   await expect(market(page, 'bvsp')).toContainText('BOVESPA')

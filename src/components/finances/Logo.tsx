@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Banknote } from 'lucide-react'
 
 import { metalOf } from '@/lib/holdingLine'
-import { isCoin, logoSrc } from '@/lib/logo'
+import { isCoin, isFullMark, logoSrc, shareFallback } from '@/lib/logo'
 import { payeeSite } from '@/lib/payeeSites'
 
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
@@ -117,6 +117,7 @@ export function TickerLogo({
   symbol,
   type,
   name,
+  domain,
   size = 32,
 }: {
   symbol: string
@@ -124,16 +125,27 @@ export function TickerLogo({
       is its issuer's, a coin's its own (src/lib/logo). */
   type?: string
   name?: string
+  /** The company's site: its icon when no share mark is found. */
+  domain?: string
   size?: number
 }) {
-  const [failed, setFailed] = useState(false)
+  const [tries, setTries] = useState(0)
   const [ink, setInk] = useState<Ink>('dark')
-  const src = logoSrc({ symbol, type, name })
+  const first = logoSrc({ symbol, type, name })
+  const sources =
+    first !== null && isFullMark(first)
+      ? [first, shareFallback(symbol)].filter((x): x is string => x !== null)
+      : first !== null
+        ? [first]
+        : []
+  const failed = tries >= sources.length && sources.length > 0
+  const src: string | null = failed ? null : (sources.at(tries) ?? null)
+  const full = src !== null && isFullMark(src)
   const coin = isCoin({ symbol, type })
   /* A fund's mark is its issuer's site icon, which cannot be read for its
      colours (no CORS): asked for plainly, or it fails and shows letters
      (13 Oct: "why etfs dont have icons?"). */
-  const site = src?.includes('/s2/favicons') ?? false
+  const site = (src?.includes('/s2/favicons') ?? false) || full
   const base = symbol.split(/[.-]/)[0]
   const box = {
     width: size,
@@ -159,6 +171,8 @@ export function TickerLogo({
       </span>
     )
   }
+  if (domain && (src === null || failed || ink === 'blank'))
+    return <AccountLogo name={name ?? symbol} domain={domain} size={size} />
   if (src === null || failed || ink === 'blank') {
     return (
       <span
@@ -177,12 +191,12 @@ export function TickerLogo({
       aria-hidden
       crossOrigin={coin || site ? undefined : 'anonymous'}
       referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
+      onError={() => setTries((t) => t + 1)}
       onLoad={(e) =>
         coin || site ? undefined : setInk(inkOf(e.currentTarget))
       }
-      style={coin ? box : { ...box, padding: size / 10 }}
-      className={`shrink-0 object-contain ${coin ? '' : ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
+      style={coin || full ? box : { ...box, padding: size / 10 }}
+      className={`shrink-0 object-contain ${coin || full ? '' : ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
     />
   )
 }

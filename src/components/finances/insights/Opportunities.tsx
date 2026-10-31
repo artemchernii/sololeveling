@@ -13,7 +13,7 @@ import type {
   OppRow,
   StocksAnswer,
 } from '../../../../convex/marketSources/opportunities'
-import { AccountLogo } from '@/components/finances/Logo'
+import { TickerLogo } from '@/components/finances/Logo'
 import { tickerBase } from '@/lib/market'
 import { MOVER_REGIONS, REGION_FLAG, closeWord } from '@/lib/movers'
 import type { MoverRegion } from '@/lib/movers'
@@ -220,7 +220,13 @@ function StockRows({
                 data-symbol={o.symbol}
               >
                 <div className="c1">
-                  <AccountLogo name={o.name} domain={o.domain} size={28} />
+                  <TickerLogo
+                    symbol={o.symbol}
+                    type="EQUITY"
+                    name={o.name}
+                    domain={o.domain}
+                    size={28}
+                  />
                   <span className="min-w-0">
                     <b>
                       {o.name}

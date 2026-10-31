@@ -13,8 +13,9 @@ import type { Bucket, Target } from '@/lib/targets'
 
 /* TARGET, the fourth lens of WHERE THE MONEY IS (31 Oct, mockup
    targets.html, his "Go"): each bucket's euros now against his own range,
-   and the cash waiting split by src/lib/targets.ts. A press on a bucket
-   keeps its rows in the list below, as the other lenses do. */
+   and the cash waiting split by src/lib/targets.ts; what no bucket misses
+   stays cash. A press on a bucket keeps its rows in the list below, as
+   the other lenses do. */
 
 export const TONE: Record<Bucket, string> = {
   stocks: 'var(--color-lav-400)',
@@ -22,6 +23,7 @@ export const TONE: Record<Bucket, string> = {
   bonds: 'var(--area-knowledge)',
   crypto: 'var(--state-warn)',
 }
+const CASH_TONE = 'var(--color-ink-400)'
 
 type Row = {
   symbol: string
@@ -29,8 +31,6 @@ type Row = {
   name: string
   valueEur: number | null
 }
-type Ranged = Exclude<Bucket, 'stocks'>
-const RANGED: ReadonlyArray<Ranged> = ['gold', 'bonds', 'crypto']
 
 const BADGE =
   'inline-flex items-center gap-1 rounded-full px-2 py-[3px] font-mono text-[9.5px] font-bold tracking-[0.1em] whitespace-nowrap uppercase ring-1 ring-inset'
@@ -84,8 +84,7 @@ export function TargetMap({
   if (targets === undefined || balances === undefined) return null
 
   const now = nowBy(rows)
-  const worth = BUCKETS.reduce((s, b) => s + now[b], 0)
-  const of = (b: Bucket | 'keep') => targets.find((t) => t.bucket === b)
+  const of = (b: Bucket) => targets.find((t) => t.bucket === b)
   const accounts = balances.accounts
   /* As the Treasury's hero: free cash is banks and cash; a broker's cash
      is all of a broker-only account's, and a bank-broker's broker line. */
@@ -99,8 +98,7 @@ export function TargetMap({
         s + (a.kinds.includes('bank') ? (a.brokerCash?.eur ?? 0) : a.cashEur),
       0,
     )
-  const keep = of('keep')?.min ?? 0
-  const cash = toPlace(free, atBrokers, keep)
+  const cash = toPlace(free, atBrokers)
   const puts = targets.length > 0 ? split(cash, now, targets) : []
   const on = (b: Bucket) => part?.lens === 'target' && part.key === b
 
@@ -120,7 +118,7 @@ export function TargetMap({
       </div>
       <div className="-mx-2 flex flex-col gap-1">
         {BUCKETS.map((b, i) => {
-          const t = b === 'stocks' ? undefined : of(b)
+          const t = of(b)
           const top = Math.max(now[b], t?.max ?? 0, 1) * 1.15
           return (
             <button
@@ -156,7 +154,7 @@ export function TargetMap({
                   <span
                     className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700"
                     style={{
-                      width: `${(now[b] / (b === 'stocks' ? Math.max(worth, 1) : top)) * 100}%`,
+                      width: `${(now[b] / top) * 100}%`,
                       background: TONE[b],
                     }}
                   />
@@ -167,24 +165,11 @@ export function TargetMap({
                   now <Veiled>{euros(Math.round(now[b]))}</Veiled>
                 </span>
                 <span className="text-[10.5px] tracking-[0.04em] text-ink-500 uppercase">
-                  {b === 'stocks' ? (
-                    <>
-                      {worth > 0 ? Math.round((now[b] / worth) * 100) : 0}% of{' '}
-                      <Veiled>{euros(Math.round(worth))}</Veiled>
-                    </>
-                  ) : (
-                    range(t)
-                  )}
+                  {range(t)}
                 </span>
               </span>
               <span className="col-start-2 row-start-1 justify-self-end sm:col-start-auto sm:row-start-auto">
-                {b === 'stocks' ? (
-                  <span className={`${BADGE} text-lav-300 ring-lav-400/45`}>
-                    rest
-                  </span>
-                ) : (
-                  <Badge now={now[b]} t={t} />
-                )}
+                <Badge now={now[b]} t={t} />
               </span>
             </button>
           )
@@ -199,12 +184,6 @@ export function TargetMap({
           <span className="font-mono text-[10.5px] tracking-[0.04em] text-ink-500 uppercase">
             free cash <Veiled>{euros(Math.round(free))}</Veiled> · broker cash{' '}
             <Veiled>{euros(Math.round(atBrokers))}</Veiled>
-            {keep > 0 ? (
-              <>
-                {' '}
-                · keep <Veiled>{euros(keep)}</Veiled>
-              </>
-            ) : null}
           </span>
         </div>
         {targets.length === 0 ? (
@@ -218,7 +197,8 @@ export function TargetMap({
         ) : (
           <div className="flex flex-wrap gap-2">
             {puts.map((p, i) => {
-              const t = of(p.bucket)
+              const t = p.bucket === 'cash' ? undefined : of(p.bucket)
+              const tone = p.bucket === 'cash' ? CASH_TONE : TONE[p.bucket]
               return (
                 <div
                   key={p.bucket}
@@ -228,12 +208,12 @@ export function TargetMap({
                 >
                   <i
                     className="inline-block size-2 rounded-[2px]"
-                    style={{ background: TONE[p.bucket] }}
+                    style={{ background: tone }}
                   />
                   <span className="flex flex-1 flex-col gap-0.5">
                     <span className="label-caps text-ink-200">{p.bucket}</span>
                     <span className="font-mono text-[10px] tracking-[0.04em] text-ink-500 uppercase">
-                      {p.misses > 0 && t !== undefined ? (
+                      {p.bucket !== 'cash' && t !== undefined ? (
                         <>
                           to add <Veiled>{euros(Math.round(p.misses))}</Veiled>{' '}
                           · now{' '}
@@ -241,9 +221,9 @@ export function TargetMap({
                           target {euros(t.min)}
                         </>
                       ) : puts.length === 1 ? (
-                        'every target met · rest'
+                        'stays · every target met'
                       ) : (
-                        'after every target · rest'
+                        'stays · after every min'
                       )}
                     </span>
                   </span>
@@ -260,8 +240,8 @@ export function TargetMap({
   )
 }
 
-/* Min and max per bucket, and the cash kept out of the split; stocks is
-   the rest. One save for all. */
+/* Min and max per bucket, one save for all; a bucket left empty is not
+   saved. */
 function TargetEdit({
   targets,
   onClose,
@@ -272,31 +252,26 @@ function TargetEdit({
   const save = useMutation(api.targets.save)
   const { status, run, settle, busy } = useSave()
   const [failed, setFailed] = useState(false)
-  const start = (b: Ranged | 'keep') => targets.find((t) => t.bucket === b)
+  const start = (b: Bucket) => targets.find((t) => t.bucket === b)
   const [form, setForm] = useState(
     () =>
       Object.fromEntries(
-        [...RANGED, 'keep' as const].map((b) => [
+        BUCKETS.map((b) => [
           b,
           {
             min: String(start(b)?.min ?? ''),
             max: String(start(b)?.max ?? ''),
           },
         ]),
-      ) as Record<Ranged | 'keep', { min: string; max: string }>,
+      ) as Record<Bucket, { min: string; max: string }>,
   )
   const num = (s: string) =>
     s.trim() === '' ? 0 : Number(s.replace(/[^\d.]/g, ''))
-  const out: Array<Target & { bucket: Ranged | 'keep' }> = [
-    ...RANGED.map((b) => ({
-      bucket: b,
-      min: num(form[b].min),
-      max: num(form[b].max),
-    })),
-    { bucket: 'keep', min: num(form.keep.min), max: num(form.keep.min) },
-  ]
+  const out: Array<Target> = BUCKETS.filter(
+    (b) => form[b].min.trim() !== '' || form[b].max.trim() !== '',
+  ).map((b) => ({ bucket: b, min: num(form[b].min), max: num(form[b].max) }))
   const valid = out.every((t) => t.min >= 0 && t.max >= t.min)
-  const field = (b: Ranged | 'keep', k: 'min' | 'max', label: string) => (
+  const field = (b: Bucket, k: 'min' | 'max', label: string) => (
     <label className="flex flex-col gap-1">
       <span className="label-caps text-[9.5px]">{label}</span>
       <input
@@ -313,7 +288,7 @@ function TargetEdit({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-[70px_1fr_1fr] items-end gap-x-3.5 gap-y-2.5 sm:grid-cols-[96px_1fr_1fr]">
-        {RANGED.map((b) => (
+        {BUCKETS.map((b) => (
           <div key={b} className="contents">
             <span className="label-caps flex items-center gap-2 pb-2.5 text-ink-200">
               <i
@@ -326,20 +301,6 @@ function TargetEdit({
             {field(b, 'max', 'max €')}
           </div>
         ))}
-        <span className="label-caps flex items-center gap-2 pb-2.5 text-ink-200">
-          <i
-            className="inline-block size-2 rounded-[2px]"
-            style={{ background: TONE.stocks }}
-          />
-          stocks
-        </span>
-        <span className="col-span-2 pb-2">
-          <span className={`${BADGE} text-lav-300 ring-lav-400/45`}>rest</span>
-        </span>
-        <span className="label-caps flex items-center gap-2 pb-2.5 text-ink-200">
-          keep
-        </span>
-        {field('keep', 'min', 'cash €')}
       </div>
       <div className="flex items-center justify-end gap-2">
         {failed ? (

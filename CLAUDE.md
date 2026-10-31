@@ -151,13 +151,14 @@ SIGNALS tab:
 Targets were allowed on 2026-10-31 ("yes to all", then "Go" on the
 mockup `design/treasury-mockup/targets.html`, spec
 `docs/specs/2026-10-31-targets.md`; his words: "up to 2k max, 3-5k gold,
-5k bonds, and rest are stocks"). Only on Portfolio's TARGET lens: his
-own € min and max per bucket (`targets`, typed by him, like
-`goals.targetValue`); TO ADD is his min minus the bucket's sum now, and
-TO PLACE (free cash and broker cash less his KEEP) is split to the
-buckets under their min in proportion to what each misses, then to
-stocks — `src/lib/targets.ts`, nothing stored, every line showing its
-now and its target beside the €. Never an input to `verdict()`.
+5k bonds, and rest are stocks"; stocks its own range the same night,
+"rest is a bit weird"). Only on Portfolio's TARGET lens: his own € min
+and max per bucket (`targets`, typed by him, like `goals.targetValue`);
+TO ADD is his min minus the bucket's sum now, and TO PLACE (free cash
+and broker cash) is split to the buckets under their min in proportion
+to what each misses; what is left STAYS as cash — `src/lib/targets.ts`,
+nothing stored, every line showing its now and its target beside the €.
+Never an input to `verdict()`.
 
 Insights, Finances' fourth room, was allowed on 2026-10-19 ("go" on the
 mockup `design/treasury-mockup/insights.html`, spec

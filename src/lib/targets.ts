@@ -1,14 +1,15 @@
 /* Targets (31 Oct, docs/specs/2026-10-31-targets.md, mockup
    targets.html). His own euros per bucket — "up to 2k max, 3-5k gold, 5k
-   bonds, and rest are stocks" — against what each holds now, and the
-   cash to place split by one rule: buckets under their min first, in
-   proportion to what each misses, then stocks. Pure, so it is tested;
-   nothing here is stored. */
+   bonds, and rest are stocks"; stocks got its own range the same night,
+   "rest is a bit weird") — against what each holds now, and the cash to
+   place split by one rule: buckets under their min, in proportion to what
+   each misses; what is left stays cash. Pure, so it is tested; nothing
+   here is stored. */
 
 import { kindOf } from './logo'
 
 export type Bucket = 'stocks' | 'gold' | 'bonds' | 'crypto'
-export type Target = { bucket: Bucket | 'keep'; min: number; max: number }
+export type Target = { bucket: Bucket; min: number; max: number }
 
 export const BUCKETS: ReadonlyArray<Bucket> = [
   'stocks',
@@ -63,15 +64,15 @@ export function markOf(now: number, t: Target): Mark {
   return { kind: 'in' }
 }
 
-/** Cash waiting: free cash (banks and cash) and cash at brokers, less
-    what he keeps. */
-export function toPlace(free: number, atBrokers: number, keep: number) {
-  return Math.max(0, free + atBrokers - keep)
+/** Cash waiting: free cash (banks and cash) and cash at brokers. */
+export function toPlace(free: number, atBrokers: number) {
+  return Math.max(0, free + atBrokers)
 }
 
-export type Put = { bucket: Bucket; eur: number; misses: number }
+export type Put = { bucket: Bucket | 'cash'; eur: number; misses: number }
 
-/** The cash split by the rule, in whole euros that add up to it. */
+/** The cash split by the rule, in whole euros that add up to it; what no
+    bucket misses stays cash. */
 export function split(
   cash: number,
   now: Record<Bucket, number>,
@@ -80,7 +81,6 @@ export function split(
   const whole = Math.floor(cash)
   if (whole <= 0) return []
   const missing = targets
-    .filter((t): t is Target & { bucket: Bucket } => t.bucket !== 'keep')
     .map((t) => ({
       bucket: t.bucket,
       misses: Math.max(0, t.min - now[t.bucket]),
@@ -90,13 +90,13 @@ export function split(
   const toTargets = Math.min(whole, Math.floor(total))
   const puts: Array<Put> = missing.map((m) => ({
     ...m,
-    eur: Math.floor((toTargets * m.misses) / total),
+    eur: total > 0 ? Math.floor((toTargets * m.misses) / total) : 0,
   }))
   /* What flooring left over goes to the bucket that misses most. */
   const short = toTargets - puts.reduce((s, p) => s + p.eur, 0)
   if (short > 0)
     puts.reduce((a, b) => (b.misses > a.misses ? b : a)).eur += short
   if (whole > toTargets)
-    puts.push({ bucket: 'stocks', eur: whole - toTargets, misses: 0 })
+    puts.push({ bucket: 'cash', eur: whole - toTargets, misses: 0 })
   return puts.filter((p) => p.eur > 0)
 }

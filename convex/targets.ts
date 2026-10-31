@@ -8,13 +8,16 @@ import { mutation } from './write'
    by Portfolio's TARGET lens, saved from its edit. Stored as he typed
    them; what is to add is worked out on the page, never stored. */
 
-const BUCKET = v.union(
-  v.literal('gold'),
-  v.literal('bonds'),
-  v.literal('crypto'),
-  v.literal('keep'),
-)
-const target = v.object({ bucket: BUCKET, min: v.number(), max: v.number() })
+const target = v.object({
+  bucket: v.union(
+    v.literal('stocks'),
+    v.literal('gold'),
+    v.literal('bonds'),
+    v.literal('crypto'),
+  ),
+  min: v.number(),
+  max: v.number(),
+})
 
 export const list = query({
   args: {},
@@ -25,7 +28,9 @@ export const list = query({
       .query('targets')
       .withIndex('by_owner_bucket', (q) => q.eq('ownerId', ownerId))
       .take(10)
-    return rows.map(({ bucket, min, max }) => ({ bucket, min, max }))
+    return rows.flatMap(({ bucket, min, max }) =>
+      bucket === 'keep' ? [] : [{ bucket, min, max }],
+    )
   },
 })
 

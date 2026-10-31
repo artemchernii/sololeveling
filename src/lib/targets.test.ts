@@ -4,6 +4,7 @@ import { bucketOf, markOf, nowBy, split, toPlace } from './targets'
 import type { Target } from './targets'
 
 const HIS: Array<Target> = [
+  { bucket: 'stocks', min: 15000, max: 25000 },
   { bucket: 'gold', min: 3000, max: 5000 },
   { bucket: 'bonds', min: 5000, max: 5000 },
   { bucket: 'crypto', min: 0, max: 2000 },
@@ -67,14 +68,14 @@ test('nowBy sums valued rows by bucket and skips rows with no price', () => {
 })
 
 test('markOf: to add under the min, in the range, above the max', () => {
-  expect(markOf(0, HIS[1])).toEqual({ kind: 'add', eur: 5000 })
-  expect(markOf(3800, HIS[0])).toEqual({ kind: 'in' })
-  expect(markOf(2350, HIS[2])).toEqual({ kind: 'above', max: 2000 })
+  expect(markOf(0, HIS[2])).toEqual({ kind: 'add', eur: 5000 })
+  expect(markOf(3800, HIS[1])).toEqual({ kind: 'in' })
+  expect(markOf(2350, HIS[3])).toEqual({ kind: 'above', max: 2000 })
 })
 
-test('toPlace is free cash and broker cash less what is kept, never below 0', () => {
-  expect(toPlace(2000, 400, 1000)).toBe(1400)
-  expect(toPlace(500, 0, 1000)).toBe(0)
+test('toPlace is free cash and broker cash, never below 0', () => {
+  expect(toPlace(2000, 400)).toBe(2400)
+  expect(toPlace(-500, 0)).toBe(0)
 })
 
 describe('split', () => {
@@ -95,20 +96,28 @@ describe('split', () => {
     expect(puts.reduce((s, p) => s + p.eur, 0)).toBe(2400)
   })
 
-  test('more cash than is missing: targets filled, the rest to stocks', () => {
+  test('more cash than is missing: targets filled, the rest stays cash', () => {
     expect(split(6000, now, HIS)).toEqual([
       { bucket: 'bonds', eur: 5000, misses: 5000 },
-      { bucket: 'stocks', eur: 1000, misses: 0 },
+      { bucket: 'cash', eur: 1000, misses: 0 },
     ])
   })
 
-  test('every target met, or no targets: all to stocks; no cash: nothing', () => {
-    const met = { stocks: 1, gold: 3800, bonds: 5100, crypto: 2350 }
+  test('stocks under its min is filled like any bucket', () => {
+    expect(split(20000, { ...now, stocks: 10000 }, HIS)).toEqual([
+      { bucket: 'stocks', eur: 5000, misses: 5000 },
+      { bucket: 'bonds', eur: 5000, misses: 5000 },
+      { bucket: 'cash', eur: 10000, misses: 0 },
+    ])
+  })
+
+  test('every target met, or no targets: it all stays cash; no cash: nothing', () => {
+    const met = { stocks: 16000, gold: 3800, bonds: 5100, crypto: 2350 }
     expect(split(2400, met, HIS)).toEqual([
-      { bucket: 'stocks', eur: 2400, misses: 0 },
+      { bucket: 'cash', eur: 2400, misses: 0 },
     ])
     expect(split(2400, now, [])).toEqual([
-      { bucket: 'stocks', eur: 2400, misses: 0 },
+      { bucket: 'cash', eur: 2400, misses: 0 },
     ])
     expect(split(0, now, HIS)).toEqual([])
   })

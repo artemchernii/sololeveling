@@ -281,11 +281,13 @@ export default defineSchema({
 
   /* His own targets for where the money is (31 Oct, docs/specs/
      2026-10-31-targets.md): one row per bucket, in euros — "up to 2k max,
-     3-5k gold, 5k bonds, and rest are stocks". Stocks is the rest and has
-     no row; `keep` is the cash kept out of the split (min only). */
+     3-5k gold, 5k bonds, and rest are stocks"; stocks its own range the
+     same night. `keep` rows are from that first night and no longer
+     written or read. */
   targets: defineTable({
     ownerId: v.string(),
     bucket: v.union(
+      v.literal('stocks'),
       v.literal('gold'),
       v.literal('bonds'),
       v.literal('crypto'),

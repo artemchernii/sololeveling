@@ -48,7 +48,7 @@ test('a max under its min, a negative, a bucket twice or no sign-in are refused'
   ).rejects.toThrow('TARGET_RANGE')
   await expect(
     me.mutation(api.targets.save, {
-      targets: [{ bucket: 'keep', min: -1, max: -1 }],
+      targets: [{ bucket: 'stocks', min: -1, max: -1 }],
     }),
   ).rejects.toThrow('TARGET_RANGE')
   await expect(

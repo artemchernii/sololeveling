@@ -6,9 +6,10 @@
    - a share: the company, by ticker, as before
    Null: letters will do. Pure, so it is tested. */
 
+import { siteIcon } from './logoFiles'
+
 const COIN_ICONS =
   'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color'
-const SITE_ICON = 'https://www.google.com/s2/favicons?sz=64&domain='
 const SHARE_LOGO = 'https://financialmodelingprep.com/image-stock/'
 
 /** A fund's issuer by a word in its name. */
@@ -38,7 +39,7 @@ export function logoSrc(p: LogoOf): string | null {
   /* An issuer's word in the name is enough: a fund is not always typed as
      one (iShares Physical Gold came as a plain share, 13 Oct). */
   const site = ISSUERS.find(([re]) => re.test(p.name ?? ''))?.[1]
-  if (site) return `${SITE_ICON}${site}`
+  if (site) return siteIcon(site, 64)
   if (p.type === 'ETF' || p.type === 'MUTUALFUND' || p.type === 'ETC')
     return null
   const base = p.symbol.split('.')[0]

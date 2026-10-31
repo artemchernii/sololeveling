@@ -241,7 +241,7 @@
   </div>
 
   <div class="tabs">
-    <div class="tab on"><span class="n">1</span>MARKET <span class="pill lav">5 STORIES</span></div>
+    <div class="tab on"><span class="n">1</span>MARKET <span class="pill lav">4 STORIES</span></div>
     <div class="tab"><span class="n">2</span>READ <span class="pill lav">4 ACTIONS</span></div>
     <div class="tab"><span class="n">3</span>MINE <span class="pill good">10 ADD</span></div>
     <div class="tab"><span class="n">4</span>IDEAS <span class="pill lav">€30,194</span></div>
@@ -254,7 +254,7 @@
       <div class="tile head">
         <div class="grow">
           <div class="caps">THE MARKET · WEEK OF 26 OCT</div>
-          <h1>Big Tech split, Intel and Reddit crashed, the Fed held</h1>
+          <h1>Big Tech split, four big names crashed, the Fed held</h1>
           <p class="take">Microsoft beat while Google and Meta fell on results. Intel lost a fifth after cutting its outlook. Markets now price a Fed hike in December; Brazil rallied after its election.</p>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end">
@@ -263,7 +263,7 @@
         </div>
       </div>
 
-      <div class="sec"><h2>THE WEEK</h2><span class="caps">5 STORIES · 26–31 OCT · WHOLE MARKET</span></div>
+      <div class="sec"><h2>THE WEEK</h2><span class="caps">4 STORIES · 26–31 OCT · WHOLE MARKET</span></div>
       <div id="stories" class="board"></div>
 
       <div class="sec"><h2>MOVERS</h2><span class="caps">THE WEEK · BIGGEST UP AND DOWN</span></div>
@@ -358,6 +358,7 @@ const TREND = [
     ['NIKKEI 225', { f: 'jp' }, '48,120 → 49,310', 2.5],
     ['HANG SENG', { f: 'hk' }, '25,980 → 25,410', -2.2],
     ['BOVESPA', { f: 'br' }, '141,200 → 147,000', 4.1],
+    ['MERVAL', { f: 'ar' }, '2.31M → 2.38M', 3.0],
   ]],
   ['BONDS', [
     ['US 10Y', { f: 'us', tag: '10Y' }, '4.99% → 4.93%', -0.06, 0, 'pts'],
@@ -380,13 +381,10 @@ document.getElementById('trend').innerHTML = TREND.map(([g, rows]) => `<div clas
 const STORIES = [
   { k: 'EARNINGS', c: '--k-earn', i: 'earn', src: 'FINNHUB · YAHOO · 31 OCT', t: 'Big Tech split: Microsoft beat, Google and Meta fell',
     s: '7 of the 10 biggest US companies reported. Cloud grew; ad and AI spending scared investors.',
-    rows: [['MSFT', 'microsoft.com', 'Microsoft', '$4.89 vs $4.82', 3.1, 1], ['GOOGL', 'google.com', 'Alphabet', '$2.12 vs $3.11', -13.9, 1], ['META', 'meta.com', 'Meta', '$6.03 vs $6.70', -9.2, 1], ['AMZN', 'amazon.com', 'Amazon', '$1.89 vs $2.00', -4.1, 1], ['AAPL', 'apple.com', 'Apple', '$1.71 vs $1.66', 1.8, 0]] },
-  { k: 'CRASH', c: '--bad', i: 'drop', src: 'YAHOO · REUTERS · 30 OCT', t: 'Intel −21% after it cut next quarter\'s outlook',
-    s: 'Sales guide $13.1B against $14.0B expected; the share is at a 52-week low.',
-    boxes: [['INTC · 1W', '▼ 21.4%', '$31.20 → $24.52', 'bad'], ['NEXT QUARTER', '$13.1B', '$14.0B EXPECTED', 'bad'], ['52-WEEK', 'LOW', 'HIGH $38.90 · 12 MAY', 'none']] },
-  { k: 'CRASH', c: '--bad', i: 'drop', src: 'YAHOO · CNBC · 30 OCT', t: 'Reddit −24% as daily users missed',
-    s: '112M daily users against 118M expected; ad sales still grew 41%.',
-    boxes: [['RDDT · 1W', '▼ 24.1%', '$212 → $161', 'bad'], ['DAILY USERS', '112M', '118M EXPECTED', 'bad'], ['AD SALES', '▲ 41%', 'SAME QUARTER 2025', 'good']] },
+    rows: [['MSFT', 'microsoft.com', 'Microsoft', '$4.89 vs $4.82', 3.1, 1, 'BEAT'], ['GOOGL', 'google.com', 'Alphabet', '$2.12 vs $3.11', -13.9, 1], ['META', 'meta.com', 'Meta', '$6.03 vs $6.70', -9.2, 1], ['AMZN', 'amazon.com', 'Amazon', '$1.89 vs $2.00', -4.1, 1], ['AAPL', 'apple.com', 'Apple', '$1.71 vs $1.66', 1.8, 0]] },
+  { k: 'CRASHES', c: '--bad', i: 'drop', src: 'YAHOO · REUTERS · CNBC · 26–31 OCT', t: 'Four big names fell 9–24% in one week',
+    s: 'Two missed their own numbers, two cut prices to keep sales.',
+    rows: [['RDDT', 'reddit.com', 'Reddit', '112M users vs 118M', -24.1, 0], ['INTC', 'intel.com', 'Intel', 'outlook $13.1B vs $14.0B', -21.4, 0, '52W LOW'], ['NOVO-B', 'novonordisk.com', 'Novo Nordisk', 'Wegovy price ▼ 30%', -11.3, 0, '52W LOW'], ['1211', 'byd.com', 'BYD', 'China price war', -9.1, 0]] },
   { k: 'INTEREST RATES', c: '--k-rates', i: 'rates', src: 'FRED · CME · 29 OCT', t: 'The Fed held 3.75–4.00%; a December hike is now 62% priced', why: 1,
     s: 'Higher US rates weigh on growth shares and lift the dollar.',
     boxes: [['FED', '3.75–4.00%', 'SINCE 17 SEP', ''], ['HIKE ON 9 DEC', '62%', 'WEEK BEFORE 38%', 'bad'], ['US 2-YEAR', '4.61%', 'WEEK BEFORE 4.48%', '']] },
@@ -398,7 +396,7 @@ document.getElementById('stories').innerHTML = STORIES.map(x => `
   <div class="tile ln" style="--c:var(${x.c})"><div class="ic">${I[x.i]}</div><div class="body">
     <div><div class="top"><span class="kind">${x.k}</span><span class="src">${x.src}</span></div>
       <div class="title">${x.t}${x.why ? ' <span class="pill ink" style="cursor:pointer" data-why>ⓘ WHY IT MATTERS</span>' : ''}</div><div class="sub">${x.s}</div></div>
-    ${x.rows ? `<div>${x.rows.map(([t, d, n, r, v, h]) => `<div class="mr" style="grid-template-columns:30px minmax(0,1fr) 140px 74px"><span class="logo"><img src="${FAV(d)}"></span><div class="nm">${n} <span class="src">${t}</span>${h ? '<span class="held">HELD</span>' : ''}</div><span class="src" style="text-align:right">${r}</span><div class="pc">${pc(v)}</div></div>`).join('')}</div>`
+    ${x.rows ? `<div>${x.rows.map(([t, d, n, r, v, h, b]) => `<div class="mr" style="grid-template-columns:30px minmax(0,1fr) 170px 74px"><span class="logo"><img src="${FAV(d)}"></span><div class="nm">${n} <span class="src">${t}</span>${h ? '<span class="held">HELD</span>' : ''}${b ? ` <span class="pill ${b === 'BEAT' ? 'good' : 'bad'}">${b}</span>` : ''}</div><span class="src" style="text-align:right">${r}</span><div class="pc">${pc(v)}</div></div>`).join('')}</div>`
       : `<div class="boxes">${x.boxes.map(([n, v, s, t]) => `<div class="box ${t}"><span class="n">${n}</span><span class="v">${v}</span><span class="s">${s}</span></div>`).join('')}</div>`}
     <div class="act"><span class="grow"></span><button class="ask">✦ ASK</button></div>
   </div></div>`).join('')
@@ -411,13 +409,14 @@ const MOV = {
            [['Novo Nordisk', 'novonordisk.com', 'WEGOVY PRICE CUT', -11.3], ['Stellantis', 'stellantis.com', 'US SALES ▼ 9%', -8.7], ['Kering', 'kering.com', 'GUCCI ▼ 14%', -6.9]]],
   ASIA: [[['TSMC', 'tsmc.com', 'AI ORDERS', 5.4], ['Sony', 'sony.com', 'GAMES ▲', 4.0], ['Toyota', 'toyota.com', 'YEN ▼', 3.2]],
          [['BYD', 'byd.com', 'PRICE WAR', -9.1], ['Alibaba', 'alibaba.com', 'CLOUD SLOWED', -6.2], ['Samsung', 'samsung.com', 'CHIP MARGIN ▼', -3.0]]],
-  BRAZIL: [[['Petrobras', 'petrobras.com.br', 'ELECTION · DIVIDEND', 7.8], ['Itaú', 'itau.com.br', 'RESULTS BEAT', 5.2], ['Nubank', 'nubank.com.br', 'CLIENTS ▲ 18%', 4.6]],
-           [['Vale', 'vale.com', 'IRON ORE ▼', -4.4], ['Ambev', 'ambev.com.br', 'VOLUME ▼', -3.1], ['Embraer', 'embraer.com', 'DELIVERIES LATE', -2.4]]],
+  'SOUTH AMERICA': [[['Petrobras', 'petrobras.com.br', 'BR · ELECTION · DIVIDEND', 7.8], ['YPF', 'ypf.com', 'AR · VACA MUERTA OUTPUT ▲', 6.9], ['Itaú', 'itau.com.br', 'BR · RESULTS BEAT', 5.2], ['MercadoLibre', 'mercadolibre.com', 'AR · SALES ▲ 37%', 4.8]],
+           [['Vale', 'vale.com', 'BR · IRON ORE ▼', -4.4], ['SQM', 'sqm.com', 'CL · LITHIUM ▼', -3.8], ['Ambev', 'ambev.com.br', 'BR · VOLUME ▼', -3.1], ['Falabella', 'falabella.com', 'CL · STORES ▼', -2.6]]],
 }
-const RF = { US: 'us', EUROPE: 'eu', ASIA: 'jp', BRAZIL: 'br' }
+const RF = { US: 'us', EUROPE: 'eu', ASIA: 'jp', 'SOUTH AMERICA': ['br', 'ar'] }
+const rflag = r => [].concat(RF[r]).map(c => `<img class="fl" src="${FLAG(c)}">`).join('')
 let reg = 'US'
 const drawMov = () => {
-  document.getElementById('regions').innerHTML = Object.keys(MOV).map(r => `<span class="chip ${r === reg ? 'on' : ''}" data-r="${r}"><img class="fl" src="${FLAG(RF[r])}">${r}</span>`).join('')
+  document.getElementById('regions').innerHTML = Object.keys(MOV).map(r => `<span class="chip ${r === reg ? 'on' : ''}" data-r="${r}">${rflag(r)}${r}</span>`).join('')
   const col = (h, rows) => `<div><h3 class="${h === 'UP' ? 'up' : 'dn'}">${h === 'UP' ? '▲ UP' : '▼ DOWN'}</h3>${rows.map(([n, d, w, v, held]) => `<div class="mr"><span class="logo"><img src="${FAV(d)}"></span><div><div class="nm">${n}${held ? '<span class="held">HELD</span>' : ''}</div><div class="why">${w}</div></div><div class="pc">${pc(v)}</div></div>`).join('')}</div>`
   document.getElementById('movers').innerHTML = col('UP', MOV[reg][0]) + col('DOWN', MOV[reg][1])
 }
@@ -430,6 +429,7 @@ const OPP = {
     ['Novo Nordisk', 'novonordisk.com', 'dk', 'DKK 342', ['▼ 52%', 'HIGH DKK 712'], ['Buy 20 · Hold 12', '32 ANALYSTS'], ['▲ 34%', 'DKK 458'], ['13 · 26', 'HEALTH'], 0],
     ['Adobe', 'adobe.com', 'us', '$318', ['▼ 38%', 'HIGH $512'], ['Buy 22 · Hold 9', '31 ANALYSTS'], ['▲ 29%', '$410'], ['17 · 31', 'SOFTWARE'], 0],
     ['LVMH', 'lvmh.com', 'fr', '€548', ['▼ 28%', 'HIGH €761'], ['Buy 17 · Hold 8', '25 ANALYSTS'], ['▲ 22%', '€668'], ['21 · 24', 'LUXURY'], 0],
+    ['MercadoLibre', 'mercadolibre.com', 'ar', '$1,912', ['▼ 27%', 'HIGH $2,620'], ['Buy 18 · Hold 3', '21 ANALYSTS'], ['▲ 31%', '$2,510'], ['42 · 58', 'E-COMMERCE'], 0],
     ['Alphabet', 'google.com', 'us', '$279.84', ['▼ 16%', 'HIGH $332'], ['Buy 61 · Hold 6', '67 ANALYSTS'], ['▲ 26%', '$352'], ['19 · 27', 'MEDIA'], 1],
   ]},
   'CHEAP · TARGET ABOVE': { h: ['', 'P/E · SECTOR', 'ANALYSTS', 'TARGET', 'DIVIDEND'], rows: [
@@ -449,11 +449,11 @@ const OPP = {
   ]},
 }
 let kind = 'DOWN FROM HIGH', oreg = 'ALL'
-const regOf = f => ({ us: 'US', dk: 'EUROPE', fr: 'EUROPE', de: 'EUROPE', kr: 'ASIA', cn: 'ASIA', br: 'BRAZIL' })[f]
+const regOf = f => ({ us: 'US', dk: 'EUROPE', fr: 'EUROPE', de: 'EUROPE', kr: 'ASIA', cn: 'ASIA', br: 'SOUTH AMERICA', ar: 'SOUTH AMERICA' })[f]
 const drawOpp = () => {
   document.getElementById('okind').innerHTML = Object.keys(OPP).map(k => `<span class="chip ${k === kind ? 'on' : ''}" data-k="${k}">${k}</span>`).join('')
   const stocks = kind === 'DOWN FROM HIGH' || kind === 'CHEAP · TARGET ABOVE'
-  document.getElementById('oreg').innerHTML = stocks ? ['ALL', 'US', 'EUROPE', 'ASIA', 'BRAZIL'].map(r => `<span class="chip ${r === oreg ? 'on' : ''}" data-o="${r}">${r === 'ALL' ? '' : `<img class="fl" src="${FLAG(RF[r])}">`}${r}</span>`).join('') : ''
+  document.getElementById('oreg').innerHTML = stocks ? ['ALL', 'US', 'EUROPE', 'ASIA', 'SOUTH AMERICA'].map(r => `<span class="chip ${r === oreg ? 'on' : ''}" data-o="${r}">${r === 'ALL' ? '' : rflag(r)}${r}</span>`).join('') : ''
   const o = OPP[kind]
   const rows = o.rows.filter(r => !stocks || oreg === 'ALL' || regOf(r[2]) === oreg)
   const cell = ([k, w], tone) => `<div><span class="k ${tone || ''}">${k}</span><span class="w">${w}</span></div>`

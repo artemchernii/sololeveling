@@ -165,10 +165,18 @@ export function Info({ info }: { info: InfoText }) {
               style={at}
             >
               <h4>{info.title}</h4>
-              <span className="k">WHAT IT IS</span>
-              <p>{info.what}</p>
-              <span className="k">WHY IT MOVES THE MONEY</span>
-              <p>{info.why}</p>
+              {info.what ? (
+                <>
+                  <span className="k">WHAT IT IS</span>
+                  <p>{info.what}</p>
+                </>
+              ) : null}
+              {info.why ? (
+                <>
+                  <span className="k">WHY IT MOVES THE MONEY</span>
+                  <p>{info.why}</p>
+                </>
+              ) : null}
               {info.now.map((n) => (
                 <div key={n} className="now">
                   {n}

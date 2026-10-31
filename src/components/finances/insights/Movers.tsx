@@ -7,7 +7,7 @@ import { Info, changeWord, clock, dayWord } from './parts'
 import { api } from '../../../../convex/_generated/api'
 import type { MoversAnswer } from '../../../../convex/marketSources/movers'
 import { AccountLogo } from '@/components/finances/Logo'
-import { MOVER_REGIONS, REGION_FLAG } from '@/lib/movers'
+import { MOVER_REGIONS, REGION_FLAG, closeWord } from '@/lib/movers'
 import type { MoverRegion } from '@/lib/movers'
 
 /* MOVERS on MARKET (31 Oct, market-world.html): a region's biggest up and
@@ -17,49 +17,44 @@ import type { MoverRegion } from '@/lib/movers'
 
 const KEEP_MS = 10 * 60_000
 const kept = new Map<MoverRegion, { at: number; answer: MoversAnswer }>()
+export type MoversShown = ReadonlyMap<MoverRegion, MoversAnswer | 'failed'>
 
-function useMovers(region: MoverRegion) {
+/** Every region's week, asked once on open (four calls), kept ten
+    minutes: the tile shows one, the read and THE WEEK use all. */
+export function useAllMovers(): MoversShown {
   const ask = useAction(api.marketSources.movers.movers)
-  const fresh = (r: MoverRegion) => {
-    const k = kept.get(r)
-    return k && Date.now() - k.at < KEEP_MS ? k.answer : null
-  }
-  const [answers, setAnswers] = useState(
-    () => new Map<MoverRegion, MoversAnswer | 'failed'>(),
-  )
-  const shown = fresh(region) ?? answers.get(region) ?? null
+  const [answers, setAnswers] = useState(() => {
+    const m = new Map<MoverRegion, MoversAnswer | 'failed'>()
+    for (const r of MOVER_REGIONS) {
+      const k = kept.get(r)
+      if (k && Date.now() - k.at < KEEP_MS) m.set(r, k.answer)
+    }
+    return m
+  })
   useEffect(() => {
-    if (shown !== null) return
     let live = true
-    ask({ region })
-      .then((a) => {
-        kept.set(region, { at: Date.now(), answer: a })
-        if (live) setAnswers((m) => new Map(m).set(region, a))
-      })
-      .catch(() => {
-        if (live) setAnswers((m) => new Map(m).set(region, 'failed'))
-      })
+    for (const region of MOVER_REGIONS) {
+      if (answers.has(region)) continue
+      ask({ region })
+        .then((a) => {
+          kept.set(region, { at: Date.now(), answer: a })
+          if (live) setAnswers((m) => new Map(m).set(region, a))
+        })
+        .catch(() => {
+          if (live) setAnswers((m) => new Map(m).set(region, 'failed'))
+        })
+    }
     return () => {
       live = false
     }
-    /* asked once per region: `shown` is null only until it lands */
-  }, [ask, region])
-  return shown
+    /* asked once on open: what is kept is not asked again */
+  }, [ask])
+  return answers
 }
 
-const price = (n: number, currency: string | null) => {
-  const sign = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : ''
-  const d = n >= 1000 ? 0 : 2
-  const v = n.toLocaleString('en-US', {
-    minimumFractionDigits: d,
-    maximumFractionDigits: d,
-  })
-  return sign ? `${sign}${v}` : `${v}${currency ? ` ${currency}` : ''}`
-}
-
-export function Movers() {
+export function Movers({ all }: { all: MoversShown }) {
   const [region, setRegion] = useState<MoverRegion>('US')
-  const shown = useMovers(region)
+  const shown = all.get(region) ?? null
   const answer = shown === 'failed' ? null : shown
   const reached = answer?.reached === true
   return (
@@ -136,8 +131,8 @@ export function Movers() {
                         {m.name} <i>{m.symbol}</i>
                       </span>
                       <span className="ins-was block">
-                        {price(m.base, m.currency)} →{' '}
-                        {price(m.price, m.currency)} · {dayWord(m.baseAt)}
+                        {closeWord(m.base, m.currency)} →{' '}
+                        {closeWord(m.price, m.currency)} · {dayWord(m.baseAt)}
                       </span>
                       {m.headline ? (
                         <a

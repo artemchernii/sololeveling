@@ -272,8 +272,25 @@ test('WEEK S4 not read yet: facts only, no move, ✦ READ MARKET', async ({
     timeout: 15_000,
   })
   await expect(story(page, 'earn')).toContainText('2 companies held reported')
+  /* The week's falls of 8% or more anywhere (MOVERS), one story of rows,
+     the held one badged (31 Oct: "why not in one crash different stocks?"). */
+  const crash = story(page, 'crash')
+  await expect(crash).toContainText('4 big names fell 8% or more', {
+    timeout: 15_000,
+  })
+  await expect(crash.getByTestId('week-row')).toHaveCount(4)
+  await expect(crash.getByTestId('week-row').first()).toHaveAttribute(
+    'data-symbol',
+    'RDDT',
+  )
+  await expect(crash.getByTestId('week-row').first()).toContainText('▼ 24.1%')
+  await expect(crash.getByTestId('week-row').first()).toContainText(
+    '$100.00 → $75.90',
+  )
+  await expect(crash.getByTestId('week-box')).toHaveCount(0)
+  await crash.screenshot(shot('week-crash'))
   /* The month's biggest mover among gold, Stoxx 600, Bitcoin, EUR/USD. */
-  await expect(page.getByTestId('week-story').nth(2)).toContainText(
+  await expect(page.getByTestId('week-story').nth(3)).toContainText(
     'BITCOIN ▼ 4.1% in a month',
   )
   await expect(page.getByTestId('week-move')).toHaveCount(0)
@@ -305,6 +322,14 @@ test('WEEK S1 busy week: the headline, five stories with boxes, YOUR MONEY, a mo
       s.locator('[data-testid=week-move], [data-testid=week-none]'),
     ).toHaveCount(1)
   }
+  /* Why it matters: behind the story's ⓘ, in sentences (31 Oct). */
+  await story(page, 'rates')
+    .getByRole('button', { name: 'About The ECB kept its rate at 2.00%' })
+    .click()
+  await expect(
+    page.getByRole('dialog', { name: 'The ECB kept its rate at 2.00%' }),
+  ).toContainText('what euro cash earns')
+  await page.keyboard.press('Escape')
   /* Kinds in words with line icons; no emoji on the tab. */
   await expect(story(page, 'earn')).toContainText('EARNINGS')
   await expect(story(page, 'em')).toContainText('EMERGING MARKETS')

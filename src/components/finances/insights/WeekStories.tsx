@@ -3,7 +3,7 @@ import { Euro, Wallet } from 'lucide-react'
 import { TickerLogo } from '@/components/finances/Logo'
 import { factsFor } from '@/lib/marketRead'
 import type { Fact } from '@/lib/marketRead'
-import { factStories, weekBox } from '@/lib/marketWeek'
+import { companyRows, factStories, isRows, weekBox } from '@/lib/marketWeek'
 import type { WeekKind, WeekStory } from '@/lib/marketWeek'
 import { weekMoney } from '@/lib/weekMoney'
 import type { MoneyChip, MoneyInput } from '@/lib/weekMoney'
@@ -12,7 +12,8 @@ import type { Board, BoardLine } from '@/lib/ideasRead'
 import { askLine } from '@/lib/askOnCards'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import { AskOn } from './AskOn'
-import { dayWord } from './parts'
+import { Info, dayWord } from './parts'
+import { tickerBase } from '@/lib/market'
 
 /* THE WEEK, on top of MARKET (30 Oct; spec docs/specs/2026-10-30-market.md,
    mockup design/treasury-mockup/market-story.html, his "Go"). The week's
@@ -37,6 +38,12 @@ const KIND: Record<
     c: 'var(--line-2)',
     d: 'M4 4h16v16H4zM8 16v-4M12 16V8M16 16v-6',
     src: 'FINNHUB · YAHOO',
+  },
+  crash: {
+    name: 'CRASHES',
+    c: 'var(--state-danger)',
+    d: 'M3 7l6 6 4-4 8 8M21 11v6h-6',
+    src: 'YAHOO',
   },
   eu: {
     name: 'EUROPE',
@@ -175,6 +182,8 @@ function Story({
 }) {
   const k = KIND[s.kind]
   const boxes = factsFor(s.factKeys, facts)
+  const rows = isRows(s.factKeys) ? companyRows(boxes) : null
+  const held = new Set(money.held?.map((h) => tickerBase(h.symbol)) ?? [])
   const mine = weekMoney(s.kind, s.factKeys, money)
   const move = words ? ideaOf(s.move?.ticker, board?.lines ?? null) : null
   return (
@@ -199,10 +208,50 @@ function Story({
               {k.src} · {day}
             </span>
           </div>
-          <h3 className="rm-title">{s.title}</h3>
+          <h3 className="rm-title">
+            {s.title}
+            {s.why ? (
+              <span className="wk-why">
+                <Info
+                  info={{
+                    title: s.title,
+                    what: '',
+                    why: s.why,
+                    now: ['WORDS · MODEL · READ MARKET'],
+                  }}
+                />
+              </span>
+            ) : null}
+          </h3>
           {s.line ? <p className="rm-sub">{s.line}</p> : null}
         </div>
-        {boxes.length > 0 ? (
+        {rows ? (
+          <div className="wk-rows" data-testid="week-rows">
+            {rows.map((r) => (
+              <div
+                key={r.symbol}
+                className="wk-row"
+                data-testid="week-row"
+                data-symbol={r.symbol}
+              >
+                <TickerLogo symbol={r.symbol} size={26} />
+                <span className="nm">
+                  {r.name} <i>{r.symbol}</i>
+                  {held.has(tickerBase(r.symbol)) ? (
+                    <i className="held">HELD</i>
+                  ) : null}
+                  {r.badge ? (
+                    <span className={`ins-badge ${r.badge.tone}`}>
+                      {r.badge.word}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="nt">{r.note}</span>
+                <span className={`ch ${r.tone ?? ''}`}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+        ) : boxes.length > 0 ? (
           <div className="rm-boxes">
             {boxes.map((f) => {
               const b = weekBox(f)

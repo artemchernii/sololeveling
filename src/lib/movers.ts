@@ -176,3 +176,40 @@ export function pickHeadline<THeadline extends { title: string; at: number }>(
       .find((h) => h.at >= m.baseAt && about(h.title)) ?? null
   )
 }
+
+/** A mover as a fact for the read and THE WEEK: `mov-RDDT`, its name,
+    the week's change first, then both closes. */
+export function moverFacts(
+  answers: ReadonlyArray<{
+    up: ReadonlyArray<Mover>
+    down: ReadonlyArray<Mover>
+  }>,
+): Array<{ key: string; label: string; value: string; tone: 'good' | 'bad' }> {
+  const seen = new Set<string>()
+  return answers.flatMap((a) =>
+    [...a.up, ...a.down].flatMap((m) => {
+      if (seen.has(m.symbol)) return []
+      seen.add(m.symbol)
+      const arrow = m.change >= 0 ? '▲' : '▼'
+      return [
+        {
+          key: `mov-${m.symbol}`,
+          label: m.name,
+          value: `${arrow} ${Math.abs(m.change).toFixed(1)}% · ${closeWord(m.base, m.currency)} → ${closeWord(m.price, m.currency)}`,
+          tone: m.change >= 0 ? ('good' as const) : ('bad' as const),
+        },
+      ]
+    }),
+  )
+}
+
+/** A close in its currency: "$91.73", "€548.00", "1,273 JPY". */
+export function closeWord(n: number, currency: string | null) {
+  const sign = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : ''
+  const d = n >= 1000 ? 0 : 2
+  const v = n.toLocaleString('en-US', {
+    minimumFractionDigits: d,
+    maximumFractionDigits: d,
+  })
+  return sign ? `${sign}${v}` : `${v}${currency ? ` ${currency}` : ''}`
+}

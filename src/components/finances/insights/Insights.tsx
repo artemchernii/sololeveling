@@ -11,7 +11,7 @@ import { Markets } from './Markets'
 import { OnReddit } from './OnReddit'
 import { YourCompanies, useCompanies, useFunds } from './YourCompanies'
 import { WeekStories } from './WeekStories'
-import { Movers } from './Movers'
+import { Movers, useAllMovers } from './Movers'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
@@ -30,6 +30,7 @@ import { ideaFacts, ideaOf, readMine } from '@/lib/readMine'
 import { tickerBase } from '@/lib/market'
 import { combine } from '@/lib/owned'
 import { resultsFacts } from '@/lib/companies'
+import { moverFacts } from '@/lib/movers'
 import { marketFacts } from '@/lib/marketRead'
 import { placed } from '@/lib/insightsMine'
 import type { MoneyInput } from '@/lib/weekMoney'
@@ -93,6 +94,14 @@ export function Insights({ shown }: { shown: boolean }) {
       : []),
     ...resultsFacts(comp.answer?.rows ?? []),
   ]
+  /* The week's biggest movers in four regions (MOVERS, 31 Oct): facts
+     for the read and THE WEEK, so a story can be about the whole market. */
+  const allMovers = useAllMovers()
+  const movFacts = moverFacts(
+    [...allMovers.values()].flatMap((a) =>
+      a !== 'failed' && a.reached ? [a] : [],
+    ),
+  )
   /* READ about his money (29 Oct): his cash and investments, and the
      IDEAS moves a line may point at. */
   const cash = useCash()
@@ -101,8 +110,8 @@ export function Insights({ shown }: { shown: boolean }) {
   const board = ideas?.shown?.board ?? null
   const read = useMarketRead(
     positions ? positions.rows : null,
-    [...allocFacts(alloc), ...earn],
-    earn,
+    [...allocFacts(alloc), ...earn, ...movFacts],
+    [...earn, ...movFacts],
     (m) => [
       ...readMine({
         cash,
@@ -126,6 +135,7 @@ export function Insights({ shown }: { shown: boolean }) {
         ...marketFacts(month.answer, positions?.rows ?? []),
         ...allocFacts(alloc),
         ...earn,
+        ...movFacts,
       ]
     : []
   /* YOUR MONEY under each story: his holdings by place, his euro cash,
@@ -179,7 +189,7 @@ export function Insights({ shown }: { shown: boolean }) {
               board={board}
               onIdea={goIdea}
             />
-            <Movers />
+            <Movers all={allMovers} />
             <YourCompanies c={comp} f={funds} />
             <SectorMap
               shown={market.shown}

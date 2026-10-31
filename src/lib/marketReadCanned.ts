@@ -108,6 +108,7 @@ const calm: MarketRead = {
       line: 'No rise and no cut. It meets again at the end of the month.',
       factKeys: ['ecb', 'ecb-next', 'mkt-us10y'],
       move: { ticker: 'XEON.DE' },
+      why: 'The ECB rate is what euro cash earns. When it stays, cash keeps earning the same; when it falls, cash earns less and shares often rise.',
     },
     {
       kind: 'earn',

@@ -12,6 +12,7 @@ import type { Fact } from './marketRead'
 export const WEEK_KINDS = [
   'rates',
   'earn',
+  'crash',
   'eu',
   'gold',
   'em',
@@ -20,6 +21,19 @@ export const WEEK_KINDS = [
 ] as const
 export type WeekKind = (typeof WEEK_KINDS)[number]
 export const MAX_STORIES = 5
+/** Boxes a story prints; a story of companies (31 Oct: "why not in one
+    crash different stocks?") may name one key per company, up to six,
+    drawn as rows. */
+export const MAX_BOXES = 3
+export const MAX_ROWS = 6
+
+/** A key about one company: its results (res-), its day (earn-), its
+    week's move (mov-). */
+export const companyOf = (key: string) =>
+  /^(res|earn|mov)-/.test(key) ? key.slice(key.indexOf('-') + 1) : null
+/** A story of companies: every key is one, so it is drawn as rows. */
+export const isRows = (keys: ReadonlyArray<string>) =>
+  keys.length > 0 && keys.every((k) => companyOf(k) !== null)
 
 export type WeekStory = {
   kind: WeekKind
@@ -28,6 +42,8 @@ export type WeekStory = {
   factKeys: Array<string>
   /** The IDEAS line it opens: a ticker the board had when it was read. */
   move: { ticker: string } | null
+  /** Why it matters, in sentences, behind the story's ⓘ (the model's). */
+  why?: string
 }
 export type Week = {
   weekHead: string
@@ -49,8 +65,9 @@ export const WEEK_SCHEMA = {
         line: str,
         factKeys: { type: 'array', items: str },
         move: str,
+        why: str,
       },
-      required: ['kind', 'title', 'line', 'factKeys', 'move'],
+      required: ['kind', 'title', 'line', 'factKeys', 'move', 'why'],
       additionalProperties: false,
     },
   },
@@ -58,22 +75,31 @@ export const WEEK_SCHEMA = {
 
 /** The part of the prompt that asks for the week. */
 export const WEEK_PROMPT = `- weekHead: the week in one plain line, at most 50 letters (for example
-  "Rates held, big tech fell, Europe slowed").
-- weekTake: two plain sentences on the week and what touches his money.
+  "Big tech split, four names crashed, the Fed held").
+- weekTake: two plain sentences on the week in the whole market.
 - week: 3 to ${MAX_STORIES} stories of this week and the last days, the
-  biggest first (2 when the week was quiet). Search for this week's news:
-  rate decisions, big company results, Europe, gold, emerging markets and
-  elections. kind is rates (the Fed or the ECB), earn (company results),
-  eu (Europe), gold, em (emerging markets, Brazil, China), mkt (shares in
-  general) or none (a subject with no numbers this week).
+  biggest first (2 when the week was quiet). The WHOLE market, not only
+  what he holds: search for this week's news — rate decisions, big
+  company results, crashes and jumps (the mov- facts are the week's
+  biggest movers in the US, Europe, Asia and South America), Europe,
+  gold, emerging markets, elections. kind is rates (the Fed or the ECB),
+  earn (company results), crash (big falls), eu (Europe), gold, em
+  (emerging markets, Brazil, Latin America, China), mkt (shares in
+  general, big rises) or none (a subject with no numbers this week).
+  One earn story for all the week's results and one crash story for all
+  the big falls — never one story per company.
   title: what happened, one plain sentence, at most 12 words (for example
-  "The Fed kept its rate at 3.75–4.00%").
+  "Four big names fell 9–24% in one week").
   line: one or two plain sentences, at most 30 words, with the detail.
-  factKeys: exactly 3 keys the app prints as boxes, the market's numbers
-  for the story (earn- and res- keys for results); a none story may name
+  factKeys: for an earn or crash story, one key per company, up to
+  ${MAX_ROWS} (res-, earn- and mov- keys), biggest first; for any other,
+  exactly ${MAX_BOXES} keys the app prints as boxes; a none story may name
   fewer.
   move: the idea it leads to, as for lines (the text after "idea-"), or
-  "" when none fits. Use each idea at most once.`
+  "" when none fits. Use each idea at most once.
+  why: two or three plain sentences for someone new to markets: why this
+  matters for prices and for someone holding shares, cash in euros or
+  gold. No numbers that are not in the facts.`
 
 const text = (v: unknown, max: number) =>
   typeof v === 'string' ? v.trim().slice(0, max) : ''
@@ -137,11 +163,13 @@ export function parseWeek(
         : raw,
       known,
     )
+    const why = text(s.why, 500)
     week.push({
       kind,
       title: text(s.title, 90),
       line: text(s.line, 240),
-      factKeys: factKeys.slice(0, 3),
+      factKeys: factKeys.slice(0, isRows(factKeys) ? MAX_ROWS : MAX_BOXES),
+      ...(why ? { why } : {}),
       move:
         hit && !week.some((w) => w.move?.ticker === hit)
           ? { ticker: hit }
@@ -198,14 +226,16 @@ const MOVERS: Array<[string, WeekKind]> = [
 export function factStories(facts: ReadonlyArray<Fact>): Array<WeekStory> {
   const by = new Map(facts.map((f) => [f.key, f]))
   const out: Array<WeekStory> = []
-  const story = (kind: WeekKind, title: string, keys: Array<string>) =>
+  const story = (kind: WeekKind, title: string, keys: Array<string>) => {
+    const ks = keys.filter((k) => by.has(k))
     out.push({
       kind,
       title,
       line: '',
-      factKeys: keys.filter((k) => by.has(k)).slice(0, 3),
+      factKeys: ks.slice(0, isRows(ks) ? MAX_ROWS : MAX_BOXES),
       move: null,
     })
+  }
   const rate = (k: string) => by.get(k)?.value.split(' · ')[0]
 
   const fed = rate('fed')
@@ -233,6 +263,19 @@ export function factStories(facts: ReadonlyArray<Fact>): Array<WeekStory> {
       [...reported, ...results].map((f) => f.key),
     )
 
+  /* The week's biggest falls anywhere, 8% or more: one story. */
+  const falls = facts
+    .filter((f) => f.key.startsWith('mov-'))
+    .map((f) => ({ f, m: moveOf(f) }))
+    .filter((x): x is { f: Fact; m: number } => x.m !== null && x.m <= -8)
+    .sort((a, b) => a.m - b.m)
+  if (falls.length > 0)
+    story(
+      'crash',
+      `${falls.length} big ${falls.length === 1 ? 'name' : 'names'} fell 8% or more`,
+      falls.map((x) => x.f.key),
+    )
+
   const movers = MOVERS.flatMap(([key, kind]) => {
     const f = by.get(key)
     const m = f ? moveOf(f) : null
@@ -246,4 +289,57 @@ export function factStories(facts: ReadonlyArray<Fact>): Array<WeekStory> {
       movers.map((x) => x.f.key),
     )
   return out
+}
+
+/** A story's company drawn as a row: the move on the right, what it
+    reported and its closes under the name, BEAT / MISSED from its
+    results against the estimate. */
+export type CompanyRow = {
+  symbol: string
+  name: string
+  value: string
+  note: string
+  tone: Fact['tone']
+  badge: { word: 'BEAT' | 'MISSED'; tone: 'good' | 'bad' } | null
+}
+
+/** A story's facts as one row per company, in the order they were named. */
+export function companyRows(facts: ReadonlyArray<Fact>): Array<CompanyRow> {
+  const by = new Map<string, CompanyRow & { parts: Array<string> }>()
+  for (const f of facts) {
+    const symbol = companyOf(f.key)
+    if (symbol === null) continue
+    const r = by.get(symbol) ?? {
+      symbol,
+      name: symbol,
+      value: '',
+      note: '',
+      tone: null,
+      badge: null,
+      parts: [],
+    }
+    by.set(symbol, r)
+    const b = weekBox(f)
+    const moved = MOVE.test(b.value)
+    if (f.key.startsWith('mov-')) r.name = f.label
+    if (f.key.startsWith('res-')) {
+      const [eps, , expected] = f.value.split(' · ')
+      r.parts.unshift(
+        expected ? `${eps} vs ${expected.replace(' EXPECTED', '')}` : eps,
+      )
+      if (f.tone)
+        r.badge = { word: f.tone === 'good' ? 'BEAT' : 'MISSED', tone: f.tone }
+      continue
+    }
+    if (moved && !r.value) {
+      r.value = b.value
+      r.tone = f.tone
+      if (b.note) r.parts.push(b.note)
+    } else r.parts.push(f.value)
+  }
+  return [...by.values()].map(({ parts, ...r }) => ({
+    ...r,
+    value: r.value || '—',
+    note: parts.filter(Boolean).join(' · '),
+  }))
 }

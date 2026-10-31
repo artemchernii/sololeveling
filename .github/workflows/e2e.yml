@@ -79,6 +79,19 @@ jobs:
         run: pnpm e2e:setup
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          CONVEX_VERBOSE: 1
+
+      # The CLI starts the backend with its output thrown away: run the
+      # binary by hand for a few seconds so a failed start says why.
+      - name: Why the backend did not start
+        if: failure()
+        run: |
+          bin=$(find ~/.cache/convex/binaries -type f -name convex-local-backend | head -1)
+          echo "binary: $bin"
+          mkdir -p /tmp/cb
+          timeout 15 "$bin" --port 4900 --site-proxy-port 4901 \
+            --instance-name diag --instance-secret "$(openssl rand -hex 32)" \
+            --local-storage /tmp/cb/storage /tmp/cb/db.sqlite3 2>&1 | tail -40 || true
 
       - name: Playwright, shard ${{ matrix.shard }}/4
         run: pnpm exec playwright test --shard=${{ matrix.shard }}/4

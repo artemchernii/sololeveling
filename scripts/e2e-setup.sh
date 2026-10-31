@@ -31,7 +31,7 @@ before=$(shasum .env.local 2>/dev/null || true)
 read -r backend site _app < <(node e2e/ports.ts)
 at=(--local-cloud-port "$backend" --local-site-port "$site")
 cd e2e/backend
-CONVEX_AGENT_MODE=anonymous npx convex dev --once ${CI:+--verbose} "${at[@]}" || true
+CONVEX_AGENT_MODE=anonymous npx convex dev --once "${at[@]}" || true
 npx convex env set CLERK_JWT_ISSUER_DOMAIN "$issuer"
 npx convex env set E2E 1
 npx convex env set VAPID_PUBLIC_KEY "$vapid"

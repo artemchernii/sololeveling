@@ -307,8 +307,25 @@ export async function accountCheck(
   /* With the whole list, the rows reach the printed balance less what
      became pending since the held one: what was pending then and is
      booked now is a row again (17 Oct, Revolut's two card payments). */
+  /* One booked under a day before that reading (Revolut books under the
+     card's day, 31 Oct) is a row the check leaves out — the reading
+     already had it off — so it comes out of that reading's pending too. */
+  const dayBefore = last.recordedAt - 18 * 3_600_000
+  const bookedBefore = (last.pendingRows ?? [])
+    .filter((p) =>
+      rows.some(
+        (r) =>
+          r.currency === currency &&
+          r.occurredAt <= dayBefore &&
+          cents(r.amount) === cents(p.amount) &&
+          Math.abs(r.occurredAt - p.at) <= 3 * DAY,
+      ),
+    )
+    .reduce((t, p) => t + cents(p.amount), 0)
   const pendingMove =
-    pendingNowCents === null ? 0 : pendingNowCents - cents(last.pending ?? 0)
+    pendingNowCents === null
+      ? 0
+      : pendingNowCents - (cents(last.pending ?? 0) - bookedBefore)
   const checkRows = rows.flatMap((r, index) =>
     r.currency === currency
       ? [

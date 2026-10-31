@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { balanceIsBooked, pickBalance } from '../src/lib/bankLink'
-import { dateFrom, rowsSince } from '../src/lib/bankRows'
+import { PENDING_LOOKBACK_MS, askFrom, rowsSince } from '../src/lib/bankRows'
 import { balanceKey, writeBalance } from './accounts'
 import { requireUser } from './auth'
 import { bankApi, isRefused } from './bankApi'
@@ -11,7 +11,7 @@ import { balanceIsNews } from './rowBalance'
 import { internal } from './_generated/api'
 import { internalMutation } from './_generated/server'
 import { action, mutation } from './write'
-import type { ActionCtx } from './_generated/server'
+import type { ActionCtx, QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 
 /* A connected bank, slice 2 (11 Oct, docs/specs/2026-10-11-bank-connections.md):
@@ -150,12 +150,40 @@ export const begin = internalMutation({
         from:
           balanceOnly || held?.value === undefined
             ? null
-            : dateFrom(held.recordedAt),
+            : askFrom(
+                held.recordedAt,
+                await wasPending(
+                  ctx,
+                  args.ownerId,
+                  balanceKey(args.accountId, u.currency),
+                  Date.now(),
+                ),
+              ),
       })
     }
     return { status: 'go' as const, asks }
   },
 })
+
+/** The pending payments the last two weeks' readings had: one booked
+    since, under a day before the newest reading, is still taken. */
+async function wasPending(
+  ctx: QueryCtx,
+  ownerId: string,
+  key: string,
+  now: number,
+): Promise<Array<{ amount: number; at: number }>> {
+  const snaps = await ctx.db
+    .query('stateSnapshots')
+    .withIndex('by_owner_key_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('key', key)
+        .gte('recordedAt', now - PENDING_LOOKBACK_MS),
+    )
+    .take(100)
+  return snaps.flatMap((x) => x.pendingRows ?? [])
+}
 
 /** The bank did not answer: the check is over and nothing was written.
     One that rejected the key is kept as such, for the card's approve. */
@@ -243,6 +271,12 @@ export const arrive = internalMutation({
               r.booked ? r.rows.filter((x) => x.status === 'BOOK') : r.rows,
               held.recordedAt,
               at,
+              await wasPending(
+                ctx,
+                ownerId,
+                balanceKey(account._id, r.currency),
+                at,
+              ),
             ).filter((x) => x.currency === r.currency)
       if (rows.length > 0) {
         const batchId = await ctx.db.insert('batches', {

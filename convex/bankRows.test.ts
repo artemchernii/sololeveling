@@ -250,6 +250,34 @@ test('a balance with pending payments taken off: saved with no question, and aga
   expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
 })
 
+test('pending at one reading, booked days later with the card day: still saved, once', async () => {
+  /* His Revolut, 31 Oct: Watashi, Ori Asian Food and 100 Montaditos were
+     pending on the 24 Oct reading, then booked under 23 Oct — before that
+     reading — and every check after it left them out. */
+  const { me, accountId, rows, link, arrive } = await connected()
+  const pending = [
+    held('2026-10-12', '15.00', 'Watashi'),
+    held('2026-10-12', '13.90', 'Ori Asian Food'),
+  ]
+  const booked = [
+    out('2026-10-12', '15.00', 'Watashi'),
+    out('2026-10-12', '13.90', 'Ori Asian Food'),
+  ]
+  await arrive(635.73, [...TWO, ...pending])
+  /* A day on, still pending: a new reading carries them. */
+  await arrive(635.73, [...TWO, ...pending], NEXT + DAY)
+  expect(await rows()).toHaveLength(2)
+  /* Two days on: booked, dated the card's day, the balance unmoved. */
+  await arrive(635.73, [...TWO, ...booked], NEXT + 2 * DAY)
+  expect(await rows()).toHaveLength(4)
+  expect((await link()).questions).toEqual([])
+  const sheet = await me.query(api.aggregate.accountSheet, { accountId })
+  expect(sheet?.checks.filter((c) => c.missing !== 0)).toEqual([])
+  /* Asked again the day after: nothing twice. */
+  await arrive(635.73, [...TWO, ...booked], NEXT + 3 * DAY)
+  expect(await rows()).toHaveLength(4)
+})
+
 test('a first connect takes nothing older than the balance held', async () => {
   const { rows, balance, arrive } = await connected()
   await arrive(727.49, [out('2026-10-06', '700.00', 'COMPRA 2789 REVOLUT')])

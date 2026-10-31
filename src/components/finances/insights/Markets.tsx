@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { TrendingUp } from 'lucide-react'
 
 import {
@@ -36,7 +37,7 @@ export function priceWord(n: number, unit: Unit) {
     case 'EUR':
       return `€${n >= 10_000 ? whole(n) : two(n)}`
     case 'USD':
-      return `$${whole(n)}`
+      return `$${n >= 1000 ? whole(n) : two(n)}`
     case 'rate':
       return n.toFixed(3)
     case 'yield':
@@ -54,8 +55,8 @@ export function sinceWord(answer: Answer | null) {
 
 export const MARKETS_INFO = {
   title: 'THE TREND',
-  what: 'Each card is a basket or a price: the S&P 500 is the 500 biggest US companies, MSCI World about 1,400 companies in rich countries, STOXX 600 the 600 biggest in Europe.',
-  why: 'VUAA follows the S&P 500 and IWDA follows MSCI World. Gold and bitcoin are prices; EUR / USD is how many dollars a euro buys; US 10Y is what the US government pays to borrow for ten years.',
+  what: 'Each card is a basket or a price: the S&P 500 is the 500 biggest US companies, MSCI World about 1,400 companies in rich countries, STOXX 600 the 600 biggest in Europe, Nikkei 225 Japan, Hang Seng Hong Kong, Bovespa Brazil, Latin America 40 the 40 biggest in Brazil, Mexico, Chile and Peru.',
+  why: 'VUAA follows the S&P 500 and IWDA follows MSCI World. Gold, silver and bitcoin are prices; EUR / USD is how many dollars a euro buys; US 10Y is what the US government pays to borrow for ten years.',
   now: ['FETCHED ON OPEN · NEVER SAVED'],
 }
 
@@ -65,6 +66,7 @@ const HELD_BY: Partial<Record<(typeof MARKETS)[number]['id'], RegExp>> = {
   ndx: /^(EQQQ|CNDX|QQQ|SXRV)$/,
   world: /^(IWDA|SWDA|VWCE|VWRL)$/,
   gold: /^(IGLN|SGLN|PHAU|4GLD|GLD)$/,
+  silver: /^(ISLN|PHAG|SLV|XAD6)$/,
 }
 
 export function Markets({
@@ -105,7 +107,8 @@ export function Markets({
         {reading ? `READING ${period}…` : sinceWord(shown)}
       </span>
       <div className={`ins-tr-list ${reading && shown ? 'ins-reading' : ''}`}>
-        {MARKETS.map((m) => {
+        {MARKETS.map((m, i) => {
+          const head = MARKETS[i - 1]?.group !== m.group
           const move = shown?.markets.find((x) => x.id === m.id)?.move ?? null
           const yieldPts = m.unit === 'yield'
           const tone =
@@ -115,36 +118,42 @@ export function Markets({
                 ? 'var(--state-good)'
                 : 'var(--state-danger)'
           return (
-            <div
-              key={m.id}
-              data-testid="market-card"
-              data-id={m.id}
-              className="ins-tr"
-              style={{ '--c': tone } as React.CSSProperties}
-            >
-              <MarkLogo mark={m.mark} size={28} />
-              <span className="min-w-0">
-                <span className="nm">
-                  {m.name}
-                  {mine(m.id) ? <i className="held">HELD</i> : null}
+            <Fragment key={m.id}>
+              {head ? (
+                <span className="ins-was ins-tr-grp" data-testid="market-group">
+                  {m.group}
                 </span>
-                <span className="ins-was block">
-                  {move !== null
-                    ? `${priceWord(move.base, m.unit)} → ${priceWord(move.price, m.unit)}`
-                    : reading && !shown
-                      ? 'READING'
-                      : 'NOT REACHED'}
+              ) : null}
+              <div
+                data-testid="market-card"
+                data-id={m.id}
+                className="ins-tr"
+                style={{ '--c': tone } as React.CSSProperties}
+              >
+                <MarkLogo mark={m.mark} size={28} />
+                <span className="min-w-0">
+                  <span className="nm">
+                    {m.name}
+                    {mine(m.id) ? <i className="held">HELD</i> : null}
+                  </span>
+                  <span className="ins-was block">
+                    {move !== null
+                      ? `${priceWord(move.base, m.unit)} → ${priceWord(move.price, m.unit)}`
+                      : reading && !shown
+                        ? 'READING'
+                        : 'NOT REACHED'}
+                  </span>
                 </span>
-              </span>
-              <Line
-                key={`${m.id}-${shown?.period}`}
-                points={move?.points ?? []}
-                h={24}
-              />
-              <span className="ch" style={{ color: tone }}>
-                {move !== null ? changeWord(move.change, yieldPts) : '—'}
-              </span>
-            </div>
+                <Line
+                  key={`${m.id}-${shown?.period}`}
+                  points={move?.points ?? []}
+                  h={24}
+                />
+                <span className="ch" style={{ color: tone }}>
+                  {move !== null ? changeWord(move.change, yieldPts) : '—'}
+                </span>
+              </div>
+            </Fragment>
           )
         })}
       </div>

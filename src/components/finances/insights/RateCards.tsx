@@ -13,11 +13,11 @@ import type { Mark } from '@/lib/insightsMarket'
 type Id = Rate['id']
 
 const CARDS: Record<Id, { name: string; mark: Mark }> = {
-  'us-cpi': { name: 'US INFLATION', mark: { chip: 'US' } },
-  'eu-hicp': { name: 'EURO INFLATION', mark: { chip: 'EU' } },
+  'us-cpi': { name: 'US INFLATION', mark: { flag: 'US' } },
+  'eu-hicp': { name: 'EURO INFLATION', mark: { flag: 'EU' } },
   fed: { name: 'FED RATE', mark: { site: 'federalreserve.gov' } },
   ecb: { name: 'ECB RATE', mark: { site: 'ecb.europa.eu' } },
-  'us-jobs': { name: 'US UNEMPLOYMENT', mark: { chip: 'US' } },
+  'us-jobs': { name: 'US UNEMPLOYMENT', mark: { flag: 'US' } },
   'us-2y': { name: 'US 2-YEAR BOND', mark: { site: 'treasury.gov' } },
 }
 const IDS: Array<Id> = ['us-cpi', 'eu-hicp', 'fed', 'ecb', 'us-jobs', 'us-2y']

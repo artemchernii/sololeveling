@@ -29,6 +29,7 @@ import {
   parseEcb,
   parseEurostat,
   parseFred,
+  parseFredCpi,
   parseFredMonthly,
 } from '../src/lib/insightsRates'
 import type { Inflation, Policy } from '../src/lib/insightsRates'
@@ -201,7 +202,7 @@ async function readRates(now: number): Promise<Array<Rate>> {
           `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${encodeURIComponent(key)}&file_type=json&observation_start=${twoYears}`,
         )
       : Promise.resolve(null)
-  const [bls, euro, ecb, fedHigh, fedLow, jobs, us2y] = await Promise.all([
+  const [bls, euro, ecb, fedHigh, fedLow, jobs, us2y, cpi] = await Promise.all([
     getJson('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -221,10 +222,11 @@ async function readRates(now: number): Promise<Array<Rate>> {
     fred('DFEDTARL'),
     fred('UNRATE'),
     fred('DGS2'),
+    fred('CPIAUCNS'),
   ])
   const today = day(now)
   return rateCards({
-    us: parseBls(bls),
+    ...usCpi(bls, cpi),
     euro: parseEurostat(euro),
     ecb: parseEcb(ecb),
     fedHigh: parseFred(fedHigh),
@@ -235,9 +237,20 @@ async function readRates(now: number): Promise<Array<Rate>> {
   })
 }
 
+/** US inflation from BLS, else the same series from FRED, named as such. */
+function usCpi(bls: unknown, fred: unknown) {
+  const direct = parseBls(bls)
+  if (direct) return { us: direct, usSource: BLS_SOURCE }
+  const copy = parseFredCpi(fred)
+  return copy
+    ? { us: copy, usSource: `${BLS_SOURCE} · ${FRED_SOURCE}` }
+    : { us: null, usSource: BLS_SOURCE }
+}
+
 /** The four cards from what was read; a source that gave nothing is not reached. */
 export function rateCards(r: {
   us: Inflation | null
+  usSource?: string
   euro: Inflation | null
   ecb: Policy | null
   fedHigh: Policy | null
@@ -266,7 +279,7 @@ export function rateCards(r: {
       : { ...none, id, source, reached: false }
   const fed = r.fedHigh && r.fedLow
   return [
-    inflation('us-cpi', BLS_SOURCE, r.us),
+    inflation('us-cpi', r.usSource ?? BLS_SOURCE, r.us),
     inflation('eu-hicp', EUROSTAT_SOURCE, r.euro),
     fed
       ? {
@@ -318,7 +331,8 @@ const CANNED = table(
     'XLI:150:1.6 XLE:88:-3.6 XLP:80:-1.1 NVDA:182:8.1 AAPL:252:2.0 ' +
     'MSFT:512:1.2 AVGO:344:7.4 GOOGL:251:4.2 META:712:2.6 NFLX:1210:-0.8 ' +
     'AMZN:214:1.5 TSLA:428:-2.8 LLY:810:-3.9 UNH:355:-5.1 XOM:112:-3.2 ' +
-    'CVX:154:-4.1 ^N225:47500:1.9 EEM:53:2.8 MCHI:62:-1.8 ^BVSP:138300:-5.4',
+    'CVX:154:-4.1 ^N225:47500:1.9 EEM:53:2.8 MCHI:62:-1.8 ^BVSP:138300:-5.4 ' +
+    '^HSI:25400:-2.2 ILF:28.4:3.1 SI=F:46.2:-4.0',
 )
 const CANNED_CAPS = table(
   'NVDA:4.4 MSFT:3.8 AAPL:3.7 GOOGL:3.0 AMZN:2.3 META:1.8 AVGO:1.6 ' +

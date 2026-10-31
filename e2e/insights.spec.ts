@@ -50,7 +50,22 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
   for (const id of ['us-cpi', 'eu-hicp', 'ecb'])
     await expect(rate(page, id)).toContainText('NOT SAVED')
 
-  await expect(page.getByTestId('market-card')).toHaveCount(8)
+  /* The world in four groups, each mark a flag or a drawn icon (31 Oct). */
+  await expect(page.getByTestId('market-card')).toHaveCount(13)
+  await expect(page.getByTestId('market-group')).toHaveText([
+    'STOCKS',
+    'BONDS',
+    'METALS',
+    'MONEY',
+  ])
+  await expect(market(page, 'stoxx').locator('[data-flag=EU] svg')).toHaveCount(
+    1,
+  )
+  await expect(
+    market(page, 'eurusd').locator('[data-flag=EU-US] svg'),
+  ).toHaveCount(2)
+  await expect(market(page, 'silver')).toContainText('46.20')
+  await expect(market(page, 'bvsp')).toContainText('BOVESPA')
   await expect(market(page, 'sp500')).toContainText('S&P 500')
   await expect(market(page, 'sp500')).toContainText('6,612')
   /* Opens on the day (30 Oct, "it should be day"). */
@@ -143,7 +158,7 @@ test('S3 a source not reached: that card says so, the rest stand', async ({
   await expect(fed).toContainText('FRED')
   await expect(rate(page, 'ecb')).toHaveAttribute('data-reached', 'true')
   await expect(rate(page, 'ecb')).not.toContainText('NOT REACHED')
-  await expect(page.getByTestId('market-card')).toHaveCount(8)
+  await expect(page.getByTestId('market-card')).toHaveCount(13)
   await fed.screenshot(shot('insights-not-reached'))
 })
 
@@ -257,8 +272,25 @@ test('WEEK S4 not read yet: facts only, no move, ✦ READ MARKET', async ({
     timeout: 15_000,
   })
   await expect(story(page, 'earn')).toContainText('2 companies held reported')
+  /* The week's falls of 8% or more anywhere (MOVERS), one story of rows,
+     the held one badged (31 Oct: "why not in one crash different stocks?"). */
+  const crash = story(page, 'crash')
+  await expect(crash).toContainText('4 big names fell 8% or more', {
+    timeout: 15_000,
+  })
+  await expect(crash.getByTestId('week-row')).toHaveCount(4)
+  await expect(crash.getByTestId('week-row').first()).toHaveAttribute(
+    'data-symbol',
+    'RDDT',
+  )
+  await expect(crash.getByTestId('week-row').first()).toContainText('▼ 24.1%')
+  await expect(crash.getByTestId('week-row').first()).toContainText(
+    '$100.00 → $75.90',
+  )
+  await expect(crash.getByTestId('week-box')).toHaveCount(0)
+  await crash.screenshot(shot('week-crash'))
   /* The month's biggest mover among gold, Stoxx 600, Bitcoin, EUR/USD. */
-  await expect(page.getByTestId('week-story').nth(2)).toContainText(
+  await expect(page.getByTestId('week-story').nth(3)).toContainText(
     'BITCOIN ▼ 4.1% in a month',
   )
   await expect(page.getByTestId('week-move')).toHaveCount(0)
@@ -290,6 +322,14 @@ test('WEEK S1 busy week: the headline, five stories with boxes, YOUR MONEY, a mo
       s.locator('[data-testid=week-move], [data-testid=week-none]'),
     ).toHaveCount(1)
   }
+  /* Why it matters: behind the story's ⓘ, in sentences (31 Oct). */
+  await story(page, 'rates')
+    .getByRole('button', { name: 'About The ECB kept its rate at 2.00%' })
+    .click()
+  await expect(
+    page.getByRole('dialog', { name: 'The ECB kept its rate at 2.00%' }),
+  ).toContainText('what euro cash earns')
+  await page.keyboard.press('Escape')
   /* Kinds in words with line icons; no emoji on the tab. */
   await expect(story(page, 'earn')).toContainText('EARNINGS')
   await expect(story(page, 'em')).toContainText('EMERGING MARKETS')
@@ -368,4 +408,40 @@ test('WEEK S5 quiet week: two stories, each No action, badge 2 STORIES', async (
     page.locator('[data-tab="market"] [data-testid=tab-badge]'),
   ).toHaveText('2 STORIES')
   await page.screenshot({ ...shot('week-quiet'), fullPage: true })
+})
+
+test('S7 MOVERS: the week up and down with both closes and a headline; a region not reached says so', async ({
+  page,
+}) => {
+  await open(page)
+  const tile = page.locator('[data-tile=movers]')
+  await expect(tile.getByTestId('movers-none')).toHaveText('READING')
+  const mover = (s: string) =>
+    tile.locator(`[data-testid=mover][data-symbol="${s}"]`)
+  await expect(tile.locator('[data-side=up]')).toHaveCount(5, {
+    timeout: 15_000,
+  })
+  await expect(tile.locator('[data-side=down]')).toHaveCount(5)
+  await expect(tile.locator('[data-side=down]').first()).toHaveAttribute(
+    'data-symbol',
+    'RDDT',
+  )
+  await expect(mover('RDDT')).toContainText('▼ 24.1%')
+  await expect(mover('RDDT')).toContainText('$100.00 → $75.90')
+  await expect(mover('RDDT')).toContainText('Reddit daily users miss estimates')
+  await expect(mover('RDDT')).toContainText('REUTERS')
+  /* A mover with no headline is the row without its line. */
+  await expect(mover('AAPL').locator('.why')).toHaveCount(0)
+  await expect(tile.getByTestId('movers-foot')).toContainText(
+    /YAHOO FINANCE · FETCHED \d\d:\d\d · NOT SAVED/,
+  )
+  await tile.screenshot(shot('insights-movers'))
+
+  await tile.getByRole('tab', { name: 'ASIA' }).click()
+  await expect(tile.getByTestId('movers-none')).toHaveText('✕ NOT REACHED', {
+    timeout: 15_000,
+  })
+  /* Back to US: kept in page memory, no READING. */
+  await tile.getByRole('tab', { name: 'US' }).click()
+  await expect(tile.locator('[data-side=up]')).toHaveCount(5)
 })

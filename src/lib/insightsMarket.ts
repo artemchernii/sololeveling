@@ -20,33 +20,91 @@ export const PERIOD_FETCH: Record<
   '1Y': { range: '2y', interval: '1d', days: 365 },
 }
 
-/** A mark for something that is not a company: letters (US, EU), a site,
-    a metal, a coin. No emoji (29 Oct, his "Emojies again"). */
+/** A mark for something that is not a company: a country's flag (two
+    for a pair, a small tag for what of it), a drawn icon, a site, a coin.
+    No letter chips (31 Oct, his "shitty ass EU letter instead of proper
+    european flag"), no emoji. */
 export type Mark =
-  { chip: string } | { site: string } | { metal: string } | { coin: string }
+  | { flag: FlagCode | [FlagCode, FlagCode]; tag?: string }
+  | { icon: 'globe' | 'gold' | 'silver' }
+  | { site: string }
+  | { coin: string }
+
+/** The flags the app draws (`Flag` in parts.tsx), ISO codes and EU. */
+export type FlagCode = 'US' | 'EU' | 'JP' | 'HK' | 'BR' | 'MX' | 'AR'
 
 export type MarketId =
-  'sp500' | 'ndx' | 'world' | 'stoxx' | 'gold' | 'btc' | 'eurusd' | 'us10y'
+  | 'sp500'
+  | 'ndx'
+  | 'world'
+  | 'stoxx'
+  | 'nikkei'
+  | 'hsi'
+  | 'bvsp'
+  | 'latam'
+  | 'us10y'
+  | 'gold'
+  | 'silver'
+  | 'eurusd'
+  | 'btc'
 
 type Unit = 'points' | 'EUR' | 'USD' | 'rate' | 'yield'
+export type MarketGroup = 'STOCKS' | 'BONDS' | 'METALS' | 'MONEY'
 const market = (
   id: MarketId,
   name: string,
   symbol: string,
   mark: Mark,
   unit: Unit,
-) => ({ id, name, symbol, mark, unit }) as const
+  group: MarketGroup,
+) => ({ id, name, symbol, mark, unit, group }) as const
 
-/** The eight cards, in the mockup's order. `unit` is how the price reads. */
+/** The cards, grouped, in the mockup's order (market-world.html, 31 Oct:
+    US, Europe, Asia and South America, bonds, gold and silver). `unit` is
+    how the price reads. Yahoo has no Merval or Bund yield, so South
+    America is the Bovespa and iShares Latin America 40. */
 export const MARKETS = [
-  market('sp500', 'S&P 500', '^GSPC', { chip: 'US' }, 'points'),
-  market('ndx', 'NASDAQ 100', '^NDX', { site: 'nasdaq.com' }, 'points'),
-  market('world', 'MSCI WORLD', 'IWDA.AS', { site: 'ishares.com' }, 'EUR'),
-  market('stoxx', 'STOXX 600', '^STOXX', { chip: 'EU' }, 'points'),
-  market('gold', 'GOLD', 'GC=F', { metal: 'GC=F' }, 'USD'),
-  market('btc', 'BITCOIN', 'BTC-EUR', { coin: 'BTC-EUR' }, 'EUR'),
-  market('eurusd', 'EUR / USD', 'EURUSD=X', { chip: '€$' }, 'rate'),
-  market('us10y', 'US 10Y', '^TNX', { site: 'treasury.gov' }, 'yield'),
+  market('sp500', 'S&P 500', '^GSPC', { flag: 'US' }, 'points', 'STOCKS'),
+  market(
+    'ndx',
+    'NASDAQ 100',
+    '^NDX',
+    { flag: 'US', tag: 'TECH' },
+    'points',
+    'STOCKS',
+  ),
+  market('stoxx', 'STOXX 600', '^STOXX', { flag: 'EU' }, 'points', 'STOCKS'),
+  market('world', 'MSCI WORLD', 'IWDA.AS', { icon: 'globe' }, 'EUR', 'STOCKS'),
+  market('nikkei', 'NIKKEI 225', '^N225', { flag: 'JP' }, 'points', 'STOCKS'),
+  market('hsi', 'HANG SENG', '^HSI', { flag: 'HK' }, 'points', 'STOCKS'),
+  market('bvsp', 'BOVESPA', '^BVSP', { flag: 'BR' }, 'points', 'STOCKS'),
+  market(
+    'latam',
+    'LATIN AMERICA 40',
+    'ILF',
+    { flag: ['BR', 'MX'] },
+    'USD',
+    'STOCKS',
+  ),
+  market(
+    'us10y',
+    'US 10Y',
+    '^TNX',
+    { flag: 'US', tag: '10Y' },
+    'yield',
+    'BONDS',
+  ),
+  market('gold', 'GOLD', 'GC=F', { icon: 'gold' }, 'USD', 'METALS'),
+  market('silver', 'SILVER', 'SI=F', { icon: 'silver' }, 'USD', 'METALS'),
+  market(
+    'eurusd',
+    'EUR / USD',
+    'EURUSD=X',
+    { flag: ['EU', 'US'] },
+    'rate',
+    'MONEY',
+  ),
+  market('btc', 'BITCOIN', 'BTC-EUR', { coin: 'BTC-EUR' }, 'EUR', 'MONEY'),
 ]
 
 /** The S&P 500's sectors, each read by its own SPDR fund (a fetched

@@ -16,6 +16,7 @@ import {
   parseEcb,
   parseEurostat,
   parseFred,
+  parseFredCpi,
   parseFredMonthly,
 } from './insightsRates'
 
@@ -139,6 +140,27 @@ describe('rates', () => {
       index: { now: 336.94, yearAgo: 324.8 },
     })
     expect(parseBls({ Results: { series: [{ data: [] }] } })).toBeNull()
+  })
+  it('FRED CPIAUCNS: the same twelve-month change when BLS is not reached', () => {
+    const o = (date: string, value: string) => ({ date, value })
+    expect(
+      parseFredCpi({
+        observations: [
+          o('2025-08-01', '323.98'),
+          o('2025-09-01', '324.80'),
+          o('2026-08-01', '334.98'),
+          o('2026-09-01', '336.94'),
+          o('2026-10-01', '.'),
+        ],
+      }),
+    ).toEqual({
+      value: 3.7,
+      month: '2026-09',
+      prev: 3.4,
+      prevMonth: '2026-08',
+      index: { now: 336.94, yearAgo: 324.8 },
+    })
+    expect(parseFredCpi({ error_code: 400 })).toBeNull()
   })
   it('Eurostat: the latest month and the one before', () => {
     expect(

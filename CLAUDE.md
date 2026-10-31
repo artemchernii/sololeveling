@@ -419,7 +419,8 @@ These are rules, not advice.
    the full `pnpm verify` with e2e; now:
    - **Every change, on the Mac:** `pnpm typecheck && pnpm lint`,
      `pnpm exec vitest related <changed files>` (every unit test importing
-     them, `convex/` included), and only the spec files the journey map
+     them, `convex/` included — picking tests by hand missed one on 31
+     Oct), and only the spec files the journey map
      names for the screens touched
      (`pnpm exec playwright test e2e/<file>`). About two minutes.
    - **The full e2e runs on GitHub, on the PR** (31 Oct: two chats' full

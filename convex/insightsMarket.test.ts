@@ -42,7 +42,7 @@ test('S6 the canned market comes back for a period and writes nothing', async ()
   const me = t.withIdentity({ tokenIdentifier: ME })
   const a = await me.action(api.insightsMarket.market, { period: '1W' })
   expect(a.period).toBe('1W')
-  expect(a.markets).toHaveLength(8)
+  expect(a.markets).toHaveLength(13)
   expect(a.companies).toHaveLength(30)
   expect(a.markets.every((m) => m.move !== null)).toBe(true)
   /* No FRED_API_KEY: the three FRED cards alone are not reached. */

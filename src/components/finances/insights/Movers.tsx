@@ -6,7 +6,7 @@ import { Flag } from './Flag'
 import { Info, changeWord, clock, dayWord } from './parts'
 import { api } from '../../../../convex/_generated/api'
 import type { MoversAnswer } from '../../../../convex/marketSources/movers'
-import { AccountLogo } from '@/components/finances/Logo'
+import { TickerLogo } from '@/components/finances/Logo'
 import { MOVER_REGIONS, REGION_FLAG, closeWord } from '@/lib/movers'
 import type { MoverRegion } from '@/lib/movers'
 
@@ -125,7 +125,13 @@ export function Movers({ all }: { all: MoversShown }) {
                     data-symbol={m.symbol}
                     data-side={side}
                   >
-                    <AccountLogo name={m.name} domain={m.domain} size={28} />
+                    <TickerLogo
+                      symbol={m.symbol}
+                      type="EQUITY"
+                      name={m.name}
+                      domain={m.domain}
+                      size={28}
+                    />
                     <span className="min-w-0">
                       <span className="nm">
                         {m.name} <i>{m.symbol}</i>

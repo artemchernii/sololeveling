@@ -33,6 +33,7 @@ export type Mark =
 /** The flags the app draws (`Flag` in parts.tsx), ISO codes and EU. */
 export type FlagCode =
   | 'US'
+  | 'CN'
   | 'EU'
   | 'JP'
   | 'HK'
@@ -159,7 +160,7 @@ export const REGIONS = [
   { id: 'emerging', name: 'Emerging', chip: 'EM', symbol: 'EEM' },
   { id: 'china', name: 'China', chip: 'CN', symbol: 'MCHI' },
   { id: 'brazil', name: 'Brazil', chip: 'BR', symbol: '^BVSP' },
-]
+] as const
 
 /** A row's bar from the zero line: its share of half the track, full at 12%. */
 export const zeroBar = (change: number) =>

@@ -85,7 +85,10 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
   ).toHaveAttribute('data-held', 'false')
   await expect(page.getByTestId('sector')).toHaveCount(8)
   await expect(page.getByTestId('region')).toHaveCount(6)
-  /* YOUR COMPANIES: the held company with its results, analysts, insider. */
+  /* YOUR COMPANIES: behind ALL ▸ (31 Oct), the held company with its
+     results, analysts, insider. */
+  await expect(page.locator('[data-tile=companies]')).toHaveCount(0)
+  await page.getByTestId('all-companies').click()
   const co = page.getByTestId('company-row').first()
   await expect(co).toContainText('$2.31 a share')
   await expect(co).toContainText('$2.10 expected')
@@ -501,4 +504,59 @@ test('S8 OPPORTUNITIES: the two lists by region, bonds and metals, each number b
   /* ✦ opens ASK with the row's question in the box, not sent. */
   await opp('gold').getByTestId('ask-on').click()
   await expect(page.getByRole('textbox').last()).toHaveValue(/Gold/)
+})
+
+test('S9 COMING and MINE · THIS WEEK: the days ahead with flags and HELD; a card per held move with WAS and NOW', async ({
+  page,
+}) => {
+  await open(page)
+  const coming = page.locator('[data-tile=coming]')
+  await expect(coming.getByTestId('coming-day')).toHaveCount(4, {
+    timeout: 15_000,
+  })
+  const boe = coming.locator('[data-testid=coming-macro][data-kind=boe]')
+  await expect(boe).toContainText('Bank of England')
+  await expect(boe).toContainText('RATE · 12:00')
+  await expect(boe.locator('[data-flag=GB] svg')).toHaveCount(1)
+  const jobs = coming.locator('[data-testid=coming-macro][data-kind=jobs]')
+  await expect(jobs).toContainText('US jobs report')
+  await expect(jobs.locator('[data-flag=US] svg')).toHaveCount(1)
+  await expect(
+    coming.locator('[data-testid=coming-macro][data-kind=ecb] [data-flag=EU]'),
+  ).toHaveCount(1)
+  const pltr = coming.locator('[data-testid=coming-results][data-symbol=PLTR]')
+  await expect(pltr).toContainText('RESULTS · AFTER CLOSE · $0.17 EXPECTED')
+  await expect(pltr).not.toContainText('HELD')
+  await expect(
+    coming.locator('[data-testid=coming-results][data-symbol=AVGO]'),
+  ).toContainText('HELD')
+  await expect(coming.getByTestId('coming-foot')).toContainText(
+    /FINNHUB · FETCHED \d\d:\d\d · NOT SAVED/,
+  )
+
+  const mine = page.locator('[data-tile=mine-week]')
+  const card = mine.locator('[data-testid=mine-week-card][data-symbol=AVGO]')
+  await expect(card).toBeVisible({ timeout: 15_000 })
+  await expect(card).toHaveClass(/bad/)
+  await expect(card).toContainText('▼ 13.9%')
+  await expect(card.getByTestId('mine-week-reason')).toHaveText([
+    /^EARNINGS \d+ [A-Z]{3}$/,
+    'INSIDER',
+    'BIG FUND',
+  ])
+  await expect(card).toContainText('$2.31 a share · $2.10 expected')
+  await expect(card).toContainText('$100.00 → $86.10')
+  await expect(card).toContainText('WAS €')
+  await expect(card).toContainText('NOW €')
+  await expect(mine.getByTestId('mine-week-foot')).toContainText(
+    /YAHOO FINANCE · FETCHED \d\d:\d\d/,
+  )
+  /* The full table stays shut until ALL ▸. */
+  await expect(page.locator('[data-tile=companies]')).toHaveCount(0)
+  await mine.getByTestId('all-companies').click()
+  await expect(page.getByTestId('company-row').first()).toContainText(
+    '$2.31 a share',
+  )
+  await coming.screenshot(shot('insights-coming'))
+  await mine.screenshot(shot('insights-mine-week'))
 })

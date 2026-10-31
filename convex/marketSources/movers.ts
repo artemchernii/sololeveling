@@ -92,7 +92,9 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
   }
 }
 
-async function spark(symbols: Array<string>): Promise<Map<string, Series>> {
+export async function spark(
+  symbols: Array<string>,
+): Promise<Map<string, Series>> {
   const chunks: Array<Array<string>> = []
   for (let i = 0; i < symbols.length; i += 20)
     chunks.push(symbols.slice(i, i + 20))

@@ -9,9 +9,11 @@ import { changeWord } from './parts'
 import { IdeasTab } from './IdeasTab'
 import { Markets } from './Markets'
 import { OnReddit } from './OnReddit'
-import { YourCompanies, useCompanies, useFunds } from './YourCompanies'
+import { useCompanies, useFunds } from './YourCompanies'
 import { WeekStories } from './WeekStories'
 import { Movers, useAllMovers } from './Movers'
+import { Coming, useComing } from './Coming'
+import { MineWeek } from './MineWeek'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
@@ -86,6 +88,13 @@ export function Insights({ shown }: { shown: boolean }) {
   )
   const comp = useCompanies(companies)
   const funds = useFunds(companies)
+  /* COMING and MINE · THIS WEEK (31 Oct, part 5): raw symbols for the
+     week's closes, the HELD badge on a company reporting. */
+  const coming = useComing(companies)
+  const equities = useMemo(
+    () => owned?.filter((o) => o.type === 'EQUITY') ?? null,
+    [owned],
+  )
   /* A held company's results day, and its results out (YOUR COMPANIES):
      facts for the read, THE WEEK and ASK. */
   const earn = [
@@ -190,7 +199,8 @@ export function Insights({ shown }: { shown: boolean }) {
               onIdea={goIdea}
             />
             <Movers all={allMovers} />
-            <YourCompanies c={comp} f={funds} />
+            <Coming c={coming} />
+            <MineWeek held={equities} c={comp} f={funds} />
             <SectorMap
               shown={market.shown}
               period={period}

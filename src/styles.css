@@ -6,6 +6,8 @@
 @import './styles/today.css';
 @import './styles/insights.css';
 @import './styles/insights-map.css';
+@import './styles/insights-movers.css';
+@import './styles/insights-opps.css';
 @import './styles/insights-mine.css';
 @import './styles/insights-close.css';
 @import './styles/insights-read.css';

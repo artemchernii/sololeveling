@@ -10,6 +10,10 @@ import { siteIcon } from './logoFiles'
 
 const COIN_ICONS =
   'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color'
+/* A share's mark (31 Oct, his "icons … quality bad and overall bad icons
+   old"): Parqet's square brand marks by the full symbol (8306.T, RHM.DE),
+   then the market's logo service by the bare ticker. */
+const SHARE_MARK = 'https://assets.parqet.com/logos/symbol/'
 const SHARE_LOGO = 'https://financialmodelingprep.com/image-stock/'
 
 /** A fund's issuer by a word in its name. */
@@ -42,9 +46,19 @@ export function logoSrc(p: LogoOf): string | null {
   if (site) return siteIcon(site, 64)
   if (p.type === 'ETF' || p.type === 'MUTUALFUND' || p.type === 'ETC')
     return null
-  const base = p.symbol.split('.')[0]
+  return p.symbol
+    ? `${SHARE_MARK}${encodeURIComponent(p.symbol)}?format=png&size=128`
+    : null
+}
+
+/** Where a share's mark is looked for when the first has none. */
+export function shareFallback(symbol: string): string | null {
+  const base = symbol.split('.')[0]
   return base ? `${SHARE_LOGO}${encodeURIComponent(base)}.png` : null
 }
+
+/** Parqet's square marks carry their own ground: drawn edge to edge. */
+export const isFullMark = (src: string) => src.startsWith(SHARE_MARK)
 
 /** What kind of thing a position is, for Portfolio's split (4 Oct: "we
     gonna have etfs, stocks, crypto and gold"). */

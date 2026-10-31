@@ -1,3 +1,4 @@
+import { companyOf } from './marketWeek'
 import type { WeekKind } from './marketWeek'
 import type { RegionTag } from './tags'
 
@@ -65,10 +66,35 @@ export function weekMoney(
       ? [{ symbol: null, name: 'Cash in euros', eur: i.cash, share: null }]
       : []
 
-  if (kind === 'rates')
+  /* The Fed moves his US shares; the ECB his euro cash (31 Oct: "why
+     we show this"). */
+  if (kind === 'rates') {
+    const us = factKeys.some((k) => /^(fed|us-|mkt-us10y)/.test(k))
+    const eu = factKeys.some((k) => k.startsWith('ecb'))
+    const hs = us ? valued.filter((h) => h.region === 'us') : []
+    if (us && hs.length > 0 && !eu)
+      return {
+        chips: chipsOf(hs).slice(0, 4),
+        total: `${eur(sum(hs))} · ${share(sum(hs))}% of investments in the US`,
+        zero: false,
+      }
     return cash.length > 0
       ? { chips: cash, total: 'follows the ECB rate', zero: false }
       : null
+  }
+
+  /* A story of companies: the ones of them he holds. */
+  if (kind === 'crash') {
+    const named = new Set(factKeys.flatMap((k) => companyOf(k) ?? []).map(base))
+    const hs = valued.filter((h) => named.has(base(h.symbol)))
+    return hs.length > 0
+      ? {
+          chips: chipsOf(hs),
+          total: `${eur(sum(hs))} in these companies`,
+          zero: false,
+        }
+      : { chips: [], total: 'none held', zero: true }
+  }
 
   if (kind === 'earn') {
     const hs = valued.filter((h) => i.reported.has(base(h.symbol)))

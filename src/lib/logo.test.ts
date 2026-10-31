@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { kindOf, logoSrc } from './logo'
+import { shareFallback, kindOf, logoSrc } from './logo'
 
 describe('logoSrc', () => {
   it('a coin is its own icon', () => {
@@ -29,8 +29,11 @@ describe('logoSrc', () => {
     )
   })
 
-  it('a share is the company by ticker', () => {
-    expect(logoSrc({ symbol: 'NVDA', type: 'EQUITY' })).toBe(
+  it('a share is the company by its full symbol, then by ticker', () => {
+    expect(logoSrc({ symbol: '8306.T', type: 'EQUITY' })).toBe(
+      'https://assets.parqet.com/logos/symbol/8306.T?format=png&size=128',
+    )
+    expect(shareFallback('NVDA')).toBe(
       'https://financialmodelingprep.com/image-stock/NVDA.png',
     )
   })

@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MARKET world</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* MARKET, round 2 (31 Oct). His words: "Market is to track what is going on. We want to find opportunities and understand market"; opportunities = "good company down but still good investments, and cheap companies with good targets", "not only stocks in US but EU/Asia/Brazil, and bonds/gold/silver"; keep my companies but show what happened this week that moved them. */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.66));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --sys-edge: color-mix(in oklch, #8b7ff0 40%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --k-rates: oklch(0.55 0.13 250); --k-earn: oklch(0.55 0.15 300); --k-eu: oklch(0.55 0.13 210);
+    --k-gold: oklch(0.62 0.13 75); --k-em: oklch(0.56 0.14 160); --k-none: var(--ink-400); --k-mkt: oklch(0.55 0.1 280);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 14px/1.5 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 16px 16px 60px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 500 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .row { display:flex; align-items:center; gap: 8px } .grow { flex: 1; min-width: 0 }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 7px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap; display:inline-flex; align-items:center; gap: 4px }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 9%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 9%, transparent) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 9%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.18) }
+  .up { color: var(--good) } .dn { color: var(--bad) } .warn { color: var(--warn) }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .tabs { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass) }
+  .tab { display:flex; align-items:center; justify-content:center; gap: 8px; padding: 9px; border-radius: 10px; font: 700 10.5px var(--mono); letter-spacing: .16em; color: var(--ink-200) }
+  .tab .n { width: 18px; height: 18px; border-radius: 5px; display:grid; place-items:center; font-size: 9.5px; color: var(--lav-300); border: 1px solid var(--sys-edge) }
+  .tab.on { background: color-mix(in oklch, var(--lav-400) 14%, transparent); border: 1px solid var(--sys-edge) }
+
+  .page { display:grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start }
+  .board { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .tile { border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 20px 22px; min-width: 0; animation: up .45s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes up { from { opacity: 0; transform: translateY(8px) } }
+  .logo { width: 30px; height: 30px; border-radius: 9px; background: #fff; border: 1px solid var(--edge); display:grid; place-items:center; overflow:hidden; flex: none; font: 700 10px var(--mono); color: var(--ink-300) }
+  .logo img { width: 18px; height: 18px }
+  .logo.sm { width: 24px; height: 24px; border-radius: 7px; font-size: 8.5px } .logo.sm img { width: 14px; height: 14px }
+
+  /* head: the week in one line, from the same READ MARKET press */
+  .head { display:flex; gap: 16px; align-items: flex-start }
+  .head h1 { font-size: 26px; font-weight: 500; letter-spacing: -.02em; line-height: 1.2 }
+  .take { font-size: 15px; line-height: 1.55; color: var(--ink-300); margin-top: 6px; max-width: 680px }
+  .meta { font: 10px/1.6 var(--mono); color: var(--ink-400); text-align: right; white-space: nowrap }
+  .again { margin-top: 8px; font: 700 10px var(--mono); letter-spacing: .12em; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); color: var(--ink-200); cursor: pointer }
+  .again.main { color: #fff; background: var(--lav-300); border-color: transparent; box-shadow: 0 8px 20px -12px var(--lav-400) }
+  .sec { display:flex; align-items:baseline; gap: 10px; padding: 6px 4px 0 }
+  .sec h2 { font: 700 12px var(--mono); letter-spacing: .22em; color: var(--ink-100) }
+  .sec .caps { letter-spacing: .1em }
+
+  /* a story: icon column, then everything on one left edge */
+  .ln { display:grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 16px; --c: var(--ink-400) }
+  .ln .ic { width: 40px; height: 40px; border-radius: 12px; display:grid; place-items:center; color: var(--c); border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 10%, white) }
+  .ln .ic svg.i { width: 19px; height: 19px }
+  .ln .body { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .top { display:flex; gap: 12px; align-items: baseline; justify-content: space-between }
+  .kind { font: 700 10px var(--mono); letter-spacing: .18em; color: var(--c) }
+  .src { font: 10px var(--mono); color: var(--ink-400); white-space: nowrap }
+  .src a { color: inherit }
+  .title { font-size: 18px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin-top: 2px }
+  .sub { font-size: 14px; color: var(--ink-300); margin-top: 3px }
+  .boxes { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+  .box { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .box .n { font-size: 12.5px; color: var(--ink-300) }
+  .box .v { font: 600 22px var(--mono); letter-spacing: -.02em; line-height: 1.15 }
+  .box .s { font-size: 12px; color: var(--ink-400) }
+  .box svg { width: 100%; height: 26px; margin-top: 4px } .box svg polyline { fill: none; stroke-width: 1.6 }
+  .box.bad .v { color: var(--bad) } .box.good .v { color: var(--good) } .box.none .v { color: var(--ink-500) }
+  /* your money: what he has in the story, from his accounts */
+  .mine { display:flex; align-items:center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--lav-400) 6%, white); border: 1px dashed var(--sys-edge) }
+  .mine .lab { font: 700 9.5px var(--mono); letter-spacing: .16em; color: var(--lav-300); white-space: nowrap }
+  .hold { display:inline-flex; align-items:center; gap: 7px; padding: 3px 9px 3px 3px; border-radius: 9px; background: #fff; border: 1px solid var(--edge); font-size: 13px; font-weight: 600; white-space: nowrap }
+  .hold .e { font: 600 12.5px var(--mono); color: var(--ink-200) }
+  .hold .d { font: 600 11.5px var(--mono) }
+  .mine .tot { margin-left: auto; font: 600 13px var(--mono); color: var(--ink-300); white-space: nowrap }
+  .mine.zero { background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.14) } .mine.zero .lab { color: var(--ink-400) }
+  .act { display:flex; align-items:center; gap: 12px; padding-top: 14px; border-top: 1px solid var(--edge) }
+  .go { display:inline-flex; align-items:center; gap: 8px; font: 600 14px Inter; padding: 10px 18px; border-radius: 999px; border: 0; color: #fff; background: var(--lav-300); cursor: pointer; box-shadow: 0 8px 20px -12px var(--lav-400); transition: transform .15s; white-space: nowrap }
+  .go:hover { transform: translateY(-1px) }
+  .go.soft { color: var(--lav-300); background: transparent; border: 1px solid var(--sys-edge); box-shadow: none }
+  .hint { font-size: 12.5px; color: var(--ink-400) }
+  .ask { font: 600 13px Inter; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--sys-edge); color: var(--lav-300); background: transparent; cursor: pointer; white-space: nowrap }
+  .ask:hover { background: color-mix(in oklch, var(--lav-400) 14%, white) }
+  .none { display:inline-flex; gap: 8px; align-items:center; font: 600 14px Inter; color: var(--ink-300); padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(30,30,50,.14); background: rgba(30,30,50,.03) }
+  .none svg.i { color: var(--good) }
+  .facts-only { display:flex; align-items:center; gap: 10px; font-size: 13px; color: var(--ink-400) }
+
+  /* sectors, kept: S&P 500's biggest 30, line icons, held ones ringed */
+  /* sectors and regions: one row each, a bar from zero, the companies as logos */
+  .sgrid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; margin-top: 12px }
+  .sr { display:grid; grid-template-columns: 26px 92px minmax(0, 1fr) 56px; gap: 10px; align-items:center; padding: 9px 0; border-top: 1px solid var(--edge) }
+  .sr:nth-child(-n+2) { border-top: 0 }
+  .sr .si { width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; color: var(--ink-300); background: rgba(30,30,50,.04); border: 1px solid var(--edge); font: 700 8.5px var(--mono) }
+  .sr .si svg.i { width: 14px; height: 14px }
+  .sr .nm { font-weight: 600; font-size: 13.5px }
+  .sr .pc { font: 700 13px var(--mono); text-align: right }
+  .zb { position: relative; height: 8px; border-radius: 4px; background: rgba(30,30,50,.05) }
+  .zb::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: rgba(30,30,50,.2) }
+  .zb i { position: absolute; top: 0; bottom: 0; border-radius: 4px; transform-origin: var(--o); animation: fill .9s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .co { grid-column: 2 / -1; display:flex; gap: 5px; flex-wrap: wrap; margin-top: -2px }
+  .co span { display:inline-flex; align-items:center; gap: 5px; padding: 2px 7px 2px 2px; border-radius: 8px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); font: 600 10.5px var(--mono); color: var(--ink-300) }
+  .co span img { width: 16px; height: 16px; border-radius: 4px; background: #fff }
+  .co span.held { border-color: var(--lav-300); color: var(--ink-100); box-shadow: 0 0 0 1px var(--lav-300) inset }
+  .sub2 { font: 700 10px var(--mono); letter-spacing: .18em; color: var(--ink-400); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--edge) }
+
+  /* right: the trend and the basics */
+  .side { position: sticky; top: 12px; display:flex; flex-direction:column; gap: 12px }
+  .trend { border-color: var(--sys-edge); box-shadow: var(--shadow), 0 0 30px -18px var(--lav-400) }
+  .trend h2, .basics h2 { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--lav-300); text-transform: uppercase }
+  .basics h2 { color: var(--ink-200) }
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.6) }
+  .seg button { font: 700 9.5px var(--mono); letter-spacing: .12em; padding: 4px 10px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, white) }
+  .mk { display:grid; grid-template-columns: 30px minmax(0, 1fr) 64px 78px; gap: 10px; align-items:center; padding: 9px 0; border-top: 1px solid var(--edge) }
+  .mlist { margin-top: 10px } .mk:first-child { border-top: 0 }
+  .mk .nm { font-weight: 600; font-size: 13.5px } .mk .p { font: 10.5px var(--mono); color: var(--ink-400); white-space: nowrap }
+  .mk svg { width: 64px; height: 24px } .mk svg polyline { fill: none; stroke-width: 1.5 }
+  .mk .ch { font: 700 13px var(--mono); text-align: right; white-space: nowrap }
+  .mk.mine-row .nm::after { content: 'HELD'; font: 700 8px var(--mono); letter-spacing: .1em; color: var(--lav-300); margin-left: 6px; vertical-align: 2px }
+  .bas { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px }
+  .bas .box .v { font-size: 19px }
+  .quiet { font-size: 12px; line-height: 1.6; color: var(--ink-400); padding: 0 6px }
+  .foot { font-size: 12px; line-height: 1.6; color: var(--ink-400); padding: 0 6px } .foot b { color: var(--warn) }
+
+  .veil { position: fixed; inset: 0; background: rgba(20,20,40,.25); z-index: 8; display:none }
+  .pop { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(500px, calc(100% - 32px)); z-index: 9; display:none; border-color: var(--sys-edge); background: #faf9f7; animation: none }
+  .open .veil, .open .pop { display:block }
+  .pop .bc { display:flex; gap: 8px; align-items:center; margin-bottom: 12px }
+  .x { font: 700 12px var(--mono); border: 0; background: transparent; color: var(--ink-400); cursor: pointer; margin-left: auto }
+  .pop p { font-size: 14px; color: var(--ink-200) }
+  .sugg { display:flex; gap: 6px; flex-wrap: wrap; margin-top: 12px } .sugg span { font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--sys-edge); color: var(--lav-300); cursor: pointer }
+
+  @media (max-width: 1100px) { body:not(.phone) .page { grid-template-columns: 1fr } body:not(.phone) .side { position: static } }
+  .phone .wrap { max-width: 400px }
+  .phone .page { grid-template-columns: 1fr }
+  .phone .side { position: static }
+  .phone .tabs { grid-template-columns: repeat(5, auto); overflow-x: auto }
+  .phone .tab { padding: 7px 4px; letter-spacing: .1em } .phone .tab .pill { display:none } .phone .tab.on .pill { display:inline-flex }
+  .phone .tile { padding: 16px }
+  .phone .head { flex-direction: column } .phone .head > div:last-child { align-items: flex-start !important } .phone .meta { text-align: left }
+  .phone .head h1 { font-size: 22px }
+  .phone .ln { grid-template-columns: 1fr; row-gap: 10px }
+  .phone .top { flex-direction: column; gap: 2px }
+  .phone .boxes { grid-template-columns: 1fr }
+  .phone .box { display:grid; grid-template-columns: 1fr auto; column-gap: 10px; align-items: baseline } .phone .box .n { grid-column: 1 / -1 } .phone .box .v { font-size: 19px } .phone .box svg { grid-column: 1 / -1 }
+  .phone .mine .tot { margin-left: 0; flex: 1 0 100% }
+  .phone .act { flex-wrap: wrap } .phone .act .hint { flex: 1 0 100%; order: 3 }
+  .phone .go { white-space: normal; text-align: left }
+  .phone .sgrid { grid-template-columns: 1fr } .phone .sr:nth-child(2) { border-top: 1px solid var(--edge) } .phone .sr { grid-template-columns: 26px 84px minmax(0, 1fr) 52px }
+  .phone .bas .box { display:flex }
+  /* your companies: one row per held company that had news this week */
+  .cg { display:grid; grid-template-columns: minmax(0, 1.1fr) repeat(4, minmax(0, 1fr)); gap: 0 14px; margin-top: 12px }
+  .cg > div { padding: 10px 0; border-top: 1px solid var(--edge); min-width: 0; font-size: 12.5px; color: var(--ink-200) }
+  .cg > .hd { border-top: 0; padding: 0 0 6px; font: 700 9.5px var(--mono); letter-spacing: .14em; color: var(--ink-400) }
+  .cg .co1 { display:flex; align-items:center; gap: 8px } .cg .co1 b { font-size: 13.5px } .cg .co1 .e { font: 500 11px var(--mono); color: var(--ink-400) }
+  .cg .k { display:block; font: 600 12.5px var(--mono); color: var(--ink-100) } .cg .w { display:block; font-size: 11.5px; color: var(--ink-400) }
+  .cg .dash { color: var(--ink-500) }
+  /* on reddit: counts only, no move */
+  .rd { display:grid; grid-template-columns: 18px 26px minmax(0, 1fr) auto; gap: 10px; align-items:center; padding: 8px 0; border-top: 1px solid var(--edge) }
+  .rdl { margin-top: 10px } .rd:first-child { border-top: 0 }
+  .rd .r { font: 700 11px var(--mono); color: var(--ink-400) } .rd .nm { font-weight: 600; font-size: 13px }
+  .rd .c { font: 600 12px var(--mono); text-align: right; white-space: nowrap } .rd .c span { display:block; font: 500 10.5px var(--mono); color: var(--ink-400) }
+  .rd .nm i { font: 700 8px var(--mono); font-style: normal; letter-spacing: .1em; color: var(--lav-300); margin-left: 6px; vertical-align: 2px }
+  /* the sources switch: every block shows where its numbers come from */
+  .srcs [data-src] { position: relative; outline: 2px dashed var(--warn); outline-offset: 3px }
+  .srcs [data-src]::after { content: attr(data-src); position: absolute; top: -10px; right: 12px; z-index: 3; font: 700 9.5px var(--mono); letter-spacing: .06em; color: #fff; background: var(--warn); padding: 3px 8px; border-radius: 999px; white-space: nowrap }
+  .phone .cg { grid-template-columns: 1fr 1fr } .phone .cg > .hd { display:none } .phone .cg .co1 { grid-column: 1 / -1; padding-top: 14px }
+  .phone .cg > div:not(.co1) { border-top: 0; padding-top: 2px }
+  /* MARKET, round 2 (31 Oct) — the whole market, not only his. */
+  .flag { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--edge); background: #fff; display:grid; place-items:center; overflow:hidden; flex: none; position: relative }
+  .flag img { width: 30px; height: 30px; object-fit: cover }
+  .flag.two img { position: absolute; width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid #fff; object-fit: cover }
+  .flag.two img:first-child { left: 0; top: 0 } .flag.two img:last-child { right: 0; bottom: 0 }
+  .flag .tag { position: absolute; right: -1px; bottom: -1px; font: 700 7px var(--mono); background: var(--ink-100); color: #fff; padding: 1px 3px; border-radius: 4px 0 8px 0 }
+  .flag.icon { color: var(--ink-200) } .flag.icon svg { width: 22px; height: 22px }
+  .fl { width: 16px; height: 12px; border-radius: 2px; object-fit: cover; vertical-align: -1px; box-shadow: 0 0 0 1px var(--edge) }
+  .grp { font: 700 9px var(--mono); letter-spacing: .18em; color: var(--ink-400); padding: 12px 0 2px }
+  .chips { display:flex; gap: 6px; flex-wrap: wrap }
+  .chip { font: 700 9.5px var(--mono); letter-spacing: .12em; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); color: var(--ink-300); cursor: pointer; display:inline-flex; align-items:center; gap: 6px }
+  .chip.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 16%, white); border-color: var(--sys-edge) }
+  .held { font: 700 8px var(--mono); letter-spacing: .1em; color: var(--lav-300); border: 1px solid var(--sys-edge); border-radius: 5px; padding: 1px 4px; vertical-align: 2px; margin-left: 6px }
+  /* movers: two columns, up and down */
+  .mv { display:grid; grid-template-columns: 1fr 1fr; gap: 0 26px; margin-top: 12px }
+  .mv h3 { font: 700 10px var(--mono); letter-spacing: .18em; padding-bottom: 6px }
+  .mr { display:grid; grid-template-columns: 30px minmax(0,1fr) 68px; gap: 10px; align-items:center; padding: 9px 0; border-top: 1px solid var(--edge) }
+  .mr .nm { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .mr .why { font: 10.5px var(--mono); color: var(--ink-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .mr .pc { font: 700 14px var(--mono); text-align: right }
+  /* opportunities: a table, every number beside its place */
+  .op { display:grid; grid-template-columns: minmax(0,1.5fr) repeat(4, minmax(0,1fr)) 52px; gap: 0 14px; margin-top: 10px; align-items: center }
+  .op > div { padding: 10px 0; border-top: 1px solid var(--edge); min-width: 0 }
+  .op > .hd { border-top: 0; padding: 0 0 4px; font: 700 9px var(--mono); letter-spacing: .14em; color: var(--ink-400) }
+  .op .c1 { display:flex; align-items:center; gap: 9px } .op .c1 b { font-size: 13.5px; display:block } .op .c1 .s { font: 10.5px var(--mono); color: var(--ink-400) }
+  .op .k { display:block; font: 700 13.5px var(--mono) } .op .w { display:block; font: 10.5px var(--mono); color: var(--ink-400) }
+  .op .ask { padding: 6px 10px; font-size: 12px }
+  .why-tag { display:inline-flex; gap: 6px; flex-wrap: wrap; margin-top: 4px }
+  /* coming: a day per row */
+  .dy { display:grid; grid-template-columns: 74px minmax(0,1fr); gap: 14px; padding: 11px 0; border-top: 1px solid var(--edge) }
+  .dy:first-of-type { border-top: 0 }
+  .dy .d { font: 700 11px var(--mono); letter-spacing: .1em; color: var(--ink-200) } .dy .d span { display:block; font-weight: 500; color: var(--ink-400) }
+  .ev { display:flex; gap: 8px; flex-wrap: wrap; align-items:center }
+  .evc { display:inline-flex; align-items:center; gap: 7px; padding: 4px 10px 4px 4px; border-radius: 10px; background: #fff; border: 1px solid var(--edge); font-size: 13px; font-weight: 600 }
+  .evc .x2 { font: 500 10.5px var(--mono); color: var(--ink-400) }
+  .evc.big { border-color: var(--sys-edge) }
+  .evc .ei { width: 24px; height: 24px; border-radius: 7px; display:grid; place-items:center; color: var(--c, var(--ink-300)); background: color-mix(in oklch, var(--c, #999) 12%, white) } .evc .ei svg.i { width: 13px; height: 13px }
+  /* mine this week: one card per big move */
+  .mw { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 12px }
+  .mc { border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); padding: 12px 14px; display:flex; flex-direction:column; gap: 8px }
+  .mc.bad { border-color: color-mix(in oklch, var(--bad) 30%, transparent); background: color-mix(in oklch, var(--bad) 4%, white) }
+  .mc.good { border-color: color-mix(in oklch, var(--good) 30%, transparent); background: color-mix(in oklch, var(--good) 4%, white) }
+  .mc .h { display:flex; align-items:center; gap: 9px } .mc .h b { font-size: 14px } .mc .h .pc { margin-left: auto; font: 700 18px var(--mono) }
+  .mc .l { font-size: 13px; color: var(--ink-200) }
+  .mc .n2 { display:flex; gap: 14px; font: 11px var(--mono); color: var(--ink-400); flex-wrap: wrap } .mc .n2 b { color: var(--ink-100); font-weight: 600 }
+  .more { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--lav-300); cursor: pointer; padding-top: 10px; display:inline-block }
+  .q { position: fixed; right: 18px; bottom: 18px; width: 300px; z-index: 5; font-size: 12px; line-height: 1.5; padding: 12px 14px; border-radius: 12px; background: #fffbea; border: 1px solid var(--warn); color: var(--ink-200); box-shadow: var(--shadow) }
+  .q b { color: var(--warn); font: 700 10px var(--mono); letter-spacing: .12em }
+  .q ol { padding-left: 16px; margin-top: 4px }
+  .phone .mv, .phone .mw { grid-template-columns: 1fr } .phone .op { grid-template-columns: minmax(0,1fr) 1fr 1fr } .phone .op > .hd { display:none } .phone .op .c1 { grid-column: 1 / -1 } .phone .op > div:not(.c1) { border-top: 0; padding-top: 0 } .phone .q { display:none }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · fake numbers ·
+    <button data-v="desk" class="on">desktop</button>
+    <button data-v="phone">phone</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on"><span class="n">1</span>MARKET <span class="pill lav">4 STORIES</span></div>
+    <div class="tab"><span class="n">2</span>READ <span class="pill lav">4 ACTIONS</span></div>
+    <div class="tab"><span class="n">3</span>MINE <span class="pill good">10 ADD</span></div>
+    <div class="tab"><span class="n">4</span>IDEAS <span class="pill lav">€30,194</span></div>
+    <div class="tab"><span class="n">5</span>CLOSE <span class="pill good">▲ 0%</span></div>
+  </div>
+
+  <div class="page">
+    <div class="board">
+
+      <div class="tile head">
+        <div class="grow">
+          <div class="caps">THE MARKET · WEEK OF 26 OCT</div>
+          <h1>Big Tech split, four big names crashed, the Fed held</h1>
+          <p class="take">Microsoft beat while Google and Meta fell on results. Intel lost a fifth after cutting its outlook. Markets now price a Fed hike in December; Brazil rallied after its election.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end">
+          <div class="meta">SONNET 5.5 · 31 OCT 12:36<br/>WEB · 14 SOURCES</div>
+          <button class="again">↻ READ AGAIN</button>
+        </div>
+      </div>
+
+      <div class="sec"><h2>THE WEEK</h2><span class="caps">4 STORIES · 26–31 OCT · WHOLE MARKET</span></div>
+      <div id="stories" class="board"></div>
+
+      <div class="sec"><h2>MOVERS</h2><span class="caps">THE WEEK · BIGGEST UP AND DOWN</span></div>
+      <div class="tile">
+        <div class="chips" id="regions"></div>
+        <div class="mv" id="movers"></div>
+        <div class="src" style="margin-top:10px">YAHOO FINANCE · FETCHED 12:36 · NOT SAVED</div>
+      </div>
+
+      <div class="sec"><h2>OPPORTUNITIES</h2><span class="caps">FROM FETCHED PRICES, TARGETS AND P/E · NOT SAVED</span></div>
+      <div class="tile">
+        <div class="chips" id="okind"></div>
+        <div class="chips" id="oreg" style="margin-top:8px"></div>
+        <div id="opps"></div>
+        <div class="src" style="margin-top:10px">YAHOO FINANCE · FINNHUB · FRED · FETCHED 12:36 · NOT SAVED</div>
+      </div>
+
+      <div class="sec"><h2>COMING</h2><span class="caps">NEXT 7 DAYS · 2–8 NOV</span></div>
+      <div class="tile" id="coming"></div>
+
+      <div class="sec"><h2>MINE · THIS WEEK</h2><span class="caps">WHAT MOVED MY HOLDINGS · 5% OR MORE, OR NEWS</span></div>
+      <div class="tile">
+        <div class="mw" id="mine"></div>
+        <span class="more">ALL 15 COMPANIES · RESULTS · ANALYSTS · INSIDERS · BIG FUNDS ▸</span>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="tile trend">
+        <div class="row"><h2 class="grow">THE TREND</h2></div>
+        <div class="seg" style="margin-top:10px" id="per"></div>
+        <div class="caps" style="margin-top:8px">VS 23 OCT CLOSE</div>
+        <div id="trend"></div>
+        <div class="src" style="margin-top:8px">YAHOO FINANCE · FETCHED 12:36 · NOT SAVED</div>
+      </div>
+      <div class="tile basics">
+        <h2>RATES AND PRICES</h2>
+        <div class="bas">
+          <div class="box"><span class="n">US inflation</span><span class="v">3.0%</span><span class="s">AUG 2.9% · BLS · FRED</span></div>
+          <div class="box"><span class="n">Euro inflation</span><span class="v">3.8%</span><span class="s">AUG 3.2% · EUROSTAT</span></div>
+          <div class="box"><span class="n">Fed</span><span class="v">3.75–4.00%</span><span class="s">NEXT 9 DEC</span></div>
+          <div class="box"><span class="n">ECB</span><span class="v">2.00%</span><span class="s">NEXT 17 DEC</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="q"><b>QUESTIONS ON THIS MOCKUP</b>
+  <ol>
+    <li>THE WEEK: whole market, HELD badge only — right?</li>
+    <li>OPPORTUNITIES: 2 kinds (down from high · cheap with target) — enough rows?</li>
+    <li>MINE · THIS WEEK cards, full table behind ▸ — ok?</li>
+  </ol>
+</div>
+
+<div class="veil"></div>
+<div class="tile pop" id="pop"><div class="bc"><b id="pt"></b><button class="x">✕</button></div><p id="pb"></p></div>
+
+<script>
+const FLAG = c => `https://flagcdn.com/${c}.svg`
+const FAV = d => `https://www.google.com/s2/favicons?domain=${d}&sz=64`
+const I = {
+  globe: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+  bar: '<svg viewBox="0 0 24 24"><path d="M4 18 7 9h10l3 9z" fill="#e6b437" stroke="#b8871a" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 9l1-3h6l1 3" fill="#f2cd5c" stroke="#b8871a" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  silver: '<svg viewBox="0 0 24 24"><path d="M4 18 7 9h10l3 9z" fill="#cfd3da" stroke="#8a909b" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 9l1-3h6l1 3" fill="#e7eaef" stroke="#8a909b" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  rates: '<svg class="i" viewBox="0 0 24 24"><path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M12 3 3 8h18z"/></svg>',
+  earn: '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 16v-4M12 16V8M16 16v-6"/></svg>',
+  drop: '<svg class="i" viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8M21 11v6h-6"/></svg>',
+  vote: '<svg class="i" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><rect x="4" y="4" width="16" height="16" rx="2"/></svg>',
+  news: '<svg class="i" viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>',
+  fund: '<svg class="i" viewBox="0 0 24 24"><path d="M3 21h18M6 18V9l6-5 6 5v9"/></svg>',
+}
+const mark = m => {
+  if (m.f2) return `<span class="flag two"><img src="${FLAG(m.f2[0])}"><img src="${FLAG(m.f2[1])}"></span>`
+  if (m.f) return `<span class="flag"><img src="${FLAG(m.f)}">${m.tag ? `<span class="tag">${m.tag}</span>` : ''}</span>`
+  if (m.icon) return `<span class="flag icon">${I[m.icon]}</span>`
+  return `<span class="logo"><img src="${FAV(m.d)}"></span>`
+}
+let seed = 7
+const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280
+const spark = up => { let v = 50, p = []; for (let i = 0; i < 30; i++) { v += (rnd() - .5) * 8 + (up ? .5 : -.5); p.push(v) } const lo = Math.min(...p), hi = Math.max(...p); return `<svg viewBox="0 0 100 24" preserveAspectRatio="none"><polyline stroke="${up ? 'var(--good)' : 'var(--bad)'}" points="${p.map((y, i) => `${(i / 29 * 100).toFixed(1)},${(22 - (y - lo) / (hi - lo) * 20).toFixed(1)}`).join(' ')}"/></svg>` }
+const pc = v => `<span class="${v >= 0 ? 'up' : 'dn'}">${v >= 0 ? '▲' : '▼'} ${Math.abs(v).toFixed(1)}%</span>`
+
+// THE TREND — flags and real marks, grouped
+const TREND = [
+  ['STOCKS', [
+    ['S&P 500', { f: 'us' }, '7,720 → 7,580', -1.8, 1],
+    ['NASDAQ 100', { f: 'us', tag: 'TECH' }, '29,403 → 28,385', -3.5],
+    ['STOXX 600', { f: 'eu' }, '649 → 647', -0.4],
+    ['MSCI WORLD', { icon: 'globe' }, '€131.51 → €129.70', -1.4, 1],
+    ['NIKKEI 225', { f: 'jp' }, '48,120 → 49,310', 2.5],
+    ['HANG SENG', { f: 'hk' }, '25,980 → 25,410', -2.2],
+    ['BOVESPA', { f: 'br' }, '141,200 → 147,000', 4.1],
+    ['MERVAL', { f: 'ar' }, '2.31M → 2.38M', 3.0],
+  ]],
+  ['BONDS', [
+    ['US 10Y', { f: 'us', tag: '10Y' }, '4.99% → 4.93%', -0.06, 0, 'pts'],
+    ['GERMANY 10Y', { f: 'de', tag: '10Y' }, '2.66% → 2.71%', 0.05, 0, 'pts'],
+  ]],
+  ['METALS', [
+    ['GOLD', { icon: 'bar' }, '$4,031 → $3,899', -3.3, 1],
+    ['SILVER', { icon: 'silver' }, '$48.10 → $46.20', -4.0],
+  ]],
+  ['MONEY', [
+    ['EUR / USD', { f2: ['eu', 'us'] }, '1.118 → 1.117', -0.1],
+    ['BITCOIN', { d: 'bitcoin.org' }, '€68,903 → €69,494', 0.9],
+  ]],
+]
+document.getElementById('per').innerHTML = ['1D', '1W', '1M', '3M', '1Y'].map(p => `<button class="${p === '1W' ? 'on' : ''}">${p}</button>`).join('')
+document.getElementById('trend').innerHTML = TREND.map(([g, rows]) => `<div class="grp">${g}</div>` + rows.map(([n, m, p, v, held, u]) => `
+  <div class="mk"><span>${mark(m)}</span><div><div class="nm">${n}${held ? '<span class="held">HELD</span>' : ''}</div><div class="p">${p}</div></div>${spark(v >= 0)}<div class="ch">${u ? `<span class="${v >= 0 ? 'up' : 'dn'}">${v >= 0 ? '▲' : '▼'} ${Math.abs(v).toFixed(2)} PTS</span>` : pc(v)}</div></div>`).join('')).join('')
+
+// THE WEEK — whole market; HELD is a badge, never the filter
+const STORIES = [
+  { k: 'EARNINGS', c: '--k-earn', i: 'earn', src: 'FINNHUB · YAHOO · 31 OCT', t: 'Big Tech split: Microsoft beat, Google and Meta fell',
+    s: '7 of the 10 biggest US companies reported. Cloud grew; ad and AI spending scared investors.',
+    rows: [['MSFT', 'microsoft.com', 'Microsoft', '$4.89 vs $4.82', 3.1, 1, 'BEAT'], ['GOOGL', 'google.com', 'Alphabet', '$2.12 vs $3.11', -13.9, 1], ['META', 'meta.com', 'Meta', '$6.03 vs $6.70', -9.2, 1], ['AMZN', 'amazon.com', 'Amazon', '$1.89 vs $2.00', -4.1, 1], ['AAPL', 'apple.com', 'Apple', '$1.71 vs $1.66', 1.8, 0]] },
+  { k: 'CRASHES', c: '--bad', i: 'drop', src: 'YAHOO · REUTERS · CNBC · 26–31 OCT', t: 'Four big names fell 9–24% in one week',
+    s: 'Two missed their own numbers, two cut prices to keep sales.',
+    rows: [['RDDT', 'reddit.com', 'Reddit', '112M users vs 118M', -24.1, 0], ['INTC', 'intel.com', 'Intel', 'outlook $13.1B vs $14.0B', -21.4, 0, '52W LOW'], ['NOVO-B', 'novonordisk.com', 'Novo Nordisk', 'Wegovy price ▼ 30%', -11.3, 0, '52W LOW'], ['1211', 'byd.com', 'BYD', 'China price war', -9.1, 0]] },
+  { k: 'INTEREST RATES', c: '--k-rates', i: 'rates', src: 'FRED · CME · 29 OCT', t: 'The Fed held 3.75–4.00%; a December hike is now 62% priced', why: 1,
+    s: 'Higher US rates weigh on growth shares and lift the dollar.',
+    boxes: [['FED', '3.75–4.00%', 'SINCE 17 SEP', ''], ['HIKE ON 9 DEC', '62%', 'WEEK BEFORE 38%', 'bad'], ['US 2-YEAR', '4.61%', 'WEEK BEFORE 4.48%', '']] },
+  { k: 'EMERGING MARKETS', c: '--k-em', i: 'vote', src: 'YAHOO · BLOOMBERG · 27 OCT', t: 'Brazil +4.1% after the election',
+    s: 'The Bovespa had its best week this year; the real rose 2.3% on the dollar.',
+    boxes: [['BOVESPA · 1W', '▲ 4.1%', '141,200 → 147,000', 'good'], ['BRL / USD', '▲ 2.3%', '5.62 → 5.49', 'good'], ['PETROBRAS', '▲ 7.8%', 'R$36.10 → R$38.92', 'good']] },
+]
+document.getElementById('stories').innerHTML = STORIES.map(x => `
+  <div class="tile ln" style="--c:var(${x.c})"><div class="ic">${I[x.i]}</div><div class="body">
+    <div><div class="top"><span class="kind">${x.k}</span><span class="src">${x.src}</span></div>
+      <div class="title">${x.t}${x.why ? ' <span class="pill ink" style="cursor:pointer" data-why>ⓘ WHY IT MATTERS</span>' : ''}</div><div class="sub">${x.s}</div></div>
+    ${x.rows ? `<div>${x.rows.map(([t, d, n, r, v, h, b]) => `<div class="mr" style="grid-template-columns:30px minmax(0,1fr) 170px 74px"><span class="logo"><img src="${FAV(d)}"></span><div class="nm">${n} <span class="src">${t}</span>${h ? '<span class="held">HELD</span>' : ''}${b ? ` <span class="pill ${b === 'BEAT' ? 'good' : 'bad'}">${b}</span>` : ''}</div><span class="src" style="text-align:right">${r}</span><div class="pc">${pc(v)}</div></div>`).join('')}</div>`
+      : `<div class="boxes">${x.boxes.map(([n, v, s, t]) => `<div class="box ${t}"><span class="n">${n}</span><span class="v">${v}</span><span class="s">${s}</span></div>`).join('')}</div>`}
+    <div class="act"><span class="grow"></span><button class="ask">✦ ASK</button></div>
+  </div></div>`).join('')
+
+// MOVERS
+const MOV = {
+  US: [[['Palantir', 'palantir.com', 'RESULTS · SALES ▲ 48%', 14.2], ['Caterpillar', 'caterpillar.com', 'RESULTS · RECORD ORDERS', 9.8], ['AMD', 'amd.com', 'OPENAI CHIP DEAL', 7.4], ['Microsoft', 'microsoft.com', 'RESULTS · CLOUD ▲ 39%', 3.1, 1], ['Apple', 'apple.com', 'RESULTS · IPHONE ▲ 6%', 1.8]],
+       [['Reddit', 'reddit.com', 'DAILY USERS MISSED', -24.1], ['Intel', 'intel.com', 'OUTLOOK CUT', -21.4], ['Alphabet', 'google.com', 'RESULTS MISSED', -13.9, 1], ['Meta', 'meta.com', 'AI SPENDING ▲ $20B', -9.2, 1], ['Netflix', 'netflix.com', 'SUBSCRIBERS FLAT', -7.5, 1]]],
+  EUROPE: [[['ASML', 'asml.com', 'ORDERS ▲ 22%', 6.2], ['Siemens', 'siemens.com', 'RESULTS BEAT', 4.8], ['BNP Paribas', 'bnpparibas.com', 'BUYBACK €2B', 4.1]],
+           [['Novo Nordisk', 'novonordisk.com', 'WEGOVY PRICE CUT', -11.3], ['Stellantis', 'stellantis.com', 'US SALES ▼ 9%', -8.7], ['Kering', 'kering.com', 'GUCCI ▼ 14%', -6.9]]],
+  ASIA: [[['TSMC', 'tsmc.com', 'AI ORDERS', 5.4], ['Sony', 'sony.com', 'GAMES ▲', 4.0], ['Toyota', 'toyota.com', 'YEN ▼', 3.2]],
+         [['BYD', 'byd.com', 'PRICE WAR', -9.1], ['Alibaba', 'alibaba.com', 'CLOUD SLOWED', -6.2], ['Samsung', 'samsung.com', 'CHIP MARGIN ▼', -3.0]]],
+  'SOUTH AMERICA': [[['Petrobras', 'petrobras.com.br', 'BR · ELECTION · DIVIDEND', 7.8], ['YPF', 'ypf.com', 'AR · VACA MUERTA OUTPUT ▲', 6.9], ['Itaú', 'itau.com.br', 'BR · RESULTS BEAT', 5.2], ['MercadoLibre', 'mercadolibre.com', 'AR · SALES ▲ 37%', 4.8]],
+           [['Vale', 'vale.com', 'BR · IRON ORE ▼', -4.4], ['SQM', 'sqm.com', 'CL · LITHIUM ▼', -3.8], ['Ambev', 'ambev.com.br', 'BR · VOLUME ▼', -3.1], ['Falabella', 'falabella.com', 'CL · STORES ▼', -2.6]]],
+}
+const RF = { US: 'us', EUROPE: 'eu', ASIA: 'jp', 'SOUTH AMERICA': ['br', 'ar'] }
+const rflag = r => [].concat(RF[r]).map(c => `<img class="fl" src="${FLAG(c)}">`).join('')
+let reg = 'US'
+const drawMov = () => {
+  document.getElementById('regions').innerHTML = Object.keys(MOV).map(r => `<span class="chip ${r === reg ? 'on' : ''}" data-r="${r}">${rflag(r)}${r}</span>`).join('')
+  const col = (h, rows) => `<div><h3 class="${h === 'UP' ? 'up' : 'dn'}">${h === 'UP' ? '▲ UP' : '▼ DOWN'}</h3>${rows.map(([n, d, w, v, held]) => `<div class="mr"><span class="logo"><img src="${FAV(d)}"></span><div><div class="nm">${n}${held ? '<span class="held">HELD</span>' : ''}</div><div class="why">${w}</div></div><div class="pc">${pc(v)}</div></div>`).join('')}</div>`
+  document.getElementById('movers').innerHTML = col('UP', MOV[reg][0]) + col('DOWN', MOV[reg][1])
+}
+drawMov()
+document.getElementById('regions').onclick = e => { const r = e.target.closest('[data-r]'); if (r) { reg = r.dataset.r; drawMov() } }
+
+// OPPORTUNITIES — two stock kinds, plus bonds and metals
+const OPP = {
+  'DOWN FROM HIGH': { h: ['', 'FROM HIGH', 'ANALYSTS', 'TARGET', 'P/E · SECTOR'], rows: [
+    ['Novo Nordisk', 'novonordisk.com', 'dk', 'DKK 342', ['▼ 52%', 'HIGH DKK 712'], ['Buy 20 · Hold 12', '32 ANALYSTS'], ['▲ 34%', 'DKK 458'], ['13 · 26', 'HEALTH'], 0],
+    ['Adobe', 'adobe.com', 'us', '$318', ['▼ 38%', 'HIGH $512'], ['Buy 22 · Hold 9', '31 ANALYSTS'], ['▲ 29%', '$410'], ['17 · 31', 'SOFTWARE'], 0],
+    ['LVMH', 'lvmh.com', 'fr', '€548', ['▼ 28%', 'HIGH €761'], ['Buy 17 · Hold 8', '25 ANALYSTS'], ['▲ 22%', '€668'], ['21 · 24', 'LUXURY'], 0],
+    ['MercadoLibre', 'mercadolibre.com', 'ar', '$1,912', ['▼ 27%', 'HIGH $2,620'], ['Buy 18 · Hold 3', '21 ANALYSTS'], ['▲ 31%', '$2,510'], ['42 · 58', 'E-COMMERCE'], 0],
+    ['Alphabet', 'google.com', 'us', '$279.84', ['▼ 16%', 'HIGH $332'], ['Buy 61 · Hold 6', '67 ANALYSTS'], ['▲ 26%', '$352'], ['19 · 27', 'MEDIA'], 1],
+  ]},
+  'CHEAP · TARGET ABOVE': { h: ['', 'P/E · SECTOR', 'ANALYSTS', 'TARGET', 'DIVIDEND'], rows: [
+    ['Samsung', 'samsung.com', 'kr', '₩61,200', ['11 · 22', 'CHIPS'], ['Buy 38 · Hold 4', '42 ANALYSTS'], ['▲ 31%', '₩80,100'], ['2.4%', 'YEAR'], 0],
+    ['BNP Paribas', 'bnpparibas.com', 'fr', '€71.40', ['7 · 10', 'BANKS'], ['Buy 19 · Hold 7', '26 ANALYSTS'], ['▲ 22%', '€87'], ['6.5%', 'YEAR'], 0],
+    ['Itaú', 'itau.com.br', 'br', 'R$38.10', ['8 · 11', 'BANKS'], ['Buy 12 · Hold 3', '15 ANALYSTS'], ['▲ 18%', 'R$45'], ['7.1%', 'YEAR'], 0],
+    ['Alibaba', 'alibaba.com', 'cn', '$118', ['12 · 24', 'RETAIL'], ['Buy 41 · Hold 5', '46 ANALYSTS'], ['▲ 35%', '$159'], ['0.9%', 'YEAR'], 0],
+  ]},
+  'BONDS': { h: ['', 'YIELD', '1 YEAR AGO', '1Y HIGH', 'FED / ECB'], rows: [
+    ['US 10Y', null, 'us', 'TREASURY', ['4.93%', 'NOW'], ['4.21%', '31 OCT 2025'], ['5.10%', '14 OCT'], ['3.75–4.00%', 'FED'], 0],
+    ['US 2Y', null, 'us', 'TREASURY', ['4.61%', 'NOW'], ['4.15%', '31 OCT 2025'], ['4.70%', '22 OCT'], ['3.75–4.00%', 'FED'], 0],
+    ['GERMANY 10Y', null, 'de', 'BUND', ['2.71%', 'NOW'], ['2.38%', '31 OCT 2025'], ['2.84%', '2 OCT'], ['2.00%', 'ECB'], 0],
+  ]},
+  'GOLD · SILVER': { h: ['', 'FROM HIGH', '1 YEAR', '1Y HIGH', 'IN MINE'], rows: [
+    ['Gold', null, null, '$3,899', ['▼ 6%', 'HIGH $4,148'], ['▲ 41%', '$2,765'], ['$4,148', '9 OCT'], ['€2,410', 'HELD'], 1],
+    ['Silver', null, null, '$46.20', ['▼ 12%', 'HIGH $52.40'], ['▲ 48%', '$31.20'], ['$52.40', '6 OCT'], ['—', 'NOT HELD'], 0],
+  ]},
+}
+let kind = 'DOWN FROM HIGH', oreg = 'ALL'
+const regOf = f => ({ us: 'US', dk: 'EUROPE', fr: 'EUROPE', de: 'EUROPE', kr: 'ASIA', cn: 'ASIA', br: 'SOUTH AMERICA', ar: 'SOUTH AMERICA' })[f]
+const drawOpp = () => {
+  document.getElementById('okind').innerHTML = Object.keys(OPP).map(k => `<span class="chip ${k === kind ? 'on' : ''}" data-k="${k}">${k}</span>`).join('')
+  const stocks = kind === 'DOWN FROM HIGH' || kind === 'CHEAP · TARGET ABOVE'
+  document.getElementById('oreg').innerHTML = stocks ? ['ALL', 'US', 'EUROPE', 'ASIA', 'SOUTH AMERICA'].map(r => `<span class="chip ${r === oreg ? 'on' : ''}" data-o="${r}">${r === 'ALL' ? '' : rflag(r)}${r}</span>`).join('') : ''
+  const o = OPP[kind]
+  const rows = o.rows.filter(r => !stocks || oreg === 'ALL' || regOf(r[2]) === oreg)
+  const cell = ([k, w], tone) => `<div><span class="k ${tone || ''}">${k}</span><span class="w">${w}</span></div>`
+  const tone = k => k.startsWith('▼') ? 'dn' : k.startsWith('▲') ? 'up' : ''
+  document.getElementById('opps').innerHTML = `<div class="op">${o.h.map(h => `<div class="hd">${h}</div>`).join('')}<div class="hd"></div>${rows.map(([n, d, f, p, a, b, c, e, held]) => `
+    <div class="c1">${d ? `<span class="logo"><img src="${FAV(d)}"></span>` : f ? mark({ f, tag: n.includes('10Y') ? '10Y' : n.includes('2Y') ? '2Y' : '' }) : mark({ icon: n === 'Gold' ? 'bar' : 'silver' })}<div><b>${n}${held ? '<span class="held">HELD</span>' : ''}</b><span class="s">${d && f ? `<img class="fl" src="${FLAG(f)}"> ` : ''}${p}</span></div></div>
+    ${cell(a, tone(a[0]))}${cell(b, tone(b[0]))}${cell(c, tone(c[0]))}${cell(e)}<div><button class="ask">✦</button></div>`).join('')}</div>`
+}
+drawOpp()
+document.getElementById('okind').onclick = e => { const k = e.target.closest('[data-k]'); if (k) { kind = k.dataset.k; drawOpp() } }
+document.getElementById('oreg').onclick = e => { const k = e.target.closest('[data-o]'); if (k) { oreg = k.dataset.o; drawOpp() } }
+
+// COMING — next 7 days
+const COMING = [
+  ['MON', '2 NOV', [['ISM factory index', 'us', 'US · 16:00', 'news']]],
+  ['TUE', '3 NOV', [['US midterm election', 'us', 'ALL DAY', 'vote', 1], ['Palantir', 'palantir.com', 'RESULTS · AFTER CLOSE']]],
+  ['WED', '4 NOV', [['Uber', 'uber.com', 'RESULTS · $0.98 EXPECTED', 0, 0, 1], ['AMD', 'amd.com', 'RESULTS · AFTER CLOSE'], ['Novo Nordisk', 'novonordisk.com', 'RESULTS']]],
+  ['THU', '5 NOV', [['Bank of England', 'gb', 'RATE · 13:00', 'rates', 1], ['Shopify', 'shopify.com', 'RESULTS']]],
+  ['FRI', '6 NOV', [['US jobs report', 'us', 'OCT · 13:30', 'news', 1]]],
+]
+document.getElementById('coming').innerHTML = COMING.map(([d, n, evs]) => `<div class="dy"><div class="d">${d}<span>${n}</span></div><div class="ev">${evs.map(([t, x, w, ic, big, held]) => `<span class="evc ${big ? 'big' : ''}">${ic ? `<span class="flag" style="width:24px;height:24px;border-radius:7px"><img src="${FLAG(x)}" style="width:24px;height:24px"></span>` : `<span class="logo sm"><img src="${FAV(x)}"></span>`}${t}${held ? '<span class="held">HELD</span>' : ''} <span class="x2">${w}</span></span>`).join('')}</div></div>`).join('')
+
+// MINE · THIS WEEK — only what really moved a holding
+const MINE = [
+  ['Alphabet', 'google.com', -13.9, 'EARNINGS 28 OCT', '$2.12 a share · $3.11 expected', [['WAS', '€1,187'], ['NOW', '€1,022'], ['CLOSE 28 OCT', '$324.89 → $279.84']]],
+  ['Meta', 'meta.com', -9.2, 'EARNINGS 29 OCT · INSIDER', 'AI spending raised $20B · Olivan sold $669K', [['WAS', '€1,120'], ['NOW', '€1,017'], ['INSIDER', 'SOLD 19 OCT']]],
+  ['Netflix', 'netflix.com', -7.5, 'BIG FUND', 'Bridgewater · ALL SOLD · Q2 13F', [['WAS', '€1,093'], ['NOW', '€1,011'], ['FUND', 'Q1 78K · Q2 0']]],
+  ['Microsoft', 'microsoft.com', 3.1, 'EARNINGS 28 OCT', '$4.89 a share · $4.82 expected', [['WAS', '€1,228'], ['NOW', '€1,266'], ['ANALYSTS', 'Buy 62 · Hold 3']]],
+]
+document.getElementById('mine').innerHTML = MINE.map(([n, d, v, k, l, nums]) => `
+  <div class="mc ${v < 0 ? 'bad' : 'good'}"><div class="h"><span class="logo"><img src="${FAV(d)}"></span><b>${n}</b><span class="pill ${v < 0 ? 'bad' : 'good'}">${k}</span><span class="pc">${pc(v)}</span></div>
+  <div class="l">${l}</div><div class="n2">${nums.map(([a, b]) => `<span>${a} <b>${b}</b></span>`).join('')}</div></div>`).join('')
+
+// controls and the WHY card
+document.querySelectorAll('.ctl [data-v]').forEach(b => b.onclick = () => { document.querySelectorAll('.ctl [data-v]').forEach(x => x.classList.toggle('on', x === b)); document.body.classList.toggle('phone', b.dataset.v === 'phone') })
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-why]')) { document.getElementById('pt').textContent = 'WHY IT MATTERS'; document.getElementById('pb').textContent = 'When the Fed may raise rates, money on deposit pays more, so growth shares like big tech are worth less today and the dollar gets stronger. A stronger dollar raises the euro value of US shares; a hike lowers their price.'; document.body.classList.add('open') }
+  if (e.target.closest('.x') || e.target.classList.contains('veil')) document.body.classList.remove('open')
+})
+</script>
+</body>
+</html>

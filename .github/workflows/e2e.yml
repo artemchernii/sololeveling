@@ -1,0 +1,124 @@
+name: e2e
+
+# The full browser suite, off his Mac (31 Oct: two sessions' full runs at
+# once took 40 minutes while he waited). Not on PRs: on GitHub's runners a
+# shard took over 20 minutes, and he chose "nightly please, lets make
+# development faster for real". Once a night on master, and by hand from
+# the Actions tab (Run workflow). It never blocks a merge.
+# Each shard starts its own throwaway Convex backend and app, exactly as
+# `pnpm e2e` does locally — four backends, four copies of the test user's
+# data, so the shards never reset each other.
+on:
+  schedule:
+    # 03:00 UTC, while he sleeps.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: e2e ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      # A red shard should not hide what the other three found.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      # No TZ here: the Convex backend refuses to start with TZ set. The
+      # browser and the test workers get Lisbon in playwright.config.ts.
+      # Room for a fresh runner's first boot of the local backend.
+      CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Names only, never a value: the repo is public.
+      - name: Check the Clerk test secrets are set
+        env:
+          E2E_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          E2E_CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+        run: |
+          for name in E2E_CLERK_PUBLISHABLE_KEY E2E_CLERK_SECRET_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Actions secret $name is not set (Settings → Secrets and variables → Actions)"
+              exit 1
+            fi
+          done
+
+      - name: Cache the browser
+        id: browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - if: steps.browser.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - if: steps.browser.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      # The Convex CLI downloads the local backend binary on first start.
+      - name: Cache the Convex local backend
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/convex
+          key: convex-backend-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: convex-backend-${{ runner.os }}-
+
+      - name: Start the test backend once
+        id: setup
+        run: pnpm e2e:setup
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          CONVEX_VERBOSE: 1
+
+      # The CLI starts the backend with its output thrown away: run the
+      # binary by hand for a few seconds so a failed start says why.
+      - name: Why the backend did not start
+        if: failure()
+        run: |
+          bin=$(find ~/.cache/convex/binaries -type f -name convex-local-backend | head -1)
+          echo "binary: $bin"
+          mkdir -p /tmp/cb
+          timeout 15 "$bin" --port 4900 --site-proxy-port 4901 \
+            --instance-name diag --instance-secret "$(openssl rand -hex 32)" \
+            --local-storage /tmp/cb/storage /tmp/cb/db.sqlite3 2>&1 | tail -40 || true
+
+      # The app's server runs in the Cloudflare dev runtime, which reads
+      # its keys from .env.local, not from the shell. Only the two Clerk
+      # keys, written to the throwaway runner, never printed.
+      - name: Write the Clerk keys for the app's server
+        env:
+          PK: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          SK: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+        run: printf 'VITE_CLERK_PUBLISHABLE_KEY=%s\nCLERK_SECRET_KEY=%s\n' "$PK" "$SK" > .env.local
+
+      - name: Playwright, shard ${{ matrix.shard }}/4
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/4
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            e2e/.results/
+            e2e/screens/
+          retention-days: 7

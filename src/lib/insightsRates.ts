@@ -40,6 +40,29 @@ export function parseBls(json: unknown): Inflation | null {
     if (m && m[1] !== '13' && Number.isFinite(v))
       byMonth.set(`${String(d.year)}-${m[1]}`, v)
   }
+  return cpiOf(byMonth)
+}
+
+/**
+ * The same CPI-U, not seasonally adjusted, as FRED republishes it
+ * (CPIAUCNS) — read when BLS does not answer: its keyless API allows 25
+ * requests a day per address, and Convex's addresses are shared.
+ */
+export function parseFredCpi(json: unknown): Inflation | null {
+  const obs = (json as { observations?: Array<Record<string, unknown>> } | null)
+    ?.observations
+  if (!Array.isArray(obs)) return null
+  const byMonth = new Map<string, number>()
+  for (const o of obs) {
+    const v = Number(o.value)
+    if (typeof o.date === 'string' && Number.isFinite(v))
+      byMonth.set(o.date.slice(0, 7), v)
+  }
+  return cpiOf(byMonth)
+}
+
+/** Index by `YYYY-MM` → the latest twelve-month change and the one before. */
+function cpiOf(byMonth: Map<string, number>): Inflation | null {
   const months = [...byMonth.keys()].sort().reverse()
   const yoy = (month: string) => {
     const [y, m] = month.split('-')

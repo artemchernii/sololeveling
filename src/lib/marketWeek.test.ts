@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { factStories, parseWeek, weekBox } from './marketWeek'
+import { companyRows, factStories, parseWeek, weekBox } from './marketWeek'
 import { resultsFacts } from './companies'
 import type { Fact } from './marketRead'
 
@@ -160,4 +160,94 @@ test('resultsFacts: only results out, green when above expected', () => {
       tone: 'good',
     },
   ])
+})
+
+describe('the whole market (31 Oct)', () => {
+  const mov = (
+    sym: string,
+    name: string,
+    v: string,
+    tone: Fact['tone'],
+  ): Fact => ({
+    key: `mov-${sym}`,
+    label: name,
+    value: v,
+    tone,
+  })
+  const facts: Array<Fact> = [
+    mov('RDDT', 'Reddit', '▼ 36.4% · $144.25 → $91.73', 'bad'),
+    mov('INTC', 'Intel', '▼ 24.4% · $86.96 → $65.76', 'bad'),
+    mov('GOOGL', 'Alphabet', '▼ 12.6% · $320.21 → $279.84', 'bad'),
+    mov('LLY', 'Eli Lilly', '▲ 11.4% · $1,273 → $1,418', 'good'),
+    mov('NVDA', 'Nvidia', '▼ 3.0% · $190.00 → $184.30', 'bad'),
+    {
+      key: 'res-GOOGL',
+      label: 'GOOGL RESULTS 28 OCT',
+      value: '$2.12 · A SHARE · $3.11 EXPECTED',
+      tone: 'bad',
+    },
+  ]
+
+  test('a crash story of every fall of 8% or more, before a read', () => {
+    const crash = factStories(facts).find((s) => s.kind === 'crash')
+    expect(crash?.title).toBe('3 big names fell 8% or more')
+    expect(crash?.factKeys).toEqual(['mov-RDDT', 'mov-INTC', 'mov-GOOGL'])
+  })
+
+  test('a story of companies keeps six keys, any other three; why is kept', () => {
+    const all = facts.map((f) => f.key)
+    const w = parseWeek(
+      {
+        week: [
+          {
+            kind: 'crash',
+            title: 'Four names fell',
+            line: '',
+            factKeys: all,
+            move: '',
+            why: 'Big falls in one week often come from results.',
+          },
+          {
+            kind: 'mkt',
+            title: 'Shares',
+            line: '',
+            factKeys: ['mov-RDDT', 'mov-INTC', 'res-GOOGL', 'mov-LLY'],
+            move: '',
+            why: '',
+          },
+        ],
+      },
+      all,
+    )
+    expect(w.week[0].factKeys).toHaveLength(6)
+    expect(w.week[0].why).toBe('Big falls in one week often come from results.')
+    expect(w.week[1].factKeys).toHaveLength(4)
+    expect(w.week[1].why).toBeUndefined()
+  })
+
+  test('companyRows: one row a company, results and move together, BEAT or MISSED', () => {
+    const rows = companyRows(
+      facts.filter((f) =>
+        ['mov-GOOGL', 'res-GOOGL', 'mov-LLY'].includes(f.key),
+      ),
+    )
+    expect(rows).toEqual([
+      {
+        symbol: 'GOOGL',
+        name: 'Alphabet',
+        value: '▼ 12.6%',
+        note: '$2.12 vs $3.11 · $320.21 → $279.84',
+        tone: 'bad',
+        badge: { word: 'MISSED', tone: 'bad' },
+      },
+      {
+        symbol: 'LLY',
+        name: 'Eli Lilly',
+        value: '▲ 11.4%',
+        note: '$1,273 → $1,418',
+        tone: 'good',
+        badge: null,
+      },
+    ])
+  })
 })

@@ -66,7 +66,7 @@ export function TickerSearch({
           </button>
         ) : null}
       </label>
-      {(results ?? []).map((c) => (
+      {(q.trim().length < 2 ? [] : (results ?? [])).map((c) => (
         <button
           key={c.symbol}
           type="button"

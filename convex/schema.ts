@@ -317,6 +317,15 @@ export default defineSchema({
     hit: v.optional(v.object({ price: v.number(), asOf: v.number() })),
   }).index('by_owner_instrument', ['ownerId', 'instrumentId']),
 
+  /* A held name kept out of EVERYTHING OWNED (1 Nov, his "excluded
+     list": halted Russian shares, a small coin). Only the list folds it
+     away; worth, the map and TARGET still count it. */
+  hides: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    hiddenAt: v.number(),
+  }).index('by_owner_instrument', ['ownerId', 'instrumentId']),
+
   goals: defineTable({
     ownerId: v.string(),
     title: v.string(),

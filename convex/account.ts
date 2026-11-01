@@ -64,6 +64,7 @@ const OWNED: ReadonlyArray<[TableNames, string]> = [
   ['aiSpend', 'by_owner_month'],
   ['targets', 'by_owner_bucket'],
   ['watches', 'by_owner_instrument'],
+  ['hides', 'by_owner_instrument'],
 ]
 
 /* A row as this file reads it: the fields that hold a file or a job. */

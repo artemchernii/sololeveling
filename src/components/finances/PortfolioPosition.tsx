@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, ChevronLeft, Sparkles, TriangleAlert } from 'lucide-react'
+import { Check, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -22,6 +21,7 @@ import type { View } from '@/components/finances/chartSeries'
 import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
 import { HeadLine } from '@/components/finances/PositionHead'
+import { BackToList, HideButton } from '@/components/finances/HideButton'
 import { PositionTiles } from '@/components/finances/PositionTiles'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { AddBuys } from '@/components/finances/AddBuys'
@@ -60,18 +60,6 @@ const FULL = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   year: 'numeric',
 })
-function BackToList() {
-  return (
-    <Link
-      to="/finances"
-      search={{ room: 'portfolio' }}
-      className="motion-press inline-flex items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-1.5 font-mono text-[11px] tracking-[0.14em] text-ink-400 uppercase transition-colors hover:bg-lift/[0.07] hover:text-foreground"
-    >
-      <ChevronLeft className="size-3.5" />
-      Portfolio
-    </Link>
-  )
-}
 
 /* An address for something that is not in the list (sold, or mistyped). */
 export function PositionMissing() {
@@ -236,7 +224,10 @@ export function PortfolioPosition({
       className="system-frame motion-arrive relative flex scroll-mt-4 flex-col gap-[18px] p-4 sm:p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <BackToList />
+        <span className="flex items-center gap-1.5">
+          <BackToList />
+          {sold ? null : <HideButton owned={owned} />}
+        </span>
         {sold ? (
           <span className="motion-arrive inline-flex items-center gap-1.5 rounded-full bg-state-good/13 px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] text-state-good uppercase">
             <Check className="size-3" />

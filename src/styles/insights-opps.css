@@ -14,7 +14,7 @@
 }
 .opp-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr)) 32px;
+  grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr)) 72px;
   gap: 0 14px;
   align-items: center;
   padding: 10px 0;
@@ -90,6 +90,9 @@
   }
   & .ask {
     justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   @media (max-width: 720px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));

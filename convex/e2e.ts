@@ -55,6 +55,7 @@ const TABLES: Array<TableNames> = [
   'events',
   'goals',
   'targets',
+  'watches',
   'profiles',
 ]
 

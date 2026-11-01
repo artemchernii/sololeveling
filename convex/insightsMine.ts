@@ -248,7 +248,9 @@ async function spark(p: Period, items: ReadonlyArray<{ symbol: string }>) {
 }
 
 /** Yahoo's topHoldings and assetProfile, one quoteSummary a symbol. */
-async function openUp(symbols: Array<string>): Promise<Map<string, Opened>> {
+export async function openUp(
+  symbols: Array<string>,
+): Promise<Map<string, Opened>> {
   const out = new Map<string, Opened>()
   const auth = await crumb().catch(() => null)
   if (auth === null) return out
@@ -395,7 +397,7 @@ export async function cannedEarnings(
   }
 }
 
-async function cannedOpened(items: ReadonlyArray<{ symbol: string }>) {
+export async function cannedOpened(items: ReadonlyArray<{ symbol: string }>) {
   const share = (sector: string, country: string): Opened => ({
     sectors: null,
     top: [],

@@ -144,6 +144,18 @@ SIGNALS tab:
   and dividend yield (Damodaran, NYU Stern, yearly) are external
   readings on the same four conditions, shown only beside the company's
   own number in its ⓘ card.
+- **The watchlist** (1 Nov, "go" on the mockup
+  `design/treasury-mockup/watchlist.html`, spec
+  `docs/specs/2026-11-01-watchlist.md`): up to 20 names not owned,
+  ★ from MARKET or the ticker field. Their closes are stored by the
+  nightly check like a held one's (source 4), and only from those
+  closes their WATCHLIST row reads 52W, VS HIGH (`between()`), the
+  signals' bull and bear counts and the call (`src/lib/watch.ts` on
+  `yearRange()`, `signals()`, `verdict()`), worked out on open, never
+  stored. A watched name's page is a position's page without his
+  money. His alert price is his own number (like a target); the 21:30
+  job rings once when a stored close reaches it, that close and the
+  close before it on the push.
 - **News** (13 Oct, "we simply fetch it and show"): headlines with
   publisher, time and link, fetched on open, never stored, never
   summarised, not an input to the verdict.

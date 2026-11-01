@@ -22,6 +22,9 @@ import { MoneyMap, useTags } from '@/components/finances/PortfolioMap'
 import type { Part } from '@/components/finances/PortfolioMap'
 import type { Lens } from '@/lib/tags'
 import { SkeletonRows } from '@/components/Skeleton'
+import { WatchList } from '@/components/finances/WatchList'
+import { WatchPosition } from '@/components/finances/WatchPosition'
+import { useWatchList } from '@/components/finances/useWatch'
 
 const NONE: ReadonlyArray<Position> = []
 
@@ -46,6 +49,7 @@ export function Portfolio({ position }: { position?: string }) {
   const [lens, setLens] = useState<Lens>('kind')
   const [part, setPart] = useState<Part>(null)
   const tags = useTags(data?.rows ?? NONE)
+  const watched = useWatchList()
 
   if (data === undefined || accounts === undefined || worth === undefined) {
     return (
@@ -68,12 +72,21 @@ export function Portfolio({ position }: { position?: string }) {
     const owned = combine(data.rows).find(has)
     if (owned) return <PortfolioPosition owned={owned} holders={holders} />
     const gone = combine(data.sold).find(has)
-    return gone ? (
-      <PortfolioPosition
-        owned={gone}
-        holders={accounts}
-        sold={soldSums(gone.paid, gone.at)}
-      />
+    if (gone)
+      return (
+        <PortfolioPosition
+          owned={gone}
+          holders={accounts}
+          sold={soldSums(gone.paid, gone.at)}
+        />
+      )
+    /* A name on the watchlist, not owned (1 Nov). */
+    const w = watched?.find((x) => x.instrumentId === position)
+    if (w) return <WatchPosition w={w} />
+    return watched === undefined ? (
+      <Panel title="portfolio">
+        <SkeletonRows rows={4} twoLine rowClassName="py-3" />
+      </Panel>
     ) : (
       <PositionMissing />
     )
@@ -238,6 +251,8 @@ export function Portfolio({ position }: { position?: string }) {
           })}
         </div>
       ) : null}
+
+      <WatchList held={data.rows} />
 
       {data.rows.length > 0 || data.sold.length > 0 ? (
         <PortfolioList

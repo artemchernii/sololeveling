@@ -62,7 +62,7 @@ export function Panel({
   aside,
   children,
 }: {
-  title: string
+  title: ReactNode
   aside?: ReactNode
   children: ReactNode
 }) {

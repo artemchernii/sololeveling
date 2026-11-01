@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Watch find</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* FIND on the watchlist (1 Nov, his "how to find tickers worth to
+     track … lets start with your picks"): + TICKER opens the search and
+     three ready lists — IN YOUR ETFS (the biggest companies inside the
+     funds he holds, not owned on their own), DOWN FROM HIGH and CHEAP ·
+     TARGET ABOVE (OPPORTUNITIES' two rules). Each row: what put it
+     there, its numbers, ★. Fetched on open, never stored. SAMPLE
+     numbers, not his. */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.66));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --star: #d9a21b;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.45 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px 16px 60px; display:flex; flex-direction:column; gap: 12px }
+  .caps { font: 500 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .num { font-variant-numeric: tabular-nums }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap; display:inline-flex; align-items:center; gap: 4px }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 9%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 9%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.18) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 9%, transparent) }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase; align-items:center }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .card { border-radius: 18px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 18px 20px 20px; display:flex; flex-direction:column; gap: 14px }
+  .head { display:flex; align-items:center; gap: 10px }
+  .title { display:flex; align-items:center; gap: 8px; font: 500 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-200); flex: 1 }
+  .title .big { color: var(--star); font-size: 18px; letter-spacing: 0 }
+  .count { font: 600 11px var(--mono); color: var(--ink-300) }
+  .btn { font: 700 9.5px var(--mono); letter-spacing: .12em; color: var(--lav-300); border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: transparent; border-radius: 999px; padding: 5px 10px; cursor: pointer; text-transform: uppercase }
+
+  .field { display:flex; align-items:center; gap: 8px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); color: var(--ink-400) }
+  .field input { flex: 1; border: 0; background: transparent; font: 14px Inter; outline: none; color: var(--ink-100) }
+  .field .x { width: 24px; height: 24px; border-radius: 50%; border: 0; background: transparent; cursor: pointer; color: var(--ink-400); font-size: 15px }
+
+  .seg { display:flex; gap: 2px; padding: 3px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.5); align-self: flex-start; flex-wrap: wrap }
+  .seg button { font: 500 10px var(--mono); letter-spacing: .12em; padding: 6px 12px; border-radius: 999px; color: var(--ink-300); border: 0; background: transparent; cursor: pointer; text-transform: uppercase; display:inline-flex; gap: 6px; align-items:center }
+  .seg button.on { background: rgba(30,30,50,.08); color: var(--ink-100) }
+  .seg button i { font-style: normal; color: var(--ink-500) }
+
+  .list { display:flex; flex-direction:column }
+  .r, .rh { display:grid; grid-template-columns: 30px minmax(0,1fr) 190px 150px 84px 30px; gap: 12px; align-items:center; padding: 9px 6px }
+  .rh { padding: 0 6px 8px; border-bottom: 1px solid var(--edge) }
+  .rh span { font: 500 9px var(--mono); letter-spacing: .14em; color: var(--ink-500); text-transform: uppercase }
+  .rh .rt { text-align: right }
+  .r { border-bottom: 1px solid rgba(30,30,50,.05); animation: up .4s cubic-bezier(.2,.8,.2,1) both }
+  .r:last-child { border-bottom: 0 }
+  .r:hover { background: rgba(255,255,255,.6) }
+  @keyframes up { from { opacity: 0; transform: translateY(6px) } }
+  .logo { width: 30px; height: 30px; border-radius: 9px; display:grid; place-items:center; font: 700 8.5px var(--mono); color: #fff }
+  .who { display:flex; flex-direction:column; min-width: 0 }
+  .who b { font: 700 12px var(--mono) }
+  .who span { font-size: 11.5px; color: var(--ink-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .why { display:flex; flex-direction:column; gap: 3px }
+  .why .k { font: 700 11.5px var(--mono) }
+  .why .s { font: 9.5px var(--mono); color: var(--ink-400); letter-spacing: .03em }
+  .bar { height: 4px; border-radius: 999px; background: rgba(30,30,50,.07); position: relative; overflow: hidden }
+  .bar i { position:absolute; inset: 0 auto 0 0; background: var(--lav-400); border-radius: 999px; transform-origin: left; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes grow { from { transform: scaleX(0) } }
+  .px { font: 600 12.5px var(--mono); text-align: right }
+  .px small { display:block; font: 10px var(--mono); }
+  .up { color: var(--good) } .dn { color: var(--bad) }
+
+  .st { width: 30px; height: 30px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); cursor: pointer; display:grid; place-items:center; font-size: 15px; color: var(--ink-500); transition: transform .2s }
+  .st:hover { transform: scale(1.08) }
+  .st.on { color: var(--star); background: color-mix(in oklch, var(--star) 14%, white); border-color: color-mix(in oklch, var(--star) 45%, transparent) }
+  .st.saving { animation: spin .8s linear infinite }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  .foot { font: 9.5px var(--mono); letter-spacing: .1em; color: var(--ink-400); text-transform: uppercase; display:flex; gap: 10px; flex-wrap: wrap }
+  .empty { display:flex; flex-direction:column; align-items:center; gap: 8px; padding: 22px 0 }
+  .reading { display:flex; flex-direction:column; gap: 8px }
+  .ghost { height: 44px; border-radius: 10px; background: linear-gradient(90deg, rgba(30,30,50,.04), rgba(30,30,50,.08), rgba(30,30,50,.04)); background-size: 200% 100%; animation: sh 1.2s linear infinite }
+  @keyframes sh { to { background-position: -200% 0 } }
+  .rows-below { border-top: 1px solid var(--edge); padding-top: 10px; display:flex; align-items:center; gap: 10px; color: var(--ink-400); font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase }
+
+  @media (max-width: 640px) {
+    .card { padding: 14px 12px 16px }
+    .rh { display: none }
+    .r { grid-template-columns: 30px minmax(0,1fr) auto 30px; grid-template-areas: "l w p s" "y y y y"; gap: 6px 10px; padding: 11px 2px }
+    .r .logo { grid-area: l } .r .who { grid-area: w } .r .px { grid-area: p } .r .st { grid-area: s }
+    .r .why { grid-area: y } .r .why2 { display: none }
+    .seg button { padding: 6px 9px; letter-spacing: .06em }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">sample ·
+    <button data-s="etfs" class="on">in your etfs</button>
+    <button data-s="down">down from high</button>
+    <button data-s="cheap">cheap · target above</button>
+    <button data-s="reading">reading</button>
+    <button data-s="noetf">no etf held</button>
+  </div>
+  <div class="card" id="card"></div>
+</div>
+<script>
+/* SAMPLE rows. */
+const ETFS = [
+  ['NVDA', 'NVIDIA', '#76b900', 182.4, 1.2, [['VWCE', 4.8], ['IWDA', 5.6]]],
+  ['AAPL', 'Apple', '#111', 228.1, -0.4, [['VWCE', 4.1], ['IWDA', 4.9]]],
+  ['AMZN', 'Amazon', '#ff9900', 221.7, 0.9, [['VWCE', 2.5], ['IWDA', 2.9]]],
+  ['META', 'Meta Platforms', '#0866ff', 712.3, -1.6, [['VWCE', 1.7], ['IWDA', 2.0]]],
+  ['AVGO', 'Broadcom', '#cc092f', 341.0, 2.3, [['VWCE', 1.4], ['IWDA', 1.7]]],
+  ['TSM', 'Taiwan Semiconductor', '#c8102e', 172.85, 0.3, [['VWCE', 1.1]]],
+  ['JPM', 'JPMorgan Chase', '#5d5d5d', 301.2, 0.1, [['VWCE', 0.9], ['IWDA', 1.1]]],
+]
+const DOWN = [
+  ['NVO', 'Novo Nordisk', '#0b3d91', 58.4, -1.1, -65, 166, 2.2, 31, 82, 40],
+  ['ADBE', 'Adobe', '#fa0f00', 341.5, 0.6, -38, 551, 2.1, 27, 455, 33],
+  ['UNH', 'UnitedHealth', '#002677', 318.0, -0.8, -47, 600, 1.9, 24, 391, 23],
+  ['CRM', 'Salesforce', '#00a1e0', 241.9, 1.4, -29, 341, 2.0, 44, 330, 36],
+]
+const CHEAP = [
+  ['GOOGL', 'Alphabet', '#4285f4', 247.3, 0.7, 19.8, 24.1, 282, 14, 52],
+  ['BABA', 'Alibaba', '#ff6a00', 151.2, -2.1, 11.2, 21.0, 192, 27, 41],
+  ['PYPL', 'PayPal', '#003087', 68.9, 0.4, 11.9, 24.1, 82, 19, 38],
+]
+const HAVE = { VWCE: 9800, IWDA: 3100 }
+let mode = 'etfs', watched = new Set(['TSM']), saving = null
+
+const usd = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
+const day = (d) => `<small class="${d < 0 ? 'dn' : 'up'}">${d < 0 ? '▼' : '▲'} ${Math.abs(d).toFixed(1)}%</small>`
+const star = (tk) => `<button class="st ${watched.has(tk) ? 'on' : ''} ${saving === tk ? 'saving' : ''}" data-st="${tk}" aria-label="watch ${tk}">★</button>`
+
+function head() {
+  return `<div class="head"><span class="title"><span class="big">★</span>watchlist</span>
+    <span class="count">${watched.size} / 20</span><button class="btn">× close</button></div>
+    <div class="field">⌕<input placeholder="" value="" /><button class="x">×</button></div>`
+}
+function tabs() {
+  const t = [['etfs', 'in your etfs', ETFS.length], ['down', 'down from high', DOWN.length], ['cheap', 'cheap · target above', CHEAP.length]]
+  return `<div class="seg">${t.map(([k, l, n]) => `<button data-t="${k}" class="${mode === k || (mode === 'noetf' && k === 'etfs') || (mode === 'reading' && k === 'etfs') ? 'on' : ''}">${l} <i>${mode === 'reading' ? '…' : mode === 'noetf' && k === 'etfs' ? 0 : n}</i></button>`).join('')}</div>`
+}
+function etfs() {
+  const rh = `<div class="rh"><span></span><span>ticker</span><span>weight</span><span>in your funds</span><span class="rt">last</span><span></span></div>`
+  return rh + ETFS.map(([tk, nm, c, px, d, at], i) => `<div class="r" style="animation-delay:${i * 45}ms">
+    <span class="logo" style="background:${c}">${tk}</span>
+    <span class="who"><b>${tk}</b><span>${nm}</span></span>
+    <span class="why">${at.map(([f, w]) => `<span class="k">${w.toFixed(1)}% <span class="s">OF ${f}</span></span>`).join('')}</span>
+    <span class="why why2"><span class="k">${at.length} <span class="s">OF ${Object.keys(HAVE).length} FUNDS</span></span><span class="bar"><i style="width:${at.length / Object.keys(HAVE).length * 100}%"></i></span></span>
+    <span class="px num">${usd(px)}${day(d)}</span>${star(tk)}</div>`).join('')
+}
+function down() {
+  const rh = `<div class="rh"><span></span><span>ticker</span><span>from 52w high</span><span>analysts · target</span><span class="rt">last</span><span></span></div>`
+  return rh + DOWN.map(([tk, nm, c, px, d, vs, hi, rating, n, tgt, tp], i) => `<div class="r" style="animation-delay:${i * 45}ms">
+    <span class="logo" style="background:${c}">${tk}</span>
+    <span class="who"><b>${tk}</b><span>${nm}</span></span>
+    <span class="why"><span class="k dn">${vs}%</span><span class="s">HIGH ${usd(hi)} → ${usd(px)}</span></span>
+    <span class="why why2"><span class="k up">BUY · ${rating} · ${n}</span><span class="s">TARGET ${usd(tgt)} · +${tp}%</span></span>
+    <span class="px num">${usd(px)}${day(d)}</span>${star(tk)}</div>`).join('')
+}
+function cheap() {
+  const rh = `<div class="rh"><span></span><span>ticker</span><span>p/e · sector</span><span>target · analysts</span><span class="rt">last</span><span></span></div>`
+  return rh + CHEAP.map(([tk, nm, c, px, d, pe, sec, tgt, tp, n], i) => `<div class="r" style="animation-delay:${i * 45}ms">
+    <span class="logo" style="background:${c}">${tk}</span>
+    <span class="who"><b>${tk}</b><span>${nm}</span></span>
+    <span class="why"><span class="k up">P/E ${pe}</span><span class="s">SECTOR ${sec} · DAMODARAN</span></span>
+    <span class="why why2"><span class="k up">${usd(tgt)} · +${tp}%</span><span class="s">${n} ANALYSTS</span></span>
+    <span class="px num">${usd(px)}${day(d)}</span>${star(tk)}</div>`).join('')
+}
+function body() {
+  if (mode === 'reading') return `<div class="reading">${[0, 1, 2, 3].map(() => '<div class="ghost"></div>').join('')}</div>`
+  if (mode === 'noetf') return `<div class="empty"><span class="pill ink">0 ETFS HELD</span></div>`
+  return `<div class="list">${mode === 'etfs' ? etfs() : mode === 'down' ? down() : cheap()}</div>`
+}
+function foot() {
+  const src = mode === 'etfs' ? 'YAHOO FINANCE · TOP HOLDINGS' : mode === 'cheap' ? 'YAHOO FINANCE · DAMODARAN' : 'YAHOO FINANCE'
+  return `<div class="foot"><span>${src}</span><span>· 10:42</span><span>· NOT SAVED</span><span>· HELD LEFT OUT</span></div>`
+}
+function render() {
+  document.getElementById('card').innerHTML = head() + tabs() + body() + foot() +
+    `<div class="rows-below">ticker · last · day · 52w range · vs high · signal · alert</div>`
+}
+document.querySelector('.ctl').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  document.querySelectorAll('.ctl button').forEach((x) => x.classList.toggle('on', x === b))
+  mode = b.dataset.s; render()
+}
+document.getElementById('card').onclick = (e) => {
+  const t = e.target.closest('[data-t]')
+  if (t) { mode = t.dataset.t; document.querySelectorAll('.ctl button').forEach((x) => x.classList.toggle('on', x.dataset.s === mode)); render(); return }
+  const s = e.target.closest('[data-st]')
+  if (s) {
+    const tk = s.dataset.st
+    saving = tk; render()
+    setTimeout(() => { saving = null; watched.has(tk) ? watched.delete(tk) : watched.add(tk); render() }, 700)
+  }
+}
+render()
+</script>
+</body>
+</html>

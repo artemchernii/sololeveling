@@ -292,6 +292,8 @@ export async function ringClose(
     ownerId,
     words: words ?? undefined,
   })
+  /* The watchlist's alerts, each its own push (1 Nov). */
+  await ctx.runMutation(internal.watch.ringHits, { ownerId })
 }
 
 /** The bell's row and the push — once a day — then tomorrow's job. */

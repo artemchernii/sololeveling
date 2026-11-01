@@ -66,7 +66,14 @@ export function WatchFind({ held }: { held: ReadonlyArray<Held> }) {
   const [tab, setTab] = useState<Tab>('etfs')
   const star = useStar()
   const mine = new Set(held.map((h) => tickerBase(h.symbol)))
-  const funds = held.filter((h) => kindOf(h) === 'etf').map((h) => h.symbol)
+  /* One fund held on two listings is one fund. */
+  const funds = [
+    ...new Map(
+      held
+        .filter((h) => kindOf(h) === 'etf')
+        .map((h) => [tickerBase(h.symbol), h.symbol] as const),
+    ).values(),
+  ]
   const etfs = useEtfs(funds, [...mine])
   const { stocks } = useOpportunities()
 
@@ -84,6 +91,7 @@ export function WatchFind({ held }: { held: ReadonlyArray<Held> }) {
           name: t.name,
           at: [],
         }
+        if (row.at.some((a) => a.fund === tickerBase(f.symbol))) continue
         row.at.push({ fund: tickerBase(f.symbol), pct: t.pct * 100 })
         inFunds.set(t.symbol, row)
       }

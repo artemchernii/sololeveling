@@ -14,6 +14,8 @@ import type {
   StocksAnswer,
 } from '../../../../convex/marketSources/opportunities'
 import { TickerLogo } from '@/components/finances/Logo'
+import { WatchStar } from '@/components/finances/WatchStar'
+import { useStar } from '@/components/finances/useWatch'
 import { tickerBase } from '@/lib/market'
 import { MOVER_REGIONS, REGION_FLAG, closeWord } from '@/lib/movers'
 import type { MoverRegion } from '@/lib/movers'
@@ -177,6 +179,7 @@ function StockRows({
   stocks: ReadonlyMap<MoverRegion, Shown>
   held: ReadonlySet<string>
 }) {
+  const star = useStar()
   const regions = region === 'ALL' ? MOVER_REGIONS : [region]
   const got = regions.flatMap((r) => {
     const a = stocks.get(r)
@@ -247,6 +250,10 @@ function StockRows({
                   <Cell key={heads[i]} h={heads[i]} {...c} />
                 ))}
                 <div className="ask">
+                  <WatchStar
+                    thing={{ symbol: o.symbol, name: o.name }}
+                    star={star}
+                  />
                   <AskOn q={askOpp(kind, o)} />
                 </div>
               </div>

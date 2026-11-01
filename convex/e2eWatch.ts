@@ -26,14 +26,26 @@ export const names = mutation({
     guard()
     const now = Date.now()
     for (const [symbol, name, first, last] of NAMES) {
-      const instrumentId = await ctx.db.insert('instruments', {
-        ownerId,
-        symbol,
-        name,
-        exchange: 'NMS',
-        currency: 'USD',
-        type: 'EQUITY',
-      })
+      /* Instruments and prices outlive the reset: the same ticker's
+         row is used again, its old closes taken off. */
+      const own = { name, exchange: 'NMS', currency: 'USD', type: 'EQUITY' }
+      const found = await ctx.db
+        .query('instruments')
+        .withIndex('by_owner_symbol', (q) =>
+          q.eq('ownerId', ownerId).eq('symbol', symbol),
+        )
+        .first()
+      if (found !== null) await ctx.db.patch(found._id, own)
+      const instrumentId =
+        found?._id ??
+        (await ctx.db.insert('instruments', { ownerId, symbol, ...own }))
+      for (const old of await ctx.db
+        .query('prices')
+        .withIndex('by_owner_instrument_time', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(1000))
+        await ctx.db.delete(old._id)
       /* A climb to a peak two thirds in, then down to the latest. */
       const peak = Math.max(first, last) * 1.3
       for (let i = 0; i < DAYS; i++) {

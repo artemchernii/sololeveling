@@ -110,3 +110,20 @@ test('phone width: the rows stack, nothing runs off', async ({ page }) => {
   expect(wide).toBe(false)
   await page.screenshot({ ...shot('watchlist-phone'), fullPage: true })
 })
+
+test('TARGET: a bucket pressed lists its watched names under the held ones', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2eFind.manyHeld, {})
+  await testClient().mutation(anyApi.e2eWatch.names, {})
+  await page.goto('/finances?room=portfolio')
+  await page.getByRole('button', { name: 'show' }).first().click()
+  await page.getByRole('button', { name: 'target', exact: true }).click()
+  await page.getByTestId('target-row').filter({ hasText: 'stocks' }).click()
+  const watch = page.getByTestId('target-watch')
+  await expect(watch).toContainText('watchlist · 3')
+  await expect(watch).toContainText('AMD')
+  await expect(watch).toContainText('$141.20')
+  await page.screenshot({ ...shot('watchlist-target'), fullPage: true })
+})

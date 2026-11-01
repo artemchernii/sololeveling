@@ -6,6 +6,7 @@ import { Check, Pencil } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Part } from '@/components/finances/PortfolioMap'
 import { Veiled } from '@/components/finances/Veil'
+import { WatchInBucket } from '@/components/finances/WatchInBucket'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { euros } from '@/lib/money'
 import { BUCKETS, markOf, nowBy, split, toPlace } from '@/lib/targets'
@@ -179,6 +180,9 @@ export function TargetMap({
           )
         })}
       </div>
+      {BUCKETS.filter(on).map((b) => (
+        <WatchInBucket key={b} bucket={b} />
+      ))}
       <div className="flex flex-col gap-2.5 border-t border-lift/10 pt-3.5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="label-caps">to place</span>

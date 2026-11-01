@@ -221,7 +221,7 @@ export const setAlert = mutation({
       throw new ConvexError('WATCH_PRICE')
     const w = await mine(ctx, ownerId, instrumentId)
     if (w === null) throw new ConvexError('NOT_WATCHED')
-    const [last] = await recent(ctx, ownerId, instrumentId, 1)
+    const last = (await recent(ctx, ownerId, instrumentId, 1)).at(0)
     if (last === undefined) throw new ConvexError('WATCH_NO_PRICE')
     const s = sideOf(last.price, at)
     await ctx.db.patch(w._id, { alert: { at, side: s }, hit: undefined })
@@ -261,7 +261,9 @@ export async function ringFor(ctx: MutationCtx, ownerId: string) {
   let rung = 0
   for (const w of await watchesOf(ctx, ownerId)) {
     if (w.alert === undefined || w.hit !== undefined) continue
-    const [last, ...older] = await recent(ctx, ownerId, w.instrumentId, RECENT)
+    const closes = await recent(ctx, ownerId, w.instrumentId, RECENT)
+    const last = closes.at(0)
+    const older = closes.slice(1)
     if (last === undefined || !hitOf(w.alert, last.price)) continue
     const inst = await ctx.db.get(w.instrumentId)
     if (inst === null) continue

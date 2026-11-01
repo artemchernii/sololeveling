@@ -132,6 +132,7 @@ import type * as typedBalance from "../typedBalance.js";
 import type * as undoFile from "../undoFile.js";
 import type * as vault from "../vault.js";
 import type * as watch from "../watch.js";
+import type * as watchFind from "../watchFind.js";
 import type * as weekReads from "../weekReads.js";
 import type * as why from "../why.js";
 import type * as write from "../write.js";
@@ -267,6 +268,7 @@ declare const fullApi: ApiFromModules<{
   undoFile: typeof undoFile;
   vault: typeof vault;
   watch: typeof watch;
+  watchFind: typeof watchFind;
   weekReads: typeof weekReads;
   why: typeof why;
   write: typeof write;

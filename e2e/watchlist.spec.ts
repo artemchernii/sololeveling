@@ -43,7 +43,10 @@ test('Portfolio: WATCHLIST — empty, three names, an alert set and hit, ★ off
   await nvo.getByRole('button', { name: 'alert NVO' }).click()
   await page.getByLabel('alert price NVO').fill('55')
   await page.getByRole('button', { name: 'save alert' }).click()
-  await expect(page.getByRole('status', { name: 'Saving' })).toBeVisible()
+  /* A local write can land before the spinner is seen: either state. */
+  await expect(
+    page.getByRole('status', { name: /^(Saving|Saved)$/ }),
+  ).toBeVisible()
   await expect(page.getByRole('status', { name: 'Saved' })).toBeVisible()
   await expect(page.getByLabel('alert price NVO')).toHaveCount(0)
   await expect(nvo.getByRole('button', { name: 'alert NVO' })).toContainText(
@@ -126,4 +129,39 @@ test('TARGET: a bucket pressed lists its watched names under the held ones', asy
   await expect(watch).toContainText('AMD')
   await expect(watch).toContainText('$141.20')
   await page.screenshot({ ...shot('watchlist-target'), fullPage: true })
+})
+
+test('FIND: names inside the ETFs held, and the two opportunity lists, held left out', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2eMine.positions, {})
+  await page.goto('/finances?room=portfolio')
+  await page.getByRole('button', { name: 'find a ticker' }).click()
+  const find = page.getByTestId('watch-find')
+  const rows = find.getByTestId('find-row')
+  /* VUAA's top holdings: NVDA is held, so only MSFT. */
+  await expect(rows).toHaveCount(1, { timeout: 15_000 })
+  await expect(rows.first()).toHaveAttribute('data-symbol', 'MSFT')
+  await expect(rows.first()).toContainText('6.6%')
+  await expect(rows.first()).toContainText('of VUAA')
+  await expect(find).toContainText('held left out')
+  await page.screenshot({ ...shot('watchlist-find'), fullPage: true })
+
+  await find.getByRole('button', { name: /down from high/ }).click()
+  await expect(rows.first()).toBeVisible({ timeout: 15_000 })
+  await expect(find.locator('[data-symbol=NVDA]')).toHaveCount(0)
+  const first = await rows.first().getAttribute('data-symbol')
+  await rows
+    .first()
+    .getByRole('button', { name: `watch ${first}` })
+    .click()
+  await expect(
+    page.locator(`[data-testid=watch-row][data-symbol="${first}"]`),
+  ).toBeVisible()
+  await page.screenshot({ ...shot('watchlist-find-down'), fullPage: true })
+
+  /* × in the field closes it. */
+  await page.getByRole('button', { name: 'close find' }).click()
+  await expect(find).toHaveCount(0)
 })

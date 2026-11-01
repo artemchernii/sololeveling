@@ -3,6 +3,7 @@ import { Plus, Star, X } from 'lucide-react'
 
 import { Panel } from '@/components/finances/bits'
 import { TickerSearch } from '@/components/finances/HoldingsTickerSearch'
+import { WatchFind } from '@/components/finances/WatchFind'
 import { WatchRow, BADGE, COLS } from '@/components/finances/WatchRow'
 import {
   useStar,
@@ -29,7 +30,11 @@ const HEADS = [
 ]
 const RIGHT = new Set(['last', 'day', 'vs high'])
 
-export function WatchList() {
+export function WatchList({
+  held,
+}: {
+  held: ReadonlyArray<{ symbol: string; type: string; name: string }>
+}) {
   const list = useWatchList()
   const star = useStar()
   const [finding, setFinding] = useState(false)
@@ -86,6 +91,7 @@ export function WatchList() {
             }}
           />
         ) : null}
+        {finding ? <WatchFind held={held} /> : null}
         {list === undefined ? (
           <SkeletonRows rows={3} twoLine rowClassName="py-3" />
         ) : list.length === 0 ? (

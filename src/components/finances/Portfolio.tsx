@@ -252,7 +252,7 @@ export function Portfolio({ position }: { position?: string }) {
         </div>
       ) : null}
 
-      <WatchList />
+      <WatchList held={data.rows} />
 
       {data.rows.length > 0 || data.sold.length > 0 ? (
         <PortfolioList

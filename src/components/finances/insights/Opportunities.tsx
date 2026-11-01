@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react'
-import { useAction } from 'convex/react'
+import { useState } from 'react'
 import { Telescope } from 'lucide-react'
 
 import { AskOn } from './AskOn'
+import { useOpportunities } from './useOpportunities'
+import type { Shown } from './useOpportunities'
 import { DrawnMark, Flag } from './Flag'
 import { Info, changeWord, clock, dayWord, monthWord } from './parts'
-import { api } from '../../../../convex/_generated/api'
 import type { Rate } from '../../../../convex/insightsMarket'
 import type {
   LevelId,
   LevelsAnswer,
   OppRow,
-  StocksAnswer,
 } from '../../../../convex/marketSources/opportunities'
 import { TickerLogo } from '@/components/finances/Logo'
 import { WatchStar } from '@/components/finances/WatchStar'
@@ -29,7 +28,6 @@ import type { Owned } from '@/lib/owned'
    (four regions and the levels), kept ten minutes in page memory, never
    stored. */
 
-const KEEP_MS = 10 * 60_000
 const ALL_ROWS = 10
 const KINDS = [
   'DOWN FROM HIGH',
@@ -39,55 +37,6 @@ const KINDS = [
 ] as const
 type Kind = (typeof KINDS)[number]
 type Region = 'ALL' | MoverRegion
-type Shown = StocksAnswer | 'failed'
-
-const keptStocks = new Map<MoverRegion, { at: number; answer: StocksAnswer }>()
-let keptLevels: { at: number; answer: LevelsAnswer } | null = null
-
-function useOpportunities() {
-  const askStocks = useAction(api.marketSources.opportunities.stocks)
-  const askLevels = useAction(api.marketSources.opportunities.levels)
-  const fresh = (at: number) => Date.now() - at < KEEP_MS
-  const [stocks, setStocks] = useState(() => {
-    const m = new Map<MoverRegion, Shown>()
-    for (const r of MOVER_REGIONS) {
-      const k = keptStocks.get(r)
-      if (k && fresh(k.at)) m.set(r, k.answer)
-    }
-    return m
-  })
-  const [levels, setLevels] = useState<LevelsAnswer | 'failed' | null>(() =>
-    keptLevels && fresh(keptLevels.at) ? keptLevels.answer : null,
-  )
-  useEffect(() => {
-    let live = true
-    for (const region of MOVER_REGIONS) {
-      if (stocks.has(region)) continue
-      askStocks({ region })
-        .then((a) => {
-          keptStocks.set(region, { at: Date.now(), answer: a })
-          if (live) setStocks((m) => new Map(m).set(region, a))
-        })
-        .catch(() => {
-          if (live) setStocks((m) => new Map(m).set(region, 'failed'))
-        })
-    }
-    if (levels === null)
-      askLevels({})
-        .then((a) => {
-          keptLevels = { at: Date.now(), answer: a }
-          if (live) setLevels(a)
-        })
-        .catch(() => {
-          if (live) setLevels('failed')
-        })
-    return () => {
-      live = false
-    }
-    /* asked once on open: what is kept is not asked again */
-  }, [askStocks, askLevels])
-  return { stocks, levels }
-}
 
 export function Opportunities({
   held,

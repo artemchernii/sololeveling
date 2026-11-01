@@ -44,7 +44,16 @@ export function WatchList() {
   return (
     <div id="watchlist" data-testid="watchlist">
       <Panel
-        title="★ watchlist"
+        title={
+          <span className="flex items-center gap-2 text-ink-200">
+            <Star
+              className="size-[18px] text-state-warn"
+              fill="currentColor"
+              strokeWidth={1.5}
+            />
+            watchlist
+          </span>
+        }
         aside={
           <span className="flex items-center gap-2">
             <span
@@ -56,12 +65,12 @@ export function WatchList() {
             </span>
             <button
               type="button"
-              aria-label={finding ? 'close find' : 'find a ticker'}
+              aria-label={finding ? 'close search' : 'find a ticker'}
               onClick={() => setFinding((f) => !f)}
               className={`${BADGE} motion-press py-[5px] text-lav-300 ring-lav-400/45 hover:bg-lav-400/10`}
             >
               {finding ? <X className="size-3" /> : <Plus className="size-3" />}
-              ticker
+              {finding ? 'close' : 'ticker'}
             </button>
           </span>
         }
@@ -70,6 +79,7 @@ export function WatchList() {
           <TickerSearch
             logos
             initial=""
+            onClose={() => setFinding(false)}
             onPick={(c) => {
               if (!star.isOn(c.symbol)) void star.press(c)
               setFinding(false)

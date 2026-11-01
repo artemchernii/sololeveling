@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAction } from 'convex/react'
-import { Loader2, Search } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { FIELD } from '@/components/finances/bits'
@@ -13,11 +13,14 @@ export function TickerSearch({
   initial,
   onPick,
   logos = false,
+  onClose,
 }: {
   initial: string
   onPick: (c: Candidate) => void
   /** Each result with its mark (the watchlist's field, 1 Nov). */
   logos?: boolean
+  /** An × in the field and Esc put it away. */
+  onClose?: () => void
 }) {
   const search = useAction(api.market.search)
   const [q, setQ] = useState(initial)
@@ -47,8 +50,21 @@ export function TickerSearch({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           aria-label="Find a ticker"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') onClose?.()
+          }}
           className="w-full bg-transparent focus:outline-none"
         />
+        {onClose ? (
+          <button
+            type="button"
+            aria-label="close find"
+            onClick={onClose}
+            className="motion-press grid size-6 shrink-0 place-items-center rounded-full text-ink-400 hover:bg-lift/10 hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        ) : null}
       </label>
       {(results ?? []).map((c) => (
         <button

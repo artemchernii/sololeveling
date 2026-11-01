@@ -4,6 +4,7 @@ import { Loader2, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { FIELD } from '@/components/finances/bits'
+import { TickerLogo } from '@/components/finances/Logo'
 import type { Candidate } from '@/lib/market'
 
 /* Another ticker for a position, found by name (out of HoldingsReview on
@@ -11,9 +12,12 @@ import type { Candidate } from '@/lib/market'
 export function TickerSearch({
   initial,
   onPick,
+  logos = false,
 }: {
   initial: string
   onPick: (c: Candidate) => void
+  /** Each result with its mark (the watchlist's field, 1 Nov). */
+  logos?: boolean
 }) {
   const search = useAction(api.market.search)
   const [q, setQ] = useState(initial)
@@ -53,6 +57,14 @@ export function TickerSearch({
           onClick={() => onPick(c)}
           className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left hover:bg-lav-400/10"
         >
+          {logos ? (
+            <TickerLogo
+              symbol={c.symbol}
+              type={c.type}
+              name={c.name}
+              size={26}
+            />
+          ) : null}
           <span className="w-20 font-mono text-[12px] text-area">
             {c.symbol}
           </span>

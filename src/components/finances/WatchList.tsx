@@ -68,6 +68,7 @@ export function WatchList() {
       >
         {finding ? (
           <TickerSearch
+            logos
             initial=""
             onPick={(c) => {
               if (!star.isOn(c.symbol)) void star.press(c)

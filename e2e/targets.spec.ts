@@ -76,11 +76,14 @@ test('Portfolio: TARGET — not set, set, the split, a bucket keeps its rows', a
   await expect(page.getByLabel('stocks min €')).toHaveCount(0)
   await expect(rows.filter({ hasText: 'stocks' })).toContainText('in target')
   await expect(puts).toHaveCount(3)
-  await expect(puts.filter({ hasText: 'gold' })).toContainText('€1,000')
-  await expect(puts.filter({ hasText: 'bonds' })).toContainText('€5,000')
-  await expect(puts.filter({ hasText: 'cash' })).toContainText(
-    'stays · after every min',
+  await expect(puts.filter({ hasText: 'gold' }).first()).toContainText('€1,000')
+  await expect(puts.filter({ hasText: 'bonds' }).first()).toContainText(
+    '€5,000',
   )
+  await expect(puts.filter({ hasText: 'cash' })).toContainText(
+    /to place €7,\d{3} · bonds €5,000 · gold €1,000/,
+  )
+  await expect(page.getByText(/stays|after every/)).toHaveCount(0)
   await page.waitForTimeout(800)
   await page.screenshot({ ...shot('targets-cash-stays'), fullPage: true })
 

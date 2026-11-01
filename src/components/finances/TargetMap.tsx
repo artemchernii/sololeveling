@@ -101,6 +101,10 @@ export function TargetMap({
   const cash = toPlace(free, atBrokers)
   const puts = targets.length > 0 ? split(cash, now, targets) : []
   const on = (b: Bucket) => part?.lens === 'target' && part.key === b
+  const filled = puts.filter((p) => p.bucket !== 'cash')
+  const inTarget = targets.filter(
+    (t) => markOf(now[t.bucket], t).kind === 'in',
+  ).length
 
   if (editing)
     return <TargetEdit targets={targets} onClose={() => setEditing(false)} />
@@ -220,10 +224,18 @@ export function TargetMap({
                           <Veiled>{euros(Math.round(now[p.bucket]))}</Veiled> ·
                           target {euros(t.min)}
                         </>
-                      ) : puts.length === 1 ? (
-                        'stays · every target met'
                       ) : (
-                        'stays · after every min'
+                        <>
+                          to place <Veiled>{euros(Math.round(cash))}</Veiled>
+                          {filled.length > 0
+                            ? filled.map((f) => (
+                                <span key={f.bucket}>
+                                  {' '}
+                                  · {f.bucket} <Veiled>{euros(f.eur)}</Veiled>
+                                </span>
+                              ))
+                            : ` · ${inTarget} in target`}
+                        </>
                       )}
                     </span>
                   </span>

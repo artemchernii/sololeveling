@@ -270,9 +270,13 @@ export const readAll = internalAction({
        stored closes stay; its last price is shown with its day. */
     const heldNow = new Set<string>()
     for (const ownerId of new Set(every.map((i) => i.ownerId)))
-      for (const id of await ctx.runQuery(internal.aggregate.heldInstruments, {
-        ownerId,
-      }))
+      for (const id of [
+        ...(await ctx.runQuery(internal.aggregate.heldInstruments, {
+          ownerId,
+        })),
+        /* And his watchlist (1 Nov): read like a held one. */
+        ...(await ctx.runQuery(internal.watch.ids, { ownerId })),
+      ])
         heldNow.add(id)
     const all = every.filter((i) => heldNow.has(i._id))
     const bySymbol = new Map<string, typeof all>()

@@ -211,6 +211,8 @@ export const notificationKind = v.union(
   v.literal('day_close'),
   /* N4 (22 Oct): an Ask answer that landed off screen. */
   v.literal('ask_reply'),
+  /* The watchlist (1 Nov): a stored close reached his price. */
+  v.literal('watch_hit'),
 )
 
 export default defineSchema({
@@ -296,6 +298,24 @@ export default defineSchema({
     min: v.number(),
     max: v.number(),
   }).index('by_owner_bucket', ['ownerId', 'bucket']),
+
+  /* A name on his watchlist (1 Nov, docs/specs/2026-11-01-watchlist.md):
+     its closes are stored like a held one's while it is here. `alert` is
+     his own price; `side` which way it rings, set when it is saved.
+     `hit` the stored close that reached it — rung once, kept until a new
+     price is saved. */
+  watches: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    addedAt: v.number(),
+    alert: v.optional(
+      v.object({
+        at: v.number(),
+        side: v.union(v.literal('up'), v.literal('down')),
+      }),
+    ),
+    hit: v.optional(v.object({ price: v.number(), asOf: v.number() })),
+  }).index('by_owner_instrument', ['ownerId', 'instrumentId']),
 
   goals: defineTable({
     ownerId: v.string(),

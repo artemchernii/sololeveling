@@ -130,6 +130,7 @@ import type * as transferMatch from "../transferMatch.js";
 import type * as typedBalance from "../typedBalance.js";
 import type * as undoFile from "../undoFile.js";
 import type * as vault from "../vault.js";
+import type * as watch from "../watch.js";
 import type * as weekReads from "../weekReads.js";
 import type * as why from "../why.js";
 import type * as write from "../write.js";
@@ -263,6 +264,7 @@ declare const fullApi: ApiFromModules<{
   typedBalance: typeof typedBalance;
   undoFile: typeof undoFile;
   vault: typeof vault;
+  watch: typeof watch;
   weekReads: typeof weekReads;
   why: typeof why;
   write: typeof write;

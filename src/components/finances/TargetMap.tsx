@@ -340,7 +340,7 @@ function TargetEdit({
             setFailed(false)
             run(() => save({ targets: out })).catch(() => setFailed(true))
           }}
-          className="motion-press rounded-full bg-lav-400 px-5 py-2 font-mono text-[10.5px] font-bold tracking-[0.14em] text-white uppercase disabled:opacity-50"
+          className="motion-press rounded-full bg-lav-400 px-5 py-2 font-mono text-[10.5px] font-bold tracking-[0.14em] text-background uppercase disabled:opacity-50"
         >
           <SaveLabel
             status={status}

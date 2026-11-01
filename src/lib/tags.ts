@@ -8,7 +8,7 @@ import type { Sector } from './sector'
    (convex/sector.ts); a fund's come from words in its own name; a coin
    or gold has no country. Nothing stored yet is MISSING. */
 
-export type Lens = 'kind' | 'sector' | 'region'
+export type Lens = 'kind' | 'sector' | 'region' | 'target'
 
 const REGIONS: ReadonlySet<Sector> = new Set([
   'asia pacific',

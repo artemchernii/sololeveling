@@ -1,8 +1,13 @@
 import { ConvexError, v } from 'convex/values'
 
 import { internal } from './_generated/api'
-import { action, internalMutation, internalQuery, query } from './_generated/server'
-import type { QueryCtx } from './_generated/server'
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  query,
+} from './_generated/server'
+import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { requireUser } from './auth'
 import { upsertInstrument } from './invest'
@@ -230,7 +235,8 @@ export const clearAlert = mutation({
   handler: async (ctx, { instrumentId }) => {
     const ownerId = await requireUser(ctx)
     const w = await mine(ctx, ownerId, instrumentId)
-    if (w !== null) await ctx.db.patch(w._id, { alert: undefined, hit: undefined })
+    if (w !== null)
+      await ctx.db.patch(w._id, { alert: undefined, hit: undefined })
     return null
   },
 })
@@ -248,31 +254,33 @@ export const ids = internalQuery({
 export const ringHits = internalMutation({
   args: { ownerId: v.string() },
   returns: v.number(),
-  handler: async (ctx, { ownerId }) => {
-    let rung = 0
-    for (const w of await watchesOf(ctx, ownerId)) {
-      if (w.alert === undefined || w.hit !== undefined) continue
-      const [last, ...older] = await recent(ctx, ownerId, w.instrumentId, RECENT)
-      if (last === undefined || !hitOf(w.alert, last.price)) continue
-      const inst = await ctx.db.get(w.instrumentId)
-      if (inst === null) continue
-      await ctx.db.patch(w._id, { hit: last })
-      const day = Math.floor(last.asOf / DAY)
-      const before = older.find((c) => Math.floor(c.asOf / DAY) < day)
-      const say = (n: number) => money(n, inst.currency || 'EUR')
-      const on = new Date(last.asOf)
-        .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        .toUpperCase()
-      await notifyOwner(ctx, {
-        ownerId,
-        kind: 'watch_hit',
-        title: `🔔 ${tickerOf(inst.symbol)} · CLOSE ${say(last.price)} ${signOf(w.alert.side)} ${say(w.alert.at)}`,
-        body: before ? `${on} · PREV CLOSE ${say(before.price)}` : on,
-        url: '/finances?room=portfolio#watchlist',
-        tag: `watch:${w.instrumentId}:${last.asOf}`,
-      })
-      rung++
-    }
-    return rung
-  },
+  handler: async (ctx, { ownerId }) => await ringFor(ctx, ownerId),
 })
+
+export async function ringFor(ctx: MutationCtx, ownerId: string) {
+  let rung = 0
+  for (const w of await watchesOf(ctx, ownerId)) {
+    if (w.alert === undefined || w.hit !== undefined) continue
+    const [last, ...older] = await recent(ctx, ownerId, w.instrumentId, RECENT)
+    if (last === undefined || !hitOf(w.alert, last.price)) continue
+    const inst = await ctx.db.get(w.instrumentId)
+    if (inst === null) continue
+    await ctx.db.patch(w._id, { hit: last })
+    const day = Math.floor(last.asOf / DAY)
+    const before = older.find((c) => Math.floor(c.asOf / DAY) < day)
+    const say = (n: number) => money(n, inst.currency || 'EUR')
+    const on = new Date(last.asOf)
+      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      .toUpperCase()
+    await notifyOwner(ctx, {
+      ownerId,
+      kind: 'watch_hit',
+      title: `🔔 ${tickerOf(inst.symbol)} · CLOSE ${say(last.price)} ${signOf(w.alert.side)} ${say(w.alert.at)}`,
+      body: before ? `${on} · PREV CLOSE ${say(before.price)}` : on,
+      url: '/finances?room=portfolio#watchlist',
+      tag: `watch:${w.instrumentId}:${last.asOf}`,
+    })
+    rung++
+  }
+  return rung
+}

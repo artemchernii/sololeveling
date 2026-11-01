@@ -53,6 +53,7 @@ import type * as e2eTargets from "../e2eTargets.js";
 import type * as e2eToday from "../e2eToday.js";
 import type * as e2eTransfer from "../e2eTransfer.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
+import type * as e2eWatch from "../e2eWatch.js";
 import type * as events from "../events.js";
 import type * as fake_story from "../fake/story.js";
 import type * as fileNotice from "../fileNotice.js";
@@ -187,6 +188,7 @@ declare const fullApi: ApiFromModules<{
   e2eToday: typeof e2eToday;
   e2eTransfer: typeof e2eTransfer;
   e2eUpdate: typeof e2eUpdate;
+  e2eWatch: typeof e2eWatch;
   events: typeof events;
   "fake/story": typeof fake_story;
   fileNotice: typeof fileNotice;

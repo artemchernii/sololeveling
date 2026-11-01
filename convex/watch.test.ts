@@ -16,7 +16,12 @@ const T0 = Date.UTC(2026, 9, 26, 21)
 
 type Backend = ReturnType<typeof convexTest>
 
-const amd = { symbol: 'AMD', name: 'Advanced Micro Devices', exchange: 'NMS', type: 'EQUITY' }
+const amd = {
+  symbol: 'AMD',
+  name: 'Advanced Micro Devices',
+  exchange: 'NMS',
+  type: 'EQUITY',
+}
 
 /** A name already known with closes, as the nightly check stores them. */
 async function closes(t: Backend, prices: Array<number>) {
@@ -88,8 +93,12 @@ test('🔔 above the price waits for a rise, below for a fall; a bad price is re
   const friend = t.withIdentity({ tokenIdentifier: FRIEND })
   const id = await closes(t, [141.2])
   await me.mutation(api.watch.add, { candidate: amd })
-  expect(await me.mutation(api.watch.setAlert, { instrumentId: id, at: 150 })).toBe('up')
-  expect(await me.mutation(api.watch.setAlert, { instrumentId: id, at: 120 })).toBe('down')
+  expect(
+    await me.mutation(api.watch.setAlert, { instrumentId: id, at: 150 }),
+  ).toBe('up')
+  expect(
+    await me.mutation(api.watch.setAlert, { instrumentId: id, at: 120 }),
+  ).toBe('down')
   await expect(
     me.mutation(api.watch.setAlert, { instrumentId: id, at: -1 }),
   ).rejects.toThrow(/WATCH_PRICE/)

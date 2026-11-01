@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Check, Star } from 'lucide-react'
 
-import type { useStar, Candidate  } from '@/components/finances/useWatch'
+import type { useStar, Candidate } from '@/components/finances/useWatch'
 import { WATCH_MAX } from '@/lib/watch'
 
 /* ★ on a ticker the app shows (1 Nov, mockup watchlist.html): one press

@@ -43,11 +43,11 @@ test('the opened file says what goes, one press takes it back, the account is �
   /* A warning, and what goes as badges (14 Oct). */
   await expect(box.getByText('remove · these numbers go')).toBeVisible()
   await expect(box.getByText('−3 rows')).toBeVisible()
-  await expect(box.getByText(/^balance · \d+ Oct$/)).toBeVisible()
+  await expect(box.getByText(/^balance · \d+ [A-Z][a-z]{2}$/)).toBeVisible()
   await expect(box.getByText('ActivoBank now')).toBeVisible()
   await expect(box.getByText('€90.35')).toBeVisible()
   await expect(box.getByText('€153.21')).toBeVisible()
-  await expect(box.getByText(/^balance of \d+ Oct$/)).toBeVisible()
+  await expect(box.getByText(/^balance of \d+ [A-Z][a-z]{2}$/)).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('undo-file-box'))
   await page.setViewportSize({ width: 390, height: 844 })

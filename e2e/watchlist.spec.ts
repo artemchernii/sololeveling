@@ -85,7 +85,7 @@ test('MOVERS: ★ on a row puts it on the WATCHLIST', async ({ page }) => {
   await page.goto('/finances?room=insights')
   const tile = page.locator('[data-tile=movers]')
   const pltr = tile.locator('[data-testid=mover][data-symbol=PLTR]')
-  await expect(pltr).toBeVisible({ timeout: 15_000 })
+  await expect(pltr).toBeVisible()
   const star = pltr.getByRole('button', { name: 'watch PLTR' })
   await expect(star).toHaveAttribute('aria-pressed', 'false')
   await star.click()

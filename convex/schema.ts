@@ -1055,12 +1055,19 @@ export default defineSchema({
     shares: v.array(v.number()),
     priceEur: v.array(v.number()),
     flags: v.array(v.number()),
-  }).index('by_owner_account_instrument_part', [
-    'ownerId',
-    'accountId',
-    'instrumentId',
-    'part',
-  ]),
+    /* Sold out by its trades (10 Nov): when its last trade was. Absent
+       while the trades leave shares. Screens of what is held now never
+       read a sold-out position's ledger — 155 of his 199, 74% of the
+       bytes, on every run of worth and positions. */
+    soldAt: v.optional(v.number()),
+  })
+    .index('by_owner_account_instrument_part', [
+      'ownerId',
+      'accountId',
+      'instrumentId',
+      'part',
+    ])
+    .index('by_owner_soldAt', ['ownerId', 'soldAt']),
 
   /* A trade taken off its position (15 Oct, mockup trade-remove.html):
      the same row kept aside with the moment it went, so UNDO puts it back

@@ -43,6 +43,8 @@ const DATE = new Intl.DateTimeFormat(undefined, {
    paid is known, never against zero. */
 export function Portfolio({ position }: { position?: string }) {
   const data = useQuery(api.aggregate.positions, {})
+  /* Sold out: its own read (10 Nov), asked only in this room. */
+  const sold = useQuery(api.aggregate.positionsSold, {})
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
   const [filter, setFilter] = useState<Id<'accounts'> | 'all'>('all')
@@ -51,7 +53,12 @@ export function Portfolio({ position }: { position?: string }) {
   const tags = useTags(data?.rows ?? NONE)
   const watched = useWatchList()
 
-  if (data === undefined || accounts === undefined || worth === undefined) {
+  if (
+    data === undefined ||
+    sold === undefined ||
+    accounts === undefined ||
+    worth === undefined
+  ) {
     return (
       <Panel title="portfolio">
         <SkeletonRows rows={4} twoLine rowClassName="py-3" />
@@ -71,7 +78,7 @@ export function Portfolio({ position }: { position?: string }) {
       o.at.some((r) => r.instrumentId === position)
     const owned = combine(data.rows).find(has)
     if (owned) return <PortfolioPosition owned={owned} holders={holders} />
-    const gone = combine(data.sold).find(has)
+    const gone = combine(sold).find(has)
     if (gone)
       return (
         <PortfolioPosition
@@ -254,10 +261,10 @@ export function Portfolio({ position }: { position?: string }) {
 
       <WatchList held={data.rows} />
 
-      {data.rows.length > 0 || data.sold.length > 0 ? (
+      {data.rows.length > 0 || sold.length > 0 ? (
         <PortfolioList
           rows={data.rows}
-          sold={data.sold}
+          sold={sold}
           holders={holders}
           filter={filter}
           onFilter={setFilter}

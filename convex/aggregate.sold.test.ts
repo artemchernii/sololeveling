@@ -92,8 +92,9 @@ test('sold out: under sold with its sums, not in what is owned', async () => {
   const p = await me.query(api.aggregate.positions, {})
   expect(p.rows.map((r) => r.symbol)).toEqual(['NVDA'])
   expect(p.totalEur).toBe(100)
-  expect(p.sold).toHaveLength(1)
-  expect(p.sold[0]).toMatchObject({
+  const sold = await me.query(api.aggregate.positionsSold, {})
+  expect(sold).toHaveLength(1)
+  expect(sold[0]).toMatchObject({
     accountId: ids.revolut,
     instrumentId: ids.shop,
     symbol: 'SHOP',
@@ -113,7 +114,7 @@ test('sold in one account and owned in another is owned', async () => {
   await trade(ME, ids.tr, ids.amzn, 'buy', 2, 160, 200)
   const p = await me.query(api.aggregate.positions, {})
   expect(p.rows.map((r) => [r.symbol, r.accountId])).toEqual([['AMZN', ids.tr]])
-  expect(p.sold).toEqual([])
+  expect(await me.query(api.aggregate.positionsSold, {})).toEqual([])
 })
 
 test('sold with no buys in the files: what was paid is not known', async () => {
@@ -128,7 +129,7 @@ test('sold with no buys in the files: what was paid is not known', async () => {
     })
   })
   await trade(ME, ids.revolut, ids.shop, 'sell', 3, 100, 50)
-  const [s] = (await me.query(api.aggregate.positions, {})).sold
+  const [s] = await me.query(api.aggregate.positionsSold, {})
   expect(s.paid).toBeNull()
   expect(s.soldFor).toBe(300)
 })
@@ -140,7 +141,7 @@ test('a retired account takes what it sold with it', async () => {
   await t.run(async (ctx) => {
     await ctx.db.patch(ids.revolut, { retiredAt: Date.now() })
   })
-  expect((await me.query(api.aggregate.positions, {})).sold).toEqual([])
+  expect(await me.query(api.aggregate.positionsSold, {})).toEqual([])
 })
 
 /* The price reading asks only for what is held now (17 Oct). */

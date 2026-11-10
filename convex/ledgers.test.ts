@@ -119,6 +119,7 @@ async function world() {
   const dayEnds = [30, 20, 10, 2].map((d) => now - d * DAY)
   const screens = async () => ({
     positions: await me.query(api.aggregate.positions, {}),
+    sold: await me.query(api.aggregate.positionsSold, {}),
     worth: await me.query(api.aggregate.worth, {}),
     worthPast: await me.query(api.aggregate.worthPast, { dayEnds }),
     held: await t.query(internal.aggregate.heldInstruments, { ownerId: ME }),
@@ -165,7 +166,7 @@ test('ledgers give positions, worth, worthPast and the held tickers unchanged', 
   expect(await w.ledgerRows()).toBe(0)
   const fromTrades = await w.screens()
   expect(fromTrades.positions.rows.length).toBeGreaterThan(2)
-  expect(fromTrades.positions.sold.map((s) => s.symbol)).toEqual(['GONE'])
+  expect(fromTrades.sold.map((s) => s.symbol)).toEqual(['GONE'])
 
   await w.t.mutation(internal.ledgers.build, { ownerId: ME })
   expect(await w.ledgerRows()).toBeGreaterThan(0)

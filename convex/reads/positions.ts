@@ -9,7 +9,7 @@ import type { Close, Holding, Rate } from '../../src/lib/worthHistory'
 import { lookFamily, notSeenSince, reconcile } from '../../src/lib/holdings'
 import { soldPart } from '../../src/lib/sold'
 import type { LedgerTrade, Observation } from '../../src/lib/holdings'
-import { readLedgerTrades } from '../ledgers'
+import { readHeldTrades, readLedgerTrades } from '../ledgers'
 import type { QueryCtx } from '../_generated/server'
 import type { Doc, Id } from '../_generated/dataModel'
 
@@ -412,6 +412,9 @@ export async function investedInputs(
   ctx: QueryCtx,
   ownerId: string,
   dayEnds: ReadonlyArray<number>,
+  /** Every ledger, sold out long ago or not: what the narrow read must
+      equal (worthReads.test). */
+  every = false,
 ) {
   const live = new Set(
     (
@@ -423,15 +426,19 @@ export async function investedInputs(
       .filter((a) => a.retiredAt === undefined)
       .map((a) => a._id),
   )
-  const trades = (await readLedgerTrades(ctx, ownerId)).trades.filter((t) =>
-    live.has(t.accountId),
-  )
   const looks = (
     await ctx.db
       .query('holdings')
       .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
       .take(HOLDING_ROWS)
   ).filter((h) => live.has(h.accountId))
+  /* A position sold out before the first day drawn holds nothing on any
+     of them (10 Nov). */
+  const trades = (
+    every
+      ? await readLedgerTrades(ctx, ownerId)
+      : await readHeldTrades(ctx, ownerId, looks, dayEnds[0] ?? 0)
+  ).trades.filter((t) => live.has(t.accountId))
 
   const slots = new Map<string, Slot>()
   const slot = (accountId: Id<'accounts'>, instrumentId: Id<'instruments'>) => {
@@ -618,7 +625,15 @@ export function pocketMoves(
   return moves
 }
 
-export async function readPositions(ctx: QueryCtx, ownerId: string) {
+export async function readPositions(
+  ctx: QueryCtx,
+  ownerId: string,
+  /** `usd`: what was paid, in dollars — one rate a trade day, read only
+      for the screen that shows it. `sold`: the positions sold out too,
+      which takes every ledger; without it only what can hold shares is
+      read, and `sold` comes back empty (10 Nov). */
+  want: { usd?: boolean; sold?: boolean } = {},
+) {
   /* A deleted account with history is retired, not erased — and what it
      held leaves every total with it (27 Sep: his deleted test accounts
      still counted in the hero). */
@@ -632,15 +647,16 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
       .filter((a) => a.retiredAt === undefined)
       .map((a) => a._id),
   )
-  const ledger = await readLedgerTrades(ctx, ownerId)
-  const trades = ledger.trades.filter((t) => live.has(t.accountId))
-
   const looks = (
     await ctx.db
       .query('holdings')
       .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
       .take(HOLDING_ROWS)
   ).filter((h) => live.has(h.accountId))
+  const ledger = want.sold
+    ? await readLedgerTrades(ctx, ownerId)
+    : await readHeldTrades(ctx, ownerId, looks)
+  const trades = ledger.trades.filter((t) => live.has(t.accountId))
 
   const held = new Map<
     string,
@@ -714,27 +730,6 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
      side by side, one row a day. */
   const usdOn = new Map<number, number | null>()
   const dayOf = (at: number) => Math.floor(at / 86_400_000)
-  const days = new Set<number>()
-  for (const p of held.values()) {
-    for (const t of p.trades) days.add(dayOf(t.occurredAt))
-    for (const o of p.looks)
-      if (o.paidEur !== undefined) days.add(dayOf(o.asOf))
-  }
-  await Promise.all(
-    [...days].map(async (d) => {
-      const r = await ctx.db
-        .query('fxRates')
-        .withIndex('by_owner_currency_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('currency', 'USD')
-            .lte('asOf', (d + 1) * 86_400_000),
-        )
-        .order('desc')
-        .first()
-      usdOn.set(d, r === null ? null : r.rate)
-    }),
-  )
   const inDollars = (p: {
     trades: Array<LedgerTrade>
     looks: Array<Observation>
@@ -762,12 +757,16 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
 
   const rows = []
   const gone = []
+  /* The rows that show a dollar cost, and the positions behind them. */
+  const dollars = []
   let pricesFetchedAt: number | null = null
   for (const p of held.values()) {
     const r = reconcile(p.trades, p.looks)
     const shares = r.shares
     const instrument = instruments.get(p.instrumentId) ?? null
     if (instrument === null || instrument.ownerId !== ownerId) continue
+    /* Sold out is no row here: its price is not read. */
+    if (shares <= 0 && !want.sold) continue
     const price = await ctx.db
       .query('prices')
       .withIndex('by_owner_instrument_time', (q) =>
@@ -813,6 +812,7 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
       continue
     }
     if (price) pricesFetchedAt = Math.max(pricesFetchedAt ?? 0, price.fetchedAt)
+    if (want.usd && r.paid !== null) dollars.push({ at: rows.length, p })
     rows.push({
       accountId: p.accountId,
       instrumentId: p.instrumentId,
@@ -822,7 +822,7 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
       currency: instrument.currency,
       shares,
       paid: r.paid,
-      paidUsd: r.paid === null ? null : inDollars(p),
+      paidUsd: null as number | null,
       status: r.status,
       seenAt: r.seenAt,
       gap: r.gap,
@@ -838,6 +838,30 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
       staked: Math.round(p.staked * 1e6) / 1e6,
     })
   }
+  /* Only the days a row shown was traded or seen (10 Nov): a sold-out
+     position shows no dollar cost, and its 140 days were read anyway. */
+  const days = new Set<number>()
+  for (const { p } of dollars) {
+    for (const t of p.trades) days.add(dayOf(t.occurredAt))
+    for (const o of p.looks)
+      if (o.paidEur !== undefined) days.add(dayOf(o.asOf))
+  }
+  await Promise.all(
+    [...days].map(async (d) => {
+      const r = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('currency', 'USD')
+            .lte('asOf', (d + 1) * 86_400_000),
+        )
+        .order('desc')
+        .first()
+      usdOn.set(d, r === null ? null : r.rate)
+    }),
+  )
+  for (const { at, p } of dollars) rows[at].paidUsd = inDollars(p)
   rows.sort((a, b) => (b.valueEur ?? b.paid ?? 0) - (a.valueEur ?? a.paid ?? 0))
   let cents = 0
   let oldestPriceAsOf: number | null = null
@@ -857,9 +881,11 @@ export async function readPositions(ctx: QueryCtx, ownerId: string) {
   const owned = new Set(rows.map((r) => r.instrumentId))
   return {
     rows,
-    sold: gone
-      .filter((g) => !owned.has(g.instrumentId))
-      .sort((a, b) => b.soldAt - a.soldAt),
+    sold: want.sold
+      ? gone
+          .filter((g) => !owned.has(g.instrumentId))
+          .sort((a, b) => b.soldAt - a.soldAt)
+      : [],
     totalEur: cents / 100,
     oldestPriceAsOf,
     pricesFetchedAt,

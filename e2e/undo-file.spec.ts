@@ -55,8 +55,12 @@ test('the opened file says what goes, one press takes it back, the account is �
   await page.screenshot(shot('undo-file-box-phone'))
   await page.setViewportSize({ width: 1280, height: 720 })
 
+  /* Held offline so "removing…" stays long enough to be seen (nightly
+     e2e, Nov: a fast remove came and went between two looks). */
+  await page.context().setOffline(true)
   await box.getByRole('button', { name: 'remove screenshot' }).click()
   await expect(sheet.getByText('removing…')).toBeVisible()
+  await page.context().setOffline(false)
   await expect(sheet.getByText('Removed.')).toBeVisible()
   await expect(sheet.getByText('ActivoBank is €153.21 again.')).toBeVisible()
   /* Back on the account: the file and its rows are gone. */

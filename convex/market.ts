@@ -155,10 +155,6 @@ export const readOne = internalAction({
   args: { instrumentId: v.id('instruments') },
   returns: v.null(),
   handler: async (ctx, args) => {
-    /* The test backend never asks Yahoo or the rate service: its prices
-       and its rate (0.86) are canned. A live rate landing mid-test moved
-       a total by €1.34, and live closes moved others (nightly e2e, Nov). */
-    if (process.env.E2E === '1') return null
     const inst = await ctx.runQuery(internal.market.instrument, {
       instrumentId: args.instrumentId,
     })
@@ -174,7 +170,11 @@ export const readOne = internalAction({
       fetchedAt,
     })
     const cur = rateCurrency(c.currency)
-    if (cur !== null) {
+    /* The test backend keeps its canned rate (convex/e2e.ts, 0.86): a live
+       one landing mid-test moved Revolut's total by €1.34 (nightly e2e,
+       Nov). The closes are still read: they give a new ticker its
+       currency and its value, which the specs count on. */
+    if (cur !== null && process.env.E2E !== '1') {
       const r = await rate(cur)
       if (r !== null) {
         await ctx.runMutation(internal.market.storeRate, {
@@ -377,7 +377,7 @@ export const readRateFor = internalAction({
   args: { ownerId: v.string(), currency: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    /* The test backend keeps its canned rate, as readOne does. */
+    /* The test backend keeps its canned rate, as in readOne. */
     if (process.env.E2E === '1') return null
     const r = await rate(args.currency)
     if (r === null) return null

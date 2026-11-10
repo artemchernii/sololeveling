@@ -81,7 +81,10 @@ jobs:
 
       - name: Start the test backend once
         id: setup
-        run: pnpm e2e:setup
+        # Once more after a pause: on 8 Nov GitHub answered "File not
+        # found" for the backend binary that is there, and all four
+        # shards stopped in three minutes.
+        run: pnpm e2e:setup || { sleep 30; pnpm e2e:setup; }
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
           CONVEX_VERBOSE: 1
@@ -121,4 +124,7 @@ jobs:
             playwright-report/
             e2e/.results/
             e2e/screens/
+          # e2e/.results holds the traces; v4 leaves out dot-folders
+          # unless told (Nov: a red night came back with no traces).
+          include-hidden-files: true
           retention-days: 7

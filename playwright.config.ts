@@ -43,10 +43,14 @@ export default defineConfig({
   outputDir: 'e2e/.results',
   fullyParallel: false,
   workers: 1,
-  timeout: 60_000,
+  /* On GitHub a page the dev server has not built yet takes 7–10 s to
+     open (the bank's callback, nightly e2e, Nov): twice the wait there,
+     and one retry, which the report names as flaky rather than hiding. */
+  timeout: ci ? 120_000 : 60_000,
+  retries: ci ? 1 : 0,
   /* On GitHub: the report and traces are uploaded when a shard fails. */
   reporter: ci ? [['github'], ['html', { open: 'never' }]] : 'list',
-  expect: { timeout: 15_000 },
+  expect: { timeout: ci ? 30_000 : 15_000 },
   globalSetup: './e2e/global.setup.ts',
   use: {
     baseURL: `http://localhost:${ports.app}`,

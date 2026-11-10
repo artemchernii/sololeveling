@@ -22,7 +22,9 @@ jobs:
   e2e:
     name: e2e ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 60: with the longer waits and one retry a shard ran 44 min 37 s
+    # (manual run, 10 Nov); 45 would cut it off.
+    timeout-minutes: 60
     strategy:
       # A red shard should not hide what the other three found.
       fail-fast: false

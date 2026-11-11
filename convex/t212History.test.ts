@@ -212,6 +212,55 @@ test('the opened account lists the same rows as the card, none typed, and a divi
   )
 })
 
+test('the trades Trading 212 answers reach the ledgers, so positions count them', async () => {
+  const { t, accountId, later, rows } = await connected()
+  /* Ledgers are there already, as on his account: a first write would
+     build every one of them whatever it was told. */
+  const other = await revolut(t)
+  await t.run(async (ctx) => {
+    const inst = await ctx.db.query('instruments').first()
+    if (inst === null) throw new Error('no instrument')
+    await ctx.db.insert('ledgers', {
+      ownerId: ME,
+      accountId: other,
+      instrumentId: inst._id,
+      part: 0,
+      at: [],
+      shares: [],
+      priceEur: [],
+      flags: [],
+    })
+  })
+  await later('traded')
+  const { trades } = await rows()
+  const ledgers = await t.run(async (ctx) =>
+    ctx.db
+      .query('ledgers')
+      .withIndex('by_owner_account_instrument_part', (q) =>
+        q.eq('ownerId', ME).eq('accountId', accountId),
+      )
+      .collect(),
+  )
+  const inLedgers = (id: Id<'instruments'>) =>
+    ledgers
+      .filter((l) => l.instrumentId === id)
+      .flatMap((l) => l.at)
+      .sort()
+  const instruments = [
+    ...new Set(
+      trades.filter((x) => x.ref !== undefined).map((x) => x.instrumentId),
+    ),
+  ]
+  expect(instruments.length).toBeGreaterThan(1)
+  for (const id of instruments)
+    expect(inLedgers(id)).toEqual(
+      trades
+        .filter((x) => x.instrumentId === id)
+        .map((x) => x.occurredAt)
+        .sort(),
+    )
+})
+
 test('a history call that fails writes nothing at all', async () => {
   const { me, args, rows } = await connected()
   const before = await rows()

@@ -2,7 +2,8 @@ import { v } from 'convex/values'
 
 import { internalMutation } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
+import { reconcile } from '../src/lib/holdings'
 
 /* A position's trades, kept compact for the screens that read them all
    (18 Oct, "keep in mind spending"): positions, worth, worthPast and the
@@ -80,6 +81,11 @@ export async function syncLedgers(
       )
       .take(SLOT_TRADES / LEDGER_PART + 1)
     const parts = Math.ceil(trades.length / LEDGER_PART)
+    /* Sold out as the screens count it: the same sum, in the same order. */
+    const soldAt =
+      trades.length > 0 && reconcile(trades, []).shares <= 0
+        ? trades[trades.length - 1].occurredAt
+        : undefined
     for (let part = 0; part < parts; part++) {
       const rows = trades.slice(part * LEDGER_PART, (part + 1) * LEDGER_PART)
       const next = {
@@ -92,14 +98,21 @@ export async function syncLedgers(
       }
       const old = had.find((l) => l.part === part)
       if (old === undefined)
-        await ctx.db.insert('ledgers', { ownerId, ...s, part, ...next })
+        await ctx.db.insert('ledgers', {
+          ownerId,
+          ...s,
+          part,
+          ...next,
+          ...(soldAt !== undefined ? { soldAt } : {}),
+        })
       else if (
+        old.soldAt !== soldAt ||
         !same(old.at, next.at) ||
         !same(old.shares, next.shares) ||
         !same(old.priceEur, next.priceEur) ||
         !same(old.flags, next.flags)
       )
-        await ctx.db.patch(old._id, next)
+        await ctx.db.patch(old._id, { ...next, soldAt })
     }
     for (const l of had) if (l.part >= parts) await ctx.db.delete(l._id)
   }
@@ -144,6 +157,14 @@ export async function readLedgerTrades(
       .take(TRADE_ROWS)
     return { trades, complete: trades.length < TRADE_ROWS }
   }
+  const trades = rowsOf(ledgers)
+  return {
+    trades,
+    complete: trades.length < TRADE_ROWS && ledgers.length < LEDGER_DOCS,
+  }
+}
+
+function rowsOf(ledgers: ReadonlyArray<Doc<'ledgers'>>) {
   const trades: Array<LedgerRow> = []
   for (const l of ledgers)
     for (let i = 0; i < l.at.length; i++)
@@ -158,11 +179,88 @@ export async function readLedgerTrades(
       })
   /* Stable: one position's rows keep their own order on a shared time. */
   trades.sort((a, b) => a.occurredAt - b.occurredAt)
+  return trades
+}
+
+/**
+ * The trades of the positions that can hold shares (10 Nov): every ledger
+ * not sold out, every one a holdings screen ever saw (`seen` — a screen
+ * can say shares are held where the trades say none), and, for a chart,
+ * the ones sold out at or after `soldSince`. A position left out has no
+ * screen and trades that sum to no shares from its last trade on, so it
+ * is no row and no point — the same answer, without its bytes.
+ *
+ * A ledger not yet marked reads as not sold out: more is read, never less.
+ */
+export async function readHeldTrades(
+  ctx: QueryCtx,
+  ownerId: string,
+  seen: Iterable<Slot>,
+  soldSince?: number,
+): Promise<{ trades: Array<LedgerRow>; complete: boolean }> {
+  const held = await ctx.db
+    .query('ledgers')
+    .withIndex('by_owner_soldAt', (q) =>
+      q.eq('ownerId', ownerId).eq('soldAt', undefined),
+    )
+    .take(LEDGER_DOCS)
+  const sold =
+    soldSince === undefined
+      ? []
+      : await ctx.db
+          .query('ledgers')
+          .withIndex('by_owner_soldAt', (q) =>
+            q.eq('ownerId', ownerId).gte('soldAt', soldSince),
+          )
+          .take(LEDGER_DOCS)
+  const docs = new Map([...held, ...sold].map((l) => [l._id, l]))
+  if (docs.size === 0) {
+    const any = await ctx.db
+      .query('ledgers')
+      .withIndex('by_owner_account_instrument_part', (q) =>
+        q.eq('ownerId', ownerId),
+      )
+      .first()
+    /* No ledger yet: the trades themselves, as readLedgerTrades. */
+    if (any === null) return await readLedgerTrades(ctx, ownerId)
+  }
+  const have = new Set(
+    [...docs.values()].map((l) => `${l.accountId}:${l.instrumentId}`),
+  )
+  const more = new Map<string, Slot>()
+  for (const s of seen) {
+    const key = `${s.accountId}:${s.instrumentId}`
+    if (!have.has(key)) more.set(key, s)
+  }
+  for (const part of await Promise.all(
+    [...more.values()].map((s) =>
+      ctx.db
+        .query('ledgers')
+        .withIndex('by_owner_account_instrument_part', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('accountId', s.accountId)
+            .eq('instrumentId', s.instrumentId),
+        )
+        .take(SLOT_TRADES / LEDGER_PART + 1),
+    ),
+  ))
+    for (const l of part) docs.set(l._id, l)
+  /* In the order readLedgerTrades reads them: position, then part. */
+  const ledgers = [...docs.values()].sort(
+    (a, b) =>
+      cmp(a.accountId, b.accountId) ||
+      cmp(a.instrumentId, b.instrumentId) ||
+      a.part - b.part,
+  )
+  const trades = rowsOf(ledgers)
   return {
     trades,
     complete: trades.length < TRADE_ROWS && ledgers.length < LEDGER_DOCS,
   }
 }
+
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 /** Every ledger of one owner rebuilt from its trades, and a ledger
     whose position has none left taken away. */

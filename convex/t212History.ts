@@ -5,6 +5,7 @@ import { heldAs, tickerOf } from '../src/lib/t212'
 import { historyFrom } from '../src/lib/t212History'
 import type { T212Event } from '../src/lib/t212History'
 import { upsertInstrument } from './invest'
+import { syncLedgers } from './ledgers'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 
@@ -190,6 +191,10 @@ export async function writeHistory(
     ...logs.map((l) => l.meta?.ref),
   ])
   const used = new Set<string>()
+  /* The positions that got a trade here: their ledgers follow, as after
+     every other trade write. Left out until 11 Nov, so these positions
+     were read from their holdings screen alone. */
+  const touched = new Set<Id<'instruments'>>()
 
   const instrumentOf = async (e: {
     ticker: string
@@ -234,6 +239,7 @@ export async function writeHistory(
         out.had++
         continue
       }
+      touched.add(instrumentId)
       out.trades.push(
         await ctx.db.insert('trades', {
           ownerId,
@@ -297,6 +303,14 @@ export async function writeHistory(
       }),
     )
   }
+  await syncLedgers(
+    ctx,
+    ownerId,
+    [...touched].map((instrumentId) => ({
+      accountId: account._id,
+      instrumentId,
+    })),
+  )
   return { ...out, newest }
 }
 

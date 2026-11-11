@@ -10,9 +10,10 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
    design/today-mockup/week.html). The browser's clock is fixed to a
    Wednesday 15:30 so the cells that are past, now and future are the same
    on any day the test runs — the latest one already past, so the days are
-   real ones. The page loads on the real clock and is moved after: a page
-   loaded on a clock behind the session's came back signed out on GitHub
-   (fixed to 14 Oct it broke from 5 Nov; six days behind still did). */
+   real ones. The clock is installed only once the page is loaded and
+   signed in, and Today opens from the sidebar: a page loaded with the
+   clock installed came back signed out on GitHub — fixed to 14 Oct from
+   5 Nov, six days behind, and even installed at the real time. */
 const NOW = (() => {
   const d = new Date()
   d.setDate(d.getDate() - ((d.getDay() + 4) % 7))
@@ -36,10 +37,9 @@ async function open(page: Page, seed = true) {
   await start(page)
   if (seed)
     await testClient().mutation(anyApi.e2e.todayWeek, { weekStart: MONDAY })
-  await page.clock.install()
   await page.goto('/finances')
   await expect(page.getByRole('link', { name: 'Today' })).toBeVisible()
-  await page.clock.setSystemTime(NOW)
+  await page.clock.install({ time: NOW })
   await page.getByRole('link', { name: 'Today' }).click()
   const week = page.getByRole('region', { name: 'This week' })
   await expect(week.getByTestId('week-grid')).toBeVisible()

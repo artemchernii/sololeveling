@@ -261,6 +261,7 @@ export async function writeTransactions(
           amount: r.amount,
           at: r.occurredAt,
         })),
+      intake.balance.unbooked,
     )
     /* The account's other currencies (5 Oct: "When I upload csv it means
        usd should be updated as well"). Revolut exports one currency a

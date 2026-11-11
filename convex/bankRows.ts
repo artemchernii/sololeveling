@@ -1,18 +1,25 @@
 import { ConvexError, v } from 'convex/values'
 
 import { balanceIsBooked, pickBalance } from '../src/lib/bankLink'
-import { PENDING_LOOKBACK_MS, askFrom, rowsSince } from '../src/lib/bankRows'
+import {
+  PENDING_LOOKBACK_MS,
+  askFrom,
+  bankRow,
+  notBooked,
+  rowsSince,
+} from '../src/lib/bankRows'
 import { balanceKey, writeBalance } from './accounts'
 import { requireUser } from './auth'
 import { bankApi, isRefused } from './bankApi'
 import { gatherBatch } from './files/batch'
 import { startApply } from './intake'
 import { balanceIsNews } from './rowBalance'
+import { maybeUnbooked } from './unbooked'
 import { internal } from './_generated/api'
 import { internalMutation } from './_generated/server'
 import { action, mutation } from './write'
 import type { ActionCtx, QueryCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 
 /* A connected bank, slice 2 (11 Oct, docs/specs/2026-10-11-bank-connections.md):
    the bank's booked rows and its balance, through the same check a file
@@ -157,6 +164,7 @@ export const begin = internalMutation({
                   args.ownerId,
                   balanceKey(args.accountId, u.currency),
                   Date.now(),
+                  true,
                 ),
               ),
       })
@@ -172,6 +180,9 @@ async function wasPending(
   ownerId: string,
   key: string,
   now: number,
+  /** With the saved rows a booked balance had not taken off: the bank is
+      asked from their day too, to see them booked. */
+  unbooked = false,
 ): Promise<Array<{ amount: number; at: number }>> {
   const snaps = await ctx.db
     .query('stateSnapshots')
@@ -182,7 +193,10 @@ async function wasPending(
         .gte('recordedAt', now - PENDING_LOOKBACK_MS),
     )
     .take(100)
-  return snaps.flatMap((x) => x.pendingRows ?? [])
+  return snaps.flatMap((x) => [
+    ...(x.pendingRows ?? []),
+    ...(unbooked ? (x.unbooked ?? []) : []),
+  ])
 }
 
 /** The bank did not answer: the check is over and nothing was written.
@@ -250,11 +264,6 @@ export const arrive = internalMutation({
     for (const r of args.readings) {
       /* A file's balance is of the end of its day, written six hours on;
          the bank's is of this moment. */
-      const balance = {
-        currency: r.currency,
-        value: r.value,
-        asOf: at - 6 * HOUR,
-      }
       const held = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
@@ -264,6 +273,30 @@ export const arrive = internalMutation({
         )
         .order('desc')
         .first()
+      /* A booked balance still has in it a transfer the other bank's
+         answer already saved here: stored less it (convex/unbooked.ts). */
+      const unbooked =
+        !r.booked || held?.value === undefined
+          ? undefined
+          : notBooked(
+              await maybeUnbooked(ctx, ownerId, account._id, r.currency, held),
+              r.rows.flatMap((x) => {
+                const b = bankRow(x, at)
+                return b === null || b.pending || b.currency !== r.currency
+                  ? []
+                  : [b]
+              }),
+              at,
+            )
+      const kept = r.booked ? (unbooked ?? []) : undefined
+      const off = (kept ?? []).reduce((t, u) => t + u.amount, 0)
+      const balance: NonNullable<Doc<'intakes'>['balance']> = {
+        currency: r.currency,
+        value: Math.round((r.value + off) * 100) / 100,
+        asOf: at - 6 * HOUR,
+        ...(kept === undefined ? {} : { unbooked: kept }),
+        ...(off !== 0 ? { bank: r.value } : {}),
+      }
       const rows =
         held?.value === undefined
           ? []
@@ -331,7 +364,7 @@ export const arrive = internalMutation({
           ownerId,
           account,
           r.currency,
-          r.value,
+          balance.value,
           args.dayStart,
           at,
           'sync',
@@ -345,6 +378,7 @@ export const arrive = internalMutation({
               amount: x.amount,
               at: x.occurredAt,
             })),
+          balance.unbooked,
         )
     }
     await ctx.db.patch(link._id, {

@@ -284,6 +284,9 @@ export async function writeBalance(
   intakeId?: Id<'intakes'>,
   /** The pending rows by name. */
   pendingRows: Array<{ merchant: string; amount: number; at: number }> = [],
+  /** A bank's booked reading: the saved rows `value` has off that the
+      bank had not booked (schema, stateSnapshots.unbooked). */
+  unbooked?: Array<{ merchant: string; amount: number; at: number }>,
 ) {
   if (pocket === 'broker' && (currency !== 'EUR' || !hasBrokerCash(account))) {
     throw new ConvexError(`${account.name} has no broker cash.`)
@@ -327,6 +330,7 @@ export async function writeBalance(
     ...(pendingRows.length > 0
       ? { pendingRows: pendingRows.slice(0, 50) }
       : {}),
+    ...(unbooked !== undefined ? { unbooked: unbooked.slice(0, 50) } : {}),
   })
 }
 

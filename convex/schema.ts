@@ -767,6 +767,15 @@ export default defineSchema({
         v.object({ merchant: v.string(), amount: v.number(), at: v.number() }),
       ),
     ),
+    /* A bank's booked balance only (11 Nov): the saved rows it had not
+       taken off yet — the other bank's side of a transfer, saved before
+       this bank booked it. `value` has them off already. Present, even
+       empty, on every booked reading of a bank. */
+    unbooked: v.optional(
+      v.array(
+        v.object({ merchant: v.string(), amount: v.number(), at: v.number() }),
+      ),
+    ),
     /* Where a balance came from (27 Sep): the card says "statement read
        today · balance of Aug 31", not "26d". Absent on older rows. */
     source: v.optional(
@@ -1330,6 +1339,18 @@ export default defineSchema({
         currency: v.string(),
         value: v.number(),
         asOf: v.number(),
+        /* The bank's own number, when `value` is less the saved rows it
+           had not booked (stateSnapshots.unbooked), and those rows. */
+        bank: v.optional(v.number()),
+        unbooked: v.optional(
+          v.array(
+            v.object({
+              merchant: v.string(),
+              amount: v.number(),
+              at: v.number(),
+            }),
+          ),
+        ),
       }),
     ),
     cashEur: v.optional(v.number()),

@@ -111,3 +111,40 @@ export function askFrom(
 ): string {
   return dateFrom(Math.min(heldAt, ...wasPending.map((p) => p.at)))
 }
+
+/** A saved row the bank's booked balance has not taken off yet. */
+export type Unbooked = { merchant: string; amount: number; at: number }
+
+/** How far from its day the bank may book a row the app already has. */
+const BOOKS_WITHIN_MS = 4 * DAY_MS
+
+/** Of the rows the app saved from the other bank's side of a transfer,
+    those this bank has not booked: none of its booked rows is the same
+    amount within four days, each booked row standing for one. Its booked
+    balance still has that money in (11 Nov: €300 sent to Revolut on the
+    6th, Revolut's answer saved both sides on the 8th, ActivoBank's
+    balance that day still €300 more — asked as "€300 came in"). One
+    older than the lookback is taken as booked. */
+export function notBooked(
+  saved: ReadonlyArray<Unbooked>,
+  booked: ReadonlyArray<{ amount: number; occurredAt: number }>,
+  now: number,
+): Array<Unbooked> {
+  const used = new Set<number>()
+  const seen = new Set<string>()
+  const out: Array<Unbooked> = []
+  for (const s of [...saved].sort((a, b) => a.at - b.at)) {
+    const key = `${Math.round(s.amount * 100)}:${s.at}`
+    if (seen.has(key) || s.at < now - PENDING_LOOKBACK_MS) continue
+    seen.add(key)
+    const k = booked.findIndex(
+      (r, i) =>
+        !used.has(i) &&
+        Math.abs(r.amount - s.amount) < 0.005 &&
+        Math.abs(r.occurredAt - s.at) <= BOOKS_WITHIN_MS,
+    )
+    if (k >= 0) used.add(k)
+    else out.push(s)
+  }
+  return out
+}

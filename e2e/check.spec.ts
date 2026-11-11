@@ -90,7 +90,13 @@ test('no row explains it: save with the screenshot’s balance, or skip the acco
   page,
 }) => {
   const sheet = await review(page, 'missing')
-  await expect(sheet.getByText(/went out with no row\./)).toBeVisible()
+  await expect(sheet.locator('[data-no-row]')).toContainText('no row · €12')
+  await expect(sheet.locator('[data-no-row]')).toContainText(
+    'in the screenshot · €78.35',
+  )
+  await expect(sheet.locator('[data-no-row]')).toContainText(
+    'in the rows · €90.35',
+  )
   await expect(apply(sheet)).toBeDisabled()
   await page.waitForTimeout(700)
   await page.screenshot(shot('check-no-row'))

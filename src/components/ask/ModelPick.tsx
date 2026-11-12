@@ -7,13 +7,14 @@ import type { LocalModel } from '@/lib/marketRead'
 
 /* The model on localhost (22 Oct, mockup design/model-pick/ option B, his
    "go with B"): the PRO badge is the button and opens its own menu of the
-   three. One pick for ⌘J, Insights ASK and the read; it applies to the
+   four (Fable 5.2 since 12 Nov). One pick for ⌘J, Insights ASK and the read; it applies to the
    next press. Only on the Pro path — the API path has no pick. */
 
 const BADGE: Record<LocalModel, [string, string]> = {
   'claude-haiku-5-5': ['good', '⚡ FAST'],
   'claude-sonnet-5-5': ['lav', 'DEFAULT'],
   'claude-opus-5-5': ['warn', '🔋 HEAVY'],
+  'claude-fable-5-2': ['bad', '✦ TOP'],
 }
 
 export function ModelPick({ label = 'PRO' }: { label?: string }) {

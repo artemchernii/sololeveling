@@ -14,11 +14,12 @@
 }
 /* The read's hero is a tile, and tiles hide what spills: with four models
    (Fable 5.2, 12 Nov) the menu ran past its foot and the last line was
-   cut. The hero lets it out, and sits above the tabs while it is open. */
+   cut. The hero lets it out, and sits above the tabs while it is open —
+   the tabs bar sticks at z-index 19 (.ins-tabs), so 20. */
 .ins-hero {
   overflow: visible;
   &:has(.model-pick > [aria-expanded='true']) {
-    z-index: 10;
+    z-index: 20;
   }
 }
 .model-menu {

@@ -83,6 +83,7 @@ export function BulkReview({
   const asks = review.asks.filter(
     (a) => !solved.some((s) => s.key === askKey(a)),
   )
+  const open = asks.length + notSaved.length
   const range =
     months.length > 0
       ? `${MONTH_YEAR.format(monthDate(months[0]))} – ${MONTH_YEAR.format(monthDate(months[months.length - 1]))}`
@@ -275,11 +276,10 @@ export function BulkReview({
             `Everything in ${review.files === 1 ? 'this file' : 'these files'} is already in. There is nothing to save.`
           ) : (
             [
-              notSaved.length > 0
-                ? `${notSaved.join(', ')} not saved — ${notSaved.length === 1 ? '1 question' : `${notSaved.length} questions`} open.`
-                : null,
-              asks.length > 0
-                ? `${asks.length === 1 ? '1 question' : `${asks.length} questions`} open.`
+              /* One count, the same as the head's (12 Nov: "1 question
+                 open. 1 question open."). */
+              open > 0
+                ? `${notSaved.length > 0 ? `${notSaved.join(', ')} not saved — ` : ''}${open === 1 ? '1 question' : `${open} questions`} open.`
                 : null,
               waitingNew.length > 0
                 ? `${waitingNew.map((a) => a.product?.name).join(', ')} not saved — account not added.`

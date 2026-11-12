@@ -53,7 +53,7 @@ test('one row too many: not saved until answered; "same payment" adds it once', 
   await expect(sheet.getByText('screenshot shows €90.35')).toBeVisible()
   await expect(sheet.getByText('Top-up by *2789')).toBeVisible()
   await expect(
-    sheet.getByText(/ActivoBank not saved — 1 question open/),
+    sheet.getByText(/ActivoBank not saved — 2 questions open/),
   ).toBeVisible()
   await expect(apply(sheet)).toBeDisabled()
   await page.waitForTimeout(700)

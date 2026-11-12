@@ -50,14 +50,20 @@ export async function countedRows(
 /** The saved rows of a held balance's own day, at or before it: one it
     had not seen counts when it is exactly what is missing (20 Oct, BPI's
     €422 to ActivoBank from a screenshot, the bank's 15:01 answer without
-    it). Negative ids, apart from a file's row indexes. */
+    it). And the rows a file wrote just after it, which `movedSince`
+    leaves out of `was` as before it (12 Nov: BPI's answer saved this
+    bank's +€105 at noon, the held balance was from 00:57 — the check
+    asked about €4 with no row). Negative ids, apart from a file's row
+    indexes. */
 async function heldDayRows(
   ctx: QueryCtx,
   ownerId: string,
   accountId: Doc<'accounts'>['_id'],
   currency: string,
   heldAt: number,
+  until: number | undefined,
 ): Promise<Array<CheckRow & { saved: true }>> {
+  const grace = Math.min(heldAt + HISTORY_GRACE_MS, until ?? Infinity)
   const day = new Date(heldAt)
   day.setUTCHours(0, 0, 0, 0)
   const logs = await ctx.db
@@ -67,13 +73,15 @@ async function heldDayRows(
         .eq('ownerId', ownerId)
         .eq('accountId', accountId)
         .gte('occurredAt', day.getTime())
-        .lte('occurredAt', heldAt),
+        .lte('occurredAt', Math.max(heldAt, grace)),
     )
     .take(50)
   const unit = currency.toLowerCase()
   return logs.flatMap((l, i) => {
     if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
       return []
+    /* After the balance, only what `movedSince` skipped: a file's row. */
+    if (l.occurredAt > heldAt && l.meta?.intakeId === undefined) return []
     const signed =
       l.kind === 'expense'
         ? -l.value
@@ -107,6 +115,7 @@ async function checkFrom(
   wasCents: number,
   rows: ReadonlyArray<CheckRow>,
   printedCents: number | null,
+  until: number | undefined,
 ) {
   const since = last.recordedAt + HISTORY_GRACE_MS
   const dayBefore = last.recordedAt - 18 * 3_600_000
@@ -124,7 +133,14 @@ async function checkFrom(
   const first = ask([])
   if (first.state === 'ok' || first.state === 'bare') return first
   return ask(
-    await heldDayRows(ctx, ownerId, account._id, currency, last.recordedAt),
+    await heldDayRows(
+      ctx,
+      ownerId,
+      account._id,
+      currency,
+      last.recordedAt,
+      until,
+    ),
   )
 }
 
@@ -195,6 +211,7 @@ export async function landedCheck(
     was,
     fresh,
     balance ? cents(balance.value) : null,
+    at,
   )
   const pending = fresh
     .filter((r) => sum.pending.includes(r.index))
@@ -347,6 +364,7 @@ export async function accountCheck(
     cents(last.value) + moved.cents,
     checkRows,
     printed ? cents(printed.value) - pendingMove : null,
+    at,
   )
   const line = ({ key, merchant, amount }: SumRow) => ({
     key,

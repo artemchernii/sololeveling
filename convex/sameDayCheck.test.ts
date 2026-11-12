@@ -55,6 +55,16 @@ async function setup() {
       status: 'done',
       kind: 'transactions',
       via: 'bank',
+      /* Its own answer of 11 Nov: €520.93 before the −€5.98. */
+      landed: {
+        currency: 'EUR',
+        was: 520.93,
+        wasAt: at(10, 18, 47),
+        since: at(11, 6, 47),
+        had: 1,
+        printed: true,
+        gap: 0,
+      },
     })
     await ctx.db.insert('logs', {
       ownerId: ME,
@@ -147,7 +157,7 @@ async function setup() {
       ],
       balance: { currency: 'EUR', value: 518.95, asOf: at(12, 11, 37) },
     })
-    return { accountId, batchId, intakeId }
+    return { accountId, batchId, intakeId, earlier }
   })
   const block = async () => {
     const r = await me.query(api.intake.batchReview, { batchId: ids.batchId })
@@ -196,5 +206,35 @@ describe('his ActivoBank on 12 Nov: a transfer in the other bank saved the same 
         .map((l) => (l.kind === 'expense' ? -(l.value ?? 0) : l.value)),
     )
     expect(rows.sort()).toEqual([-101, -5.98, 105].sort())
+  })
+
+  test('the card of what arrived adds up: the other bank’s +€105 is in IN', async () => {
+    const { t, me, accountId, batchId, intakeId, earlier } = await setup()
+    await me.mutation(api.intake.batchAnswer, {
+      batchId,
+      answer: { kind: 'move', intakeId, index: 1, otherAccountId: null },
+    })
+    await me.mutation(api.intake.applyBatch, { batchId, dayStart: at(12, 0) })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    await t.run((ctx) =>
+      ctx.db.insert('bankLinks', {
+        ownerId: ME,
+        accountId,
+        status: 'linked',
+        startedAt: at(1, 9),
+        arrived: [earlier, intakeId],
+      }),
+    )
+    const link = (await me.query(api.bank.links, {})).find(
+      (l) => l.accountId === accountId,
+    )
+    /* 520.93 − 106.98 + 105 = 518.95. */
+    expect(link?.arrived).toMatchObject({
+      rows: 2,
+      was: 520.93,
+      out: 106.98,
+      in: 105,
+      now: 518.95,
+    })
   })
 })

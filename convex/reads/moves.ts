@@ -1,4 +1,5 @@
 import { balanceKey, brokerCashKey, hasBrokerCash } from '../accounts'
+import { rowsSumming } from '../../src/lib/balanceRule'
 import { HISTORY_GRACE_MS } from '../../src/lib/cashHistory'
 import type { QueryCtx } from '../_generated/server'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -166,6 +167,47 @@ export async function arrivedFromBank(
     .order('desc')
     .first()
   if (now?.value === undefined) return null
+  /* What these rows do not make of `now`: rows another door wrote in
+     between — the other bank's side of a transfer (12 Nov, BPI's +€105
+     in ActivoBank: 520.93 − 106.98 was shown as 518.95). The saved rows
+     since `was` that are exactly it join out and in; `rows` stays the
+     bank's own. Read only when the four do not add up. */
+  const rest =
+    Math.round(now.value * 100) -
+    Math.round(first.was * 100) -
+    inCents +
+    outCents
+  if (rest !== 0) {
+    const own = new Set<string>(intakeIds)
+    const unit = currency.toLowerCase()
+    const others = (
+      await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('accountId', accountId)
+            .gte('occurredAt', first.wasAt - 18 * 3_600_000),
+        )
+        .take(100)
+    ).flatMap((l) => {
+      if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
+        return []
+      if (l.meta?.intakeId !== undefined && own.has(l.meta.intakeId)) return []
+      const signed =
+        l.kind === 'expense'
+          ? -l.value
+          : l.kind === 'income' || l.kind === 'move'
+            ? l.value
+            : 0
+      return signed === 0
+        ? []
+        : [{ at: l.occurredAt, cents: Math.round(signed * 100) }]
+    })
+    for (const r of rowsSumming(rest, others) ?? [])
+      if (r.cents < 0) outCents -= r.cents
+      else inCents += r.cents
+  }
   return {
     rows,
     currency,

@@ -32,11 +32,13 @@ const HAIKU = { input: 0.1, output: 0.5, longInput: 0.5, longOutput: 2.5 }
 const HAIKU_LONG = 100_000
 /** On localhost Claude Code answers with the one he picks (22 Oct, his
     "locally I want to be able to change models"); the dev server's route
-    refuses any other id. */
+    refuses any other id. Fable 5.2 joined on 12 Nov ("we have access to
+    fable 5.2 till 17th of Nov. Lets try it"). */
 export const LOCAL_MODELS = [
   'claude-haiku-5-5',
   'claude-sonnet-5-5',
   'claude-opus-5-5',
+  'claude-fable-5-2',
 ] as const
 export type LocalModel = (typeof LOCAL_MODELS)[number]
 export const isLocalModel = (m: unknown): m is LocalModel =>

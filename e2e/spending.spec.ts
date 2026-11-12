@@ -26,8 +26,12 @@ test('Spending: a row moved to another group — saving, done, moved', async ({
     .getByRole('button', { name: 'Eating out', exact: true })
     .first()
     .click()
+  /* Held offline so "saving" stays long enough to be seen: a fast save
+     came and went between two looks (nightly e2e, Nov). */
+  await page.context().setOffline(true)
   await page.getByRole('button', { name: 'Groceries', exact: true }).click()
   await expect(page.getByText('saving').first()).toBeVisible()
+  await page.context().setOffline(false)
   await expect(page.getByText(/moved to Groceries/)).toBeVisible()
   await expect(page.getByText('saving')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Groceries/ })).toBeVisible()

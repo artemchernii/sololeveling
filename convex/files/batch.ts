@@ -466,6 +466,7 @@ export async function gatherBatch(
     const transfers: Array<Transfer> = []
     const sumRows: Array<Parameters<typeof accountCheck>[4][number]> = []
     const skippedRows: Array<Parameters<typeof accountCheck>[5][number]> = []
+    const orders: Array<NonNullable<Doc<'intakes'>['trades']>[number]> = []
     for (const i of g.list) {
       /* A broker screen's total is not a bank balance (3 Oct: Trading
          212's two screens drew "€15,008.26 → €2,014.04"). */
@@ -474,6 +475,7 @@ export async function gatherBatch(
         if (!printed || i.balance.asOf > printed.asOf) printed = i.balance
       }
       trades += (i.trades?.length ?? 0) + (i.historyTrades ?? 0)
+      if (i.kind === 'transactions') orders.push(...(i.trades ?? []))
       for (const t of i.trades ?? []) adds.push(t.occurredAt)
       const r = reviews.get(i._id)
       if (!r) continue
@@ -656,6 +658,7 @@ export async function gatherBatch(
                   .filter((p) => !printed || p.currency === printed.currency)
                   .reduce((t, p) => t + Math.round(p.amount * 100), 0)
               : null,
+            orders,
           )
         : null
     const known =

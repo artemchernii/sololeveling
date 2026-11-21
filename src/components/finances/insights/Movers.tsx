@@ -7,6 +7,8 @@ import { Info, changeWord, clock, dayWord } from './parts'
 import { api } from '../../../../convex/_generated/api'
 import type { MoversAnswer } from '../../../../convex/marketSources/movers'
 import { TickerLogo } from '@/components/finances/Logo'
+import { WatchStar } from '@/components/finances/WatchStar'
+import { useStar } from '@/components/finances/useWatch'
 import { MOVER_REGIONS, REGION_FLAG, closeWord } from '@/lib/movers'
 import type { MoverRegion } from '@/lib/movers'
 
@@ -54,6 +56,7 @@ export function useAllMovers(): MoversShown {
 
 export function Movers({ all }: { all: MoversShown }) {
   const [region, setRegion] = useState<MoverRegion>('US')
+  const star = useStar()
   const shown = all.get(region) ?? null
   const answer = shown === 'failed' ? null : shown
   const reached = answer?.reached === true
@@ -163,6 +166,10 @@ export function Movers({ all }: { all: MoversShown }) {
                     >
                       {changeWord(m.change)}
                     </span>
+                    <WatchStar
+                      thing={{ symbol: m.symbol, name: m.name }}
+                      star={star}
+                    />
                   </div>
                 ))
               )}

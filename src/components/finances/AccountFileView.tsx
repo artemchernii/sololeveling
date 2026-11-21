@@ -49,6 +49,7 @@ export function FileView({
           domain={domain}
           at={f.readAt}
           saved={landed}
+          had={f.rows.filter((r) => !r.landed && !r.pending).length}
           pending={f.rows.filter((r) => r.pending).length}
         />
       ) : (
@@ -164,11 +165,13 @@ export function FileView({
               </span>
             ) : (
               <span className="font-mono text-[10px] tracking-[0.1em] text-ink-500 uppercase">
-                {r.landed ? '' : 'left out'}
+                {/* A bank sends rows again; one the account has is not saved
+                    twice (31 Oct: "what is left out?"). */}
+                {r.landed ? '' : f.bank ? 'already added' : 'left out'}
               </span>
             )}
             <span
-              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? 'text-foreground' : r.pending ? 'text-ink-400' : 'text-ink-500 line-through'}`}
+              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? 'text-foreground' : r.pending ? 'text-ink-400' : f.bank ? 'text-ink-500' : 'text-ink-500 line-through'}`}
             >
               <Veiled>{fmt(r.amount, r.currency, true)}</Veiled>
             </span>
@@ -203,12 +206,15 @@ function SyncedHead({
   domain,
   at,
   saved,
+  had,
   pending,
 }: {
   title: string
   domain?: string
   at: number
   saved: number
+  /** Rows the bank sent again that the account already had. */
+  had: number
   pending: number
 }) {
   const time = new Date(at).toLocaleTimeString('en-GB', {
@@ -232,6 +238,11 @@ function SyncedHead({
             <i className="size-1.5 rounded-full bg-current" />
             {saved} saved
           </span>
+          {had > 0 ? (
+            <span className={`${BADGE} bg-lift/[0.05] text-ink-400`}>
+              {had} already added
+            </span>
+          ) : null}
           {pending > 0 ? (
             <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
               <i className="size-1.5 animate-pulse rounded-full bg-current" />

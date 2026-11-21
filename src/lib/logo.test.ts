@@ -16,14 +16,14 @@ describe('logoSrc', () => {
         type: 'ETF',
         name: 'Vanguard S&P 500 UCITS ETF',
       }),
-    ).toContain('domain=vanguard.com')
+    ).toContain('vanguard.com')
     expect(
       logoSrc({
         symbol: 'SHLD.L',
         type: 'ETF',
         name: 'iShares Digital Security UCITS ETF',
       }),
-    ).toContain('domain=ishares.com')
+    ).toContain('ishares.com')
     expect(logoSrc({ symbol: 'XYZ.DE', type: 'ETF', name: 'Some Fund' })).toBe(
       null,
     )

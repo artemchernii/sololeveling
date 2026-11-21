@@ -9,16 +9,38 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 /* Today's THIS WEEK (docs/specs/2026-10-18-today-week.md, mockup
    design/today-mockup/week.html). The browser's clock is fixed to a
    Wednesday 15:30 so the cells that are past, now and future are the same
-   on any day the test runs. */
-const NOW = new Date(2026, 9, 14, 15, 30)
-const MONDAY = new Date(2026, 9, 12).getTime()
+   on any day the test runs — the latest one already past, so the days are
+   real ones. The clock is installed only once the page is loaded and
+   signed in, and Today opens from the sidebar: a page loaded with the
+   clock installed came back signed out on GitHub — fixed to 14 Oct from
+   5 Nov, six days behind, and even installed at the real time. */
+const NOW = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() - ((d.getDay() + 4) % 7))
+  d.setHours(15, 30, 0, 0)
+  if (d.getTime() > Date.now()) d.setDate(d.getDate() - 7)
+  return d
+})()
+const MONDAY = new Date(
+  NOW.getFullYear(),
+  NOW.getMonth(),
+  NOW.getDate() - 2,
+).getTime()
+/** "MON 12" for the week's first three days (0 Monday … 2 Wednesday). */
+const day = (n: 0 | 1 | 2) =>
+  `${['MON', 'TUE', 'WED'][n]} ${new Date(MONDAY + n * 86_400_000 + 3_600_000).getDate()}`
+const MON = day(0)
+const TUE = day(1)
+const WED = day(2)
 
 async function open(page: Page, seed = true) {
   await start(page)
   if (seed)
     await testClient().mutation(anyApi.e2e.todayWeek, { weekStart: MONDAY })
+  await page.goto('/finances')
+  await expect(page.getByRole('link', { name: 'Today' })).toBeVisible()
   await page.clock.install({ time: NOW })
-  await page.goto('/dashboard')
+  await page.getByRole('link', { name: 'Today' }).click()
   const week = page.getByRole('region', { name: 'This week' })
   await expect(week.getByTestId('week-grid')).toBeVisible()
   return week
@@ -70,7 +92,7 @@ test('THIS WEEK: a lived week — blocks in time order, hover says what', async 
   const tip = week.getByTestId('week-tip')
   await expect(tip).toContainText('WORKOUT')
   await expect(tip).toContainText('60 MIN · LEGS')
-  await expect(tip).toContainText('MON 12 · 07:30')
+  await expect(tip).toContainText(`${MON} · 07:30`)
   await page.waitForTimeout(900)
   await page.screenshot({ ...shot('today-week-lived'), fullPage: true })
 })
@@ -82,7 +104,7 @@ test('THIS WEEK: press an empty cell, pick a kind — saving, then landed', asyn
   await expect(week.getByTestId('week-empty')).toBeVisible()
   await week.getByTestId('cell-0-2').click()
   const menu = week.getByTestId('week-menu')
-  await expect(menu).toContainText('WED 14 · 06:00')
+  await expect(menu).toContainText(`${WED} · 06:00`)
   await menu.getByRole('menuitem', { name: 'Log WORKOUT' }).click()
   await expect(
     week.getByTestId('cell-0-2').getByTestId('block-workout'),
@@ -94,12 +116,12 @@ test('THIS WEEK: press an empty cell, pick a kind — saving, then landed', asyn
   await expect(week.getByTestId('week-save')).toBeHidden({ timeout: 5000 })
 
   await week.getByTestId('cell-1-2').click()
-  await expect(week.getByTestId('week-menu')).toContainText('WED 14 · 15:30')
+  await expect(week.getByTestId('week-menu')).toContainText(`${WED} · 15:30`)
   await week.getByRole('menuitem', { name: 'Log SHAKE' }).click()
   const shake = week.getByTestId('cell-1-2').getByTestId('block-shake')
   await expect(shake).toBeVisible()
   await shake.hover()
-  await expect(week.getByTestId('week-tip')).toContainText('WED 14 · 15:30')
+  await expect(week.getByTestId('week-tip')).toContainText(`${WED} · 15:30`)
 })
 
 test('THIS WEEK: drag a block — same band keeps its time, another takes its start, the future refuses', async ({
@@ -115,15 +137,15 @@ test('THIS WEEK: drag a block — same band keeps its time, another takes its st
   await moved.hover()
   const tip = week.getByTestId('week-tip')
   await expect(tip).toContainText('MOVED')
-  await expect(tip).toContainText('TUE 13 · 07:30')
-  await expect(tip).toContainText('WAS MON 12 07:30')
+  await expect(tip).toContainText(`${TUE} · 07:30`)
+  await expect(tip).toContainText(`WAS ${MON} 07:30`)
 
   await cell('2-0').getByTestId('block-langs').dragTo(cell('1-1'))
   const lang = cell('1-1').getByTestId('block-langs')
   await expect(lang).toBeVisible()
   await lang.hover()
-  await expect(tip).toContainText('TUE 13 · 12:00')
-  await expect(tip).toContainText('WAS MON 12 19:00')
+  await expect(tip).toContainText(`${TUE} · 12:00`)
+  await expect(tip).toContainText(`WAS ${MON} 19:00`)
   await page.screenshot({ ...shot('today-week-moved'), fullPage: true })
 
   await cell('1-1').getByTestId('block-post').dragTo(cell('0-3'))
@@ -157,7 +179,7 @@ test.describe('THIS WEEK: on a phone', () => {
     await mon.getByTestId('block-workout').tap()
     await expect(week.getByTestId('week-tip')).toHaveCount(0)
     const menu = week.getByTestId('week-menu')
-    await expect(menu).toContainText('MON 12 · 06:00')
+    await expect(menu).toContainText(`${MON} · 06:00`)
     const inCell = menu.getByTestId('menu-block')
     await expect(inCell).toHaveCount(2)
     await expect(inCell.nth(0)).toContainText('60 MIN · LEGS')
@@ -179,7 +201,7 @@ test.describe('THIS WEEK: on a phone', () => {
     await expect(week.getByTestId('week-save')).toBeHidden({ timeout: 5000 })
 
     await week.getByTestId('cell-0-1').tap()
-    await expect(menu).toContainText('TUE 13 · 06:00')
+    await expect(menu).toContainText(`${TUE} · 06:00`)
     await expect(menu.getByTestId('menu-block')).toHaveCount(0)
   })
 })

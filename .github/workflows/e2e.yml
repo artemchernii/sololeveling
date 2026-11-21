@@ -22,7 +22,9 @@ jobs:
   e2e:
     name: e2e ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 60: with the longer waits and one retry a shard ran 44 min 37 s
+    # (manual run, 10 Nov); 45 would cut it off.
+    timeout-minutes: 60
     strategy:
       # A red shard should not hide what the other three found.
       fail-fast: false
@@ -81,7 +83,10 @@ jobs:
 
       - name: Start the test backend once
         id: setup
-        run: pnpm e2e:setup
+        # Once more after a pause: on 8 Nov GitHub answered "File not
+        # found" for the backend binary that is there, and all four
+        # shards stopped in three minutes.
+        run: pnpm e2e:setup || { sleep 30; pnpm e2e:setup; }
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
           CONVEX_VERBOSE: 1
@@ -121,4 +126,7 @@ jobs:
             playwright-report/
             e2e/.results/
             e2e/screens/
+          # e2e/.results holds the traces; v4 leaves out dot-folders
+          # unless told (Nov: a red night came back with no traces).
+          include-hidden-files: true
           retention-days: 7

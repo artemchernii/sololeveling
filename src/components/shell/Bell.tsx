@@ -11,6 +11,7 @@ import {
   Laptop,
   Smartphone,
   Sparkles,
+  Star,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react'
@@ -73,6 +74,11 @@ const KIND: Record<
   ask_reply: {
     icon: <Sparkles className="size-[18px]" />,
     area: 'var(--color-lav-400)',
+  },
+  /* The watchlist (1 Nov): a stored close reached his price. */
+  watch_hit: {
+    icon: <Star className="size-[18px]" />,
+    area: 'var(--color-state-warn)',
   },
 }
 

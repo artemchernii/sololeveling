@@ -20,6 +20,7 @@
     "check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy",
     "deploy:dev": "scripts/deploy-dev.sh",
+    "logos": "node scripts/logos.mjs",
     "backup": "scripts/backup.sh",
     "backup:drill": "scripts/restore-drill.sh"
   },

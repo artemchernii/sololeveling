@@ -121,25 +121,34 @@ export function SumCheck({
         <div className="motion-land flex flex-col gap-2.5 rounded-[14px] bg-state-warn/[0.06] p-3 ring-1 ring-state-warn/30 ring-inset">
           <div className="flex items-start gap-2 text-[13.5px] leading-normal">
             <Sigma className="mt-1 size-3.5 shrink-0 text-state-warn" />
-            <div>
-              <b className="font-medium">
-                {c.twin ? 'Is this the same payment?' : <>{noRow}.</>}
-              </b>
-              <small className="block text-[12px] text-ink-400">
-                {c.twin ? (
-                  <>
-                    Same amount,{' '}
-                    {daysApart(c.twin.occurredAt, c.twin.mine.occurredAt)}. As
-                    two payments the balance would be{' '}
-                    <Veiled>{euros(c.now)}</Veiled>.
-                  </>
-                ) : c.gap < 0 ? (
-                  `A payment may be cut off the ${file}.`
-                ) : (
-                  `A payment in may be cut off the ${file}.`
-                )}
-              </small>
-            </div>
+            {c.twin ? (
+              <div>
+                <b className="font-medium">Is this the same payment?</b>
+                <small className="block text-[12px] text-ink-400">
+                  Same amount,{' '}
+                  {daysApart(c.twin.occurredAt, c.twin.mine.occurredAt)}. As two
+                  payments the balance would be <Veiled>{euros(c.now)}</Veiled>.
+                </small>
+              </div>
+            ) : (
+              /* Badges and both numbers with their places (14 Oct rule;
+                 11 Nov: "wtf is this language"). */
+              <div
+                data-no-row
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tracking-[0.12em] uppercase"
+              >
+                <span className="rounded-full bg-state-warn/15 px-2 py-0.5 text-state-warn">
+                  no row · <Veiled>{euros(Math.abs(c.gap))}</Veiled>{' '}
+                  {c.gap < 0 ? 'out' : 'in'}
+                </span>
+                <span className="text-ink-300">
+                  in the {file} · <Veiled>{euros(c.printed ?? 0)}</Veiled>
+                </span>
+                <span className="text-ink-300">
+                  in the rows · <Veiled>{euros(c.now)}</Veiled>
+                </span>
+              </div>
+            )}
           </div>
           {c.twin ? (
             <>

@@ -53,7 +53,7 @@ test('one row too many: not saved until answered; "same payment" adds it once', 
   await expect(sheet.getByText('screenshot shows €90.35')).toBeVisible()
   await expect(sheet.getByText('Top-up by *2789')).toBeVisible()
   await expect(
-    sheet.getByText(/ActivoBank not saved — 1 question open/),
+    sheet.getByText(/ActivoBank not saved — 2 questions open/),
   ).toBeVisible()
   await expect(apply(sheet)).toBeDisabled()
   await page.waitForTimeout(700)
@@ -90,7 +90,13 @@ test('no row explains it: save with the screenshot’s balance, or skip the acco
   page,
 }) => {
   const sheet = await review(page, 'missing')
-  await expect(sheet.getByText(/went out with no row\./)).toBeVisible()
+  await expect(sheet.locator('[data-no-row]')).toContainText('no row · €12')
+  await expect(sheet.locator('[data-no-row]')).toContainText(
+    'in the screenshot · €78.35',
+  )
+  await expect(sheet.locator('[data-no-row]')).toContainText(
+    'in the rows · €90.35',
+  )
   await expect(apply(sheet)).toBeDisabled()
   await page.waitForTimeout(700)
   await page.screenshot(shot('check-no-row'))

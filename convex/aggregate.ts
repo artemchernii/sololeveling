@@ -1575,15 +1575,6 @@ export const positions = query({
   args: {},
   returns: v.object({
     rows: v.array(v.object(positionRow)),
-    /** Sold out everywhere (13 Oct): the same row with no shares, `paid`
-        what its buys cost, and what the sales brought (src/lib/sold.ts). */
-    sold: v.array(
-      v.object({
-        ...positionRow,
-        soldFor: v.union(v.number(), v.null()),
-        soldAt: v.number(),
-      }),
-    ),
     /** The sum of the valued positions, in euros, and the oldest price in
         it — the balances rule again: never a total without its as-of.
         A position with no price yet is counted in `unvalued`, not added. */
@@ -1598,7 +1589,33 @@ export const positions = query({
         investments can read in dollars beside euros (10 Oct). */
     usdRate: v.union(v.number(), v.null()),
   }),
-  handler: async (ctx) => await readPositions(ctx, await requireUser(ctx)),
+  handler: async (ctx) => {
+    const { sold: _, ...held } = await readPositions(
+      ctx,
+      await requireUser(ctx),
+      { usd: true },
+    )
+    return held
+  },
+})
+
+/**
+ * Sold out everywhere (13 Oct): the same row with no shares, `paid` what
+ * its buys cost, and what the sales brought (src/lib/sold.ts). Its own
+ * read since 10 Nov, asked only by Portfolio: it takes every ledger —
+ * 155 of his 199 are sold out — where `positions` reads the held ones.
+ */
+export const positionsSold = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      ...positionRow,
+      soldFor: v.union(v.number(), v.null()),
+      soldAt: v.number(),
+    }),
+  ),
+  handler: async (ctx) =>
+    (await readPositions(ctx, await requireUser(ctx), { sold: true })).sold,
 })
 
 /**

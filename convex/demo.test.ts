@@ -15,9 +15,14 @@ const DEMO = 'https://clerk.test|user_demo'
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-27T15:00:00Z'))
+  /* A fill asks Yahoo for its holdings' closes (refill → market.readAll):
+     never from a test. On CI Yahoo answered slower than the scheduler's
+     10000 pumps and D5 failed (31 Oct, 1 Nov). */
+  vi.stubGlobal('fetch', () => Promise.reject(new Error('no network here')))
 })
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 async function world() {

@@ -43,11 +43,11 @@ test('the opened file says what goes, one press takes it back, the account is �
   /* A warning, and what goes as badges (14 Oct). */
   await expect(box.getByText('remove · these numbers go')).toBeVisible()
   await expect(box.getByText('−3 rows')).toBeVisible()
-  await expect(box.getByText(/^balance · \d+ Oct$/)).toBeVisible()
+  await expect(box.getByText(/^balance · \d+ [A-Z][a-z]{2}$/)).toBeVisible()
   await expect(box.getByText('ActivoBank now')).toBeVisible()
   await expect(box.getByText('€90.35')).toBeVisible()
   await expect(box.getByText('€153.21')).toBeVisible()
-  await expect(box.getByText(/^balance of \d+ Oct$/)).toBeVisible()
+  await expect(box.getByText(/^balance of \d+ [A-Z][a-z]{2}$/)).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('undo-file-box'))
   await page.setViewportSize({ width: 390, height: 844 })
@@ -55,8 +55,12 @@ test('the opened file says what goes, one press takes it back, the account is �
   await page.screenshot(shot('undo-file-box-phone'))
   await page.setViewportSize({ width: 1280, height: 720 })
 
+  /* Held offline so "removing…" stays long enough to be seen (nightly
+     e2e, Nov: a fast remove came and went between two looks). */
+  await page.context().setOffline(true)
   await box.getByRole('button', { name: 'remove screenshot' }).click()
   await expect(sheet.getByText('removing…')).toBeVisible()
+  await page.context().setOffline(false)
   await expect(sheet.getByText('Removed.')).toBeVisible()
   await expect(sheet.getByText('ActivoBank is €153.21 again.')).toBeVisible()
   /* Back on the account: the file and its rows are gone. */

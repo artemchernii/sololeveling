@@ -6,12 +6,14 @@ import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD } from '@/components/finances/bits'
 import { Veiled } from '@/components/finances/Veil'
+import { TargetMap } from '@/components/finances/TargetMap'
 import { kindOf } from '@/lib/logo'
 import type { Kind } from '@/lib/logo'
 import { euros } from '@/lib/money'
 import { LOOK, tagsOf } from '@/lib/tags'
 import type { Lens, RegionTag, SectorTag } from '@/lib/tags'
 import type { Sector } from '@/lib/sector'
+import { bucketOf } from '@/lib/targets'
 
 /* Where the money is (18 Oct, mockup tags-map.html, his "go emoji"):
    the bar under worth turns by kind, sector or region; a press on a part
@@ -70,6 +72,7 @@ export function partOf(
   tags: Tags,
 ): string {
   if (lens === 'kind') return kindOf(r)
+  if (lens === 'target') return bucketOf(r)
   return tags.get(r.instrumentId)?.[lens] ?? 'missing'
 }
 
@@ -89,13 +92,14 @@ export function MoneyMap({
   onPart: (next: Part) => void
 }) {
   const sum = new Map<string, number>()
-  for (const r of rows)
-    if (r.valueEur !== null) {
-      const k = partOf(lens, r, tags)
-      sum.set(k, (sum.get(k) ?? 0) + r.valueEur)
-    }
+  if (lens !== 'target')
+    for (const r of rows)
+      if (r.valueEur !== null) {
+        const k = partOf(lens, r, tags)
+        sum.set(k, (sum.get(k) ?? 0) + r.valueEur)
+      }
   const total = [...sum.values()].reduce((t, v) => t + v, 0)
-  if (total <= 0) return null
+  if (total <= 0 && lens !== 'target') return null
   const parts = [...sum.entries()]
     .filter(([, v]) => v > 0)
     .sort(
@@ -120,7 +124,7 @@ export function MoneyMap({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="label-caps">where the money is</span>
         <div className="inline-flex gap-0.5 rounded-full bg-lift/[0.05] p-[3px] ring-1 ring-lift/10 ring-inset">
-          {(['kind', 'sector', 'region'] as const).map((l) => (
+          {(['kind', 'sector', 'region', 'target'] as const).map((l) => (
             <button
               key={l}
               type="button"
@@ -140,44 +144,50 @@ export function MoneyMap({
           ))}
         </div>
       </div>
-      <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full">
-        {parts.map((p) => (
-          <span
-            key={p.key}
-            style={{ flex: p.v, background: p.tone }}
-            className={`rounded-full transition-[flex,opacity] duration-700 ${
-              part === null || part.lens !== lens || on(p.key)
-                ? ''
-                : 'opacity-25'
-            }`}
-          />
-        ))}
-      </div>
-      <div className="-mx-2 flex flex-wrap gap-x-1 gap-y-1">
-        {parts.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            data-testid="map-part"
-            aria-pressed={on(p.key)}
-            onClick={() => onPart(on(p.key) ? null : { lens, key: p.key })}
-            className={`label-caps motion-press flex items-center gap-1.5 rounded-[8px] px-2 py-1 transition-colors hover:bg-lift/[0.07] ${
-              on(p.key) ? 'bg-lift/[0.07] text-foreground' : ''
-            } ${p.key === 'missing' ? 'text-state-warn' : ''}`}
-          >
-            {p.emoji === null ? (
-              <i
-                className="inline-block size-2 rounded-[2px]"
-                style={{ background: p.tone }}
+      {lens === 'target' ? (
+        <TargetMap rows={rows} part={part} onPart={onPart} />
+      ) : (
+        <>
+          <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full">
+            {parts.map((p) => (
+              <span
+                key={p.key}
+                style={{ flex: p.v, background: p.tone }}
+                className={`rounded-full transition-[flex,opacity] duration-700 ${
+                  part === null || part.lens !== lens || on(p.key)
+                    ? ''
+                    : 'opacity-25'
+                }`}
               />
-            ) : (
-              <span className="text-[12px] tracking-normal">{p.emoji}</span>
-            )}
-            {p.label} <Veiled>{euros(Math.round(p.v))}</Veiled> ·{' '}
-            {Math.round((p.v / total) * 100)}%
-          </button>
-        ))}
-      </div>
+            ))}
+          </div>
+          <div className="-mx-2 flex flex-wrap gap-x-1 gap-y-1">
+            {parts.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                data-testid="map-part"
+                aria-pressed={on(p.key)}
+                onClick={() => onPart(on(p.key) ? null : { lens, key: p.key })}
+                className={`label-caps motion-press flex items-center gap-1.5 rounded-[8px] px-2 py-1 transition-colors hover:bg-lift/[0.07] ${
+                  on(p.key) ? 'bg-lift/[0.07] text-foreground' : ''
+                } ${p.key === 'missing' ? 'text-state-warn' : ''}`}
+              >
+                {p.emoji === null ? (
+                  <i
+                    className="inline-block size-2 rounded-[2px]"
+                    style={{ background: p.tone }}
+                  />
+                ) : (
+                  <span className="text-[12px] tracking-normal">{p.emoji}</span>
+                )}
+                {p.label} <Veiled>{euros(Math.round(p.v))}</Veiled> ·{' '}
+                {Math.round((p.v / total) * 100)}%
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

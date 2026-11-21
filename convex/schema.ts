@@ -211,6 +211,8 @@ export const notificationKind = v.union(
   v.literal('day_close'),
   /* N4 (22 Oct): an Ask answer that landed off screen. */
   v.literal('ask_reply'),
+  /* The watchlist (1 Nov): a stored close reached his price. */
+  v.literal('watch_hit'),
 )
 
 export default defineSchema({
@@ -278,6 +280,51 @@ export default defineSchema({
     demo: v.optional(v.boolean()),
     demoFilledOn: v.optional(v.string()),
   }).index('by_owner', ['ownerId']),
+
+  /* His own targets for where the money is (31 Oct, docs/specs/
+     2026-10-31-targets.md): one row per bucket, in euros — "up to 2k max,
+     3-5k gold, 5k bonds, and rest are stocks"; stocks its own range the
+     same night. `keep` rows are from that first night and no longer
+     written or read. */
+  targets: defineTable({
+    ownerId: v.string(),
+    bucket: v.union(
+      v.literal('stocks'),
+      v.literal('gold'),
+      v.literal('bonds'),
+      v.literal('crypto'),
+      v.literal('keep'),
+    ),
+    min: v.number(),
+    max: v.number(),
+  }).index('by_owner_bucket', ['ownerId', 'bucket']),
+
+  /* A name on his watchlist (1 Nov, docs/specs/2026-11-01-watchlist.md):
+     its closes are stored like a held one's while it is here. `alert` is
+     his own price; `side` which way it rings, set when it is saved.
+     `hit` the stored close that reached it — rung once, kept until a new
+     price is saved. */
+  watches: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    addedAt: v.number(),
+    alert: v.optional(
+      v.object({
+        at: v.number(),
+        side: v.union(v.literal('up'), v.literal('down')),
+      }),
+    ),
+    hit: v.optional(v.object({ price: v.number(), asOf: v.number() })),
+  }).index('by_owner_instrument', ['ownerId', 'instrumentId']),
+
+  /* A held name kept out of EVERYTHING OWNED (1 Nov, his "excluded
+     list": halted Russian shares, a small coin). Only the list folds it
+     away; worth, the map and TARGET still count it. */
+  hides: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    hiddenAt: v.number(),
+  }).index('by_owner_instrument', ['ownerId', 'instrumentId']),
 
   goals: defineTable({
     ownerId: v.string(),
@@ -720,6 +767,15 @@ export default defineSchema({
         v.object({ merchant: v.string(), amount: v.number(), at: v.number() }),
       ),
     ),
+    /* A bank's booked balance only (11 Nov): the saved rows it had not
+       taken off yet — the other bank's side of a transfer, saved before
+       this bank booked it. `value` has them off already. Present, even
+       empty, on every booked reading of a bank. */
+    unbooked: v.optional(
+      v.array(
+        v.object({ merchant: v.string(), amount: v.number(), at: v.number() }),
+      ),
+    ),
     /* Where a balance came from (27 Sep): the card says "statement read
        today · balance of Aug 31", not "26d". Absent on older rows. */
     source: v.optional(
@@ -1008,12 +1064,19 @@ export default defineSchema({
     shares: v.array(v.number()),
     priceEur: v.array(v.number()),
     flags: v.array(v.number()),
-  }).index('by_owner_account_instrument_part', [
-    'ownerId',
-    'accountId',
-    'instrumentId',
-    'part',
-  ]),
+    /* Sold out by its trades (10 Nov): when its last trade was. Absent
+       while the trades leave shares. Screens of what is held now never
+       read a sold-out position's ledger — 155 of his 199, 74% of the
+       bytes, on every run of worth and positions. */
+    soldAt: v.optional(v.number()),
+  })
+    .index('by_owner_account_instrument_part', [
+      'ownerId',
+      'accountId',
+      'instrumentId',
+      'part',
+    ])
+    .index('by_owner_soldAt', ['ownerId', 'soldAt']),
 
   /* A trade taken off its position (15 Oct, mockup trade-remove.html):
      the same row kept aside with the moment it went, so UNDO puts it back
@@ -1276,6 +1339,18 @@ export default defineSchema({
         currency: v.string(),
         value: v.number(),
         asOf: v.number(),
+        /* The bank's own number, when `value` is less the saved rows it
+           had not booked (stateSnapshots.unbooked), and those rows. */
+        bank: v.optional(v.number()),
+        unbooked: v.optional(
+          v.array(
+            v.object({
+              merchant: v.string(),
+              amount: v.number(),
+              at: v.number(),
+            }),
+          ),
+        ),
       }),
     ),
     cashEur: v.optional(v.number()),

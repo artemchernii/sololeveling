@@ -54,6 +54,9 @@ const TABLES: Array<TableNames> = [
   'sectorAverages',
   'events',
   'goals',
+  'targets',
+  'watches',
+  'hides',
   'profiles',
 ]
 

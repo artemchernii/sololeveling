@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight, Sparkles, TriangleAlert } from 'lucide-react'
+import { Ban, ChevronRight, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -106,10 +106,21 @@ export function PortfolioList({
     part === null || partOf(part.lens, o.at[0] ?? o, tags) === part.key
   const [order, setOrder] = useState<Order>(keptOrder)
   const [typed, setTyped] = useState('')
-  const here = ordered(
+  const all = ordered(
     combine(rows.filter((r) => filter === 'all' || r.accountId === filter)),
     order,
   ).filter(kept)
+  /* His excluded list (1 Nov): folded under HIDDEN, still in every sum. */
+  const hides = useQuery(api.hides.list, {})
+  const isHidden = (o: Owned<Position>) =>
+    o.at.some((r) => hides?.includes(r.instrumentId) ?? false)
+  const here = all.filter((o) => !isHidden(o))
+  const hiddenHere = all.filter(isHidden)
+  const folded = hiddenHere.filter((o) => matches(o, typed))
+  const [showHidden, setShowHidden] = useState(false)
+  const foldedEur = folded.some((o) => o.valueEur === null)
+    ? null
+    : folded.reduce((t, o) => t + (o.valueEur ?? 0), 0)
   const shown = here.filter((o) => matches(o, typed))
   const chosen = holders.find((a) => a._id === filter)
   /* Sold is folded away until asked for (mockup portfolio.html). */
@@ -125,10 +136,12 @@ export function PortfolioList({
     .sort((a, b) => b.sums.day - a.sums.day)
   const gone = goneHere.filter((g) => matches(g.owned, typed))
   /* Nothing owned here, only sold: the sold rows are the list. */
-  const only = here.length === 0 && goneHere.length > 0
+  const only =
+    here.length === 0 && hiddenHere.length === 0 && goneHere.length > 0
   const finding = typed.trim() !== ''
   /* Only sold things match: they open by themselves. */
   const soldOpen = showSold || only || (finding && shown.length === 0)
+  const hiddenOpen = showHidden || (finding && shown.length === 0)
   const count = (n: number, of: number) => (finding ? `${n} of ${of}` : of)
 
   return (
@@ -197,7 +210,47 @@ export function PortfolioList({
           />
         ))}
       </div>
-      {finding && shown.length === 0 && gone.length === 0 ? (
+      {folded.length > 0 ? (
+        <>
+          <button
+            type="button"
+            data-testid="hidden-fold"
+            aria-expanded={hiddenOpen}
+            onClick={() => setShowHidden(!showHidden)}
+            className="label-caps motion-press flex items-center gap-1.5 self-start rounded-[8px] px-2 py-1.5 transition-colors hover:bg-lift/[0.07] hover:text-foreground"
+          >
+            <ChevronRight
+              className={`size-3.5 transition-transform duration-300 ${hiddenOpen ? 'rotate-90' : ''}`}
+            />
+            <Ban className="size-3" />
+            hidden · {folded.length}
+            {foldedEur === null ? null : (
+              <>
+                {' · '}
+                <Veiled>{euros(foldedEur)}</Veiled>
+              </>
+            )}
+          </button>
+          {hiddenOpen ? (
+            <div data-testid="hidden-list" className="flex flex-col gap-0.5">
+              {folded.map((o, i) => (
+                <OwnedRow
+                  key={o.instrumentId}
+                  owned={o}
+                  holders={holders}
+                  delay={finding ? 0 : i * 28}
+                  typed={typed}
+                  tags={tags}
+                />
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      {finding &&
+      shown.length === 0 &&
+      folded.length === 0 &&
+      gone.length === 0 ? (
         <NoneFound typed={typed} onClear={() => setTyped('')} />
       ) : null}
       {gone.length > 0 ? (

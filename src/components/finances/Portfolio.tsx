@@ -22,6 +22,9 @@ import { MoneyMap, useTags } from '@/components/finances/PortfolioMap'
 import type { Part } from '@/components/finances/PortfolioMap'
 import type { Lens } from '@/lib/tags'
 import { SkeletonRows } from '@/components/Skeleton'
+import { WatchList } from '@/components/finances/WatchList'
+import { WatchPosition } from '@/components/finances/WatchPosition'
+import { useWatchList } from '@/components/finances/useWatch'
 
 const NONE: ReadonlyArray<Position> = []
 
@@ -40,14 +43,22 @@ const DATE = new Intl.DateTimeFormat(undefined, {
    paid is known, never against zero. */
 export function Portfolio({ position }: { position?: string }) {
   const data = useQuery(api.aggregate.positions, {})
+  /* Sold out: its own read (10 Nov), asked only in this room. */
+  const sold = useQuery(api.aggregate.positionsSold, {})
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
   const [filter, setFilter] = useState<Id<'accounts'> | 'all'>('all')
   const [lens, setLens] = useState<Lens>('kind')
   const [part, setPart] = useState<Part>(null)
   const tags = useTags(data?.rows ?? NONE)
+  const watched = useWatchList()
 
-  if (data === undefined || accounts === undefined || worth === undefined) {
+  if (
+    data === undefined ||
+    sold === undefined ||
+    accounts === undefined ||
+    worth === undefined
+  ) {
     return (
       <Panel title="portfolio">
         <SkeletonRows rows={4} twoLine rowClassName="py-3" />
@@ -67,13 +78,22 @@ export function Portfolio({ position }: { position?: string }) {
       o.at.some((r) => r.instrumentId === position)
     const owned = combine(data.rows).find(has)
     if (owned) return <PortfolioPosition owned={owned} holders={holders} />
-    const gone = combine(data.sold).find(has)
-    return gone ? (
-      <PortfolioPosition
-        owned={gone}
-        holders={accounts}
-        sold={soldSums(gone.paid, gone.at)}
-      />
+    const gone = combine(sold).find(has)
+    if (gone)
+      return (
+        <PortfolioPosition
+          owned={gone}
+          holders={accounts}
+          sold={soldSums(gone.paid, gone.at)}
+        />
+      )
+    /* A name on the watchlist, not owned (1 Nov). */
+    const w = watched?.find((x) => x.instrumentId === position)
+    if (w) return <WatchPosition w={w} />
+    return watched === undefined ? (
+      <Panel title="portfolio">
+        <SkeletonRows rows={4} twoLine rowClassName="py-3" />
+      </Panel>
     ) : (
       <PositionMissing />
     )
@@ -239,10 +259,12 @@ export function Portfolio({ position }: { position?: string }) {
         </div>
       ) : null}
 
-      {data.rows.length > 0 || data.sold.length > 0 ? (
+      <WatchList held={data.rows} />
+
+      {data.rows.length > 0 || sold.length > 0 ? (
         <PortfolioList
           rows={data.rows}
-          sold={data.sold}
+          sold={sold}
           holders={holders}
           filter={filter}
           onFilter={setFilter}

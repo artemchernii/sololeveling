@@ -6,9 +6,10 @@ import { start, testClient } from './helpers'
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
 /* A row's mark (11 Oct: "icons for statements like BP or Spotify are not
-   there"): a shop the app knows shows its site's icon; a row that names
-   no shop shows its group's icon; with neither, the arrow in the account
-   and letters in a file. Nothing is written by the first test. */
+   there"): a shop the app knows shows its site's icon (a file saved in
+   the app since 31 Oct, Google behind it); a row that names no shop shows
+   its group's icon; with neither, the arrow in the account and letters in
+   a file. Nothing is written by the first test. */
 
 test('an account: a known shop has its logo, any other row its group’s icon', async ({
   page,
@@ -21,12 +22,9 @@ test('an account: a known shop has its logo, any other row its group’s icon', 
     sheet.locator('div.group', { hasText: name }).first()
   await expect(row('Continente').locator('img')).toHaveAttribute(
     'src',
-    /domain=continente\.pt/,
+    /continente\.pt/,
   )
-  await expect(row('Bolt').locator('img')).toHaveAttribute(
-    'src',
-    /domain=bolt\.eu/,
-  )
+  await expect(row('Bolt').locator('img')).toHaveAttribute('src', /bolt\.eu/)
   /* Not a shop the app knows: the icon of the group it is filed under. */
   await expect(row('Guacamole').locator('img')).toHaveCount(0)
   await expect(
@@ -48,10 +46,8 @@ test('an opened file: every row has a mark', async ({ page }) => {
   const sheet = page.getByRole('dialog')
   await sheet.getByRole('button', { name: /IMG_9282/ }).click()
   await expect(sheet.getByTestId('take-back-open')).toBeVisible()
-  await expect(
-    sheet.locator('img[src*="domain=traderepublic.com"]'),
-  ).toBeVisible()
-  await expect(sheet.locator('img[src*="domain=revolut.com"]')).toBeVisible()
+  await expect(sheet.locator('img[src*="traderepublic.com"]')).toBeVisible()
+  await expect(sheet.locator('img[src*="revolut.com"]')).toBeVisible()
   /* A person, a shop not in the list: letters. */
   await expect(sheet.getByText('TR', { exact: true })).toBeVisible()
   await expect(sheet.getByText('VE', { exact: true })).toBeVisible()

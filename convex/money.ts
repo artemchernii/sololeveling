@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values'
 import { requireUser } from './auth'
 import { ownedAccount } from './accounts'
 import { checkTrade, heldShares, upsertInstrument } from './invest'
+import { takeOffUnbooked } from './unbooked'
 import { syncLedgers } from './ledgers'
 import { mutation } from './write'
 import type { MutationCtx } from './_generated/server'
@@ -90,7 +91,7 @@ export async function writeTransfer(
       otherAccountId: t.to._id,
     },
   })
-  await ctx.db.insert('logs', {
+  const into = await ctx.db.insert('logs', {
     ...base,
     value: t.amount,
     accountId: t.to._id,
@@ -102,6 +103,12 @@ export async function writeTransfer(
       pairOf: out,
     },
   })
+  /* The side written on the other bank's account, before that bank has
+     booked it, comes off its booked balance (convex/unbooked.ts). */
+  for (const id of [out, into]) {
+    const side = await ctx.db.get(id)
+    if (side !== null) await takeOffUnbooked(ctx, ownerId, side)
+  }
   return out
 }
 

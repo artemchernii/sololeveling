@@ -8,7 +8,7 @@ import { action, internalMutation } from './_generated/server'
 
 /* CLOSE mock steps (docs/specs/2026-10-22-n3-investment-alerts.md).
    Test backend only. After `e2eSignals.heldShare`: `bigDay` stores a
-   close two hours ago 6% above the one before; `ringClose` then runs the
+   close a minute ago 6% above the one before; `ringClose` then runs the
    21:30 job on the stored prices. */
 export const bigDay = action({
   args: {},
@@ -60,7 +60,9 @@ export const bigClose = internalMutation({
       instrumentId: msft._id,
       price: Math.round(last.price * 106) / 100,
       currency: 'USD',
-      asOf: now - 2 * 3_600_000,
+      /* A minute ago, not two hours: from midnight to 2:00 two hours ago
+         was yesterday, and CLOSE read "= €0" (nightly e2e, Nov). */
+      asOf: now - 60_000,
       fetchedAt: now,
       source: 'Yahoo Finance',
     })

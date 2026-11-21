@@ -68,6 +68,7 @@ test('S1–S3 PRO badge opens the pick → OPUS asked and stamped → kept after
     /HAIKU 5\.5.*⚡ FAST/,
     /✓SONNET 5\.5.*DEFAULT/,
     /OPUS 5\.5.*🔋 HEAVY/,
+    /FABLE 5\.2.*✦ TOP/,
   ])
   await expect(drawer.getByTestId('model-menu')).toHaveCSS('opacity', '1')
   await page.screenshot(shot('model-pick-menu'))

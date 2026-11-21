@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Watchlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* WATCH (1 Nov, outline agreed 31 Oct "yes to all"): ★ on any ticker
+     seen (MOVERS, OPPORTUNITIES, ASK, search) stores its daily close, so
+     it gets a chart, signals and ADD / HOLD / WAIT like a held one. A
+     WATCH box on Portfolio, one row per name; 🔔 a price that rings the
+     21:30 push on the stored close; max 20. Calls as recommended: rings
+     once on a cross either way; checked on the stored close; ★ off keeps
+     the closes. Every number here is SAMPLE, not his. */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.66));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --stocks: #8b7ff0; --gold: #b8913a; --bonds: #3f86a8; --crypto: #b8770f;
+    --star: #d9a21b;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.45 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px 16px 60px; display:flex; flex-direction:column; gap: 12px }
+  .caps { font: 500 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .num { font-variant-numeric: tabular-nums }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap; display:inline-flex; align-items:center; gap: 4px }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 9%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 9%, transparent) }
+  .pill.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 9%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.18) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 9%, transparent) }
+  .pill.star { color: #a87a08; background: color-mix(in oklch, var(--star) 12%, transparent) }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase; align-items:center }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .card { border-radius: 18px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 18px 20px 20px; display:flex; flex-direction:column; gap: 14px }
+  .head { display:flex; align-items:center; gap: 10px; flex-wrap: wrap }
+  .head .caps { flex: 1 }
+  .count { font: 600 11px var(--mono); color: var(--ink-300); letter-spacing: .06em }
+  .count.full { color: var(--bad) }
+  svg.i { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+
+  /* ★ — the one press, on every ticker the app shows */
+  .st { width: 30px; height: 30px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); cursor: pointer; display:grid; place-items:center; font-size: 15px; color: var(--ink-500); transition: transform .2s, color .2s, background .2s; flex: none }
+  .st:hover { transform: scale(1.08) }
+  .st.on { color: var(--star); background: color-mix(in oklch, var(--star) 14%, white); border-color: color-mix(in oklch, var(--star) 45%, transparent) }
+  .st.saving { animation: spinst .8s linear infinite }
+  .st.pop { animation: pop .5s cubic-bezier(.2,1.6,.4,1) both }
+  .st.no { color: var(--bad); animation: shake .35s both }
+  @keyframes spinst { to { transform: rotate(360deg) } }
+  @keyframes pop { from { transform: scale(.5) } }
+  @keyframes shake { 25% { transform: translateX(-3px) } 75% { transform: translateX(3px) } }
+
+  /* the WATCH rows */
+  .rows { display:flex; flex-direction:column }
+  .w, .th { display:grid; grid-template-columns: 34px minmax(0,1fr) 78px 56px 124px 54px 98px 104px 30px; align-items:center; gap: 10px; padding: 9px 8px }
+  .th { padding-top: 0; padding-bottom: 8px; border-bottom: 1px solid var(--edge) }
+  .th span { font: 500 9px var(--mono); letter-spacing: .14em; color: var(--ink-500); text-transform: uppercase }
+  .th .r { text-align: right }
+  .w { border-bottom: 1px solid rgba(30,30,50,.05); transition: background .2s, opacity .3s, transform .3s; animation: up .45s cubic-bezier(.2,.8,.2,1) both }
+  .w:last-child { border-bottom: 0 }
+  .w:hover { background: rgba(255,255,255,.7) }
+  .cell { font: 12px var(--mono); text-align: right }
+  .cell.last { font-weight: 600; font-size: 13px }
+  .rng { display:flex; flex-direction:column; gap: 4px }
+  .rng .ends { display:flex; justify-content: space-between; font: 9.5px var(--mono); color: var(--ink-400) }
+  .w.going { opacity: 0; transform: translateX(14px) }
+  @keyframes up { from { opacity: 0; transform: translateY(6px) } }
+  .logo { width: 34px; height: 34px; border-radius: 10px; display:grid; place-items:center; font: 700 9px var(--mono); color: #fff; letter-spacing: .02em }
+  .who { display:flex; flex-direction:column; min-width: 0 }
+  .who .tk { font: 700 12px var(--mono); color: var(--ink-100) }
+  .who .nm { font-size: 11.5px; color: var(--ink-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .px { display:flex; flex-direction:column; font: 12px var(--mono); text-align: right }
+  .px .now { font-weight: 600; font-size: 13px }
+  .px .d { font-size: 10.5px }
+  .up { color: var(--good) } .dn { color: var(--bad) }
+  .hi { display:flex; flex-direction:column; gap: 3px }
+  .hi .t { font: 10.5px var(--mono); color: var(--ink-300); display:flex; justify-content: space-between; gap: 6px }
+  .hi .bar { position: relative; height: 5px; border-radius: 999px; background: rgba(30,30,50,.07) }
+  .hi .bar i { position:absolute; top: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--ink-200); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--edge); margin-left: -4.5px; animation: slide .9s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes slide { from { left: 0 } }
+  .vd { display:flex; flex-direction:column; align-items:flex-start; gap: 2px }
+  .vd .why { font: 9.5px var(--mono); color: var(--ink-400); letter-spacing: .02em; white-space: nowrap }
+  .al { font: 700 9.5px var(--mono); letter-spacing: .08em; border-radius: 999px; padding: 5px 9px; border: 1px dashed rgba(30,30,50,.2); color: var(--ink-400); background: transparent; cursor: pointer; justify-self: start; display:inline-flex; gap: 5px; align-items:center; white-space: nowrap }
+  .al.set { border-style: solid; color: var(--lav-300); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .al.rang { border-style: solid; color: var(--good); border-color: currentColor; background: color-mix(in oklch, var(--good) 9%, transparent); animation: ring 1.6s ease-in-out 2 }
+  @keyframes ring { 0%,100% { transform: rotate(0) } 10% { transform: rotate(-6deg) } 20% { transform: rotate(6deg) } 30% { transform: rotate(0) } }
+
+  .bell { display:flex; align-items:center; gap: 8px; margin: 0 10px 6px 56px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in oklch, var(--lav-400) 35%, transparent); background: rgba(255,255,255,.75); animation: up .3s both; flex-wrap: wrap }
+  .bell input { width: 110px; font: 14px var(--mono); padding: 7px 10px; border-radius: 10px; border: 1px solid var(--edge); background: #fff }
+  .bell input:focus { outline: 2px solid color-mix(in oklch, var(--lav-400) 50%, transparent) }
+  .bell .ref { font: 10.5px var(--mono); color: var(--ink-400); flex: 1; min-width: 160px }
+  .save { font: 700 10.5px var(--mono); letter-spacing: .14em; color: #fff; background: var(--lav-300); border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; display:inline-flex; gap: 6px; align-items:center; min-width: 110px; justify-content:center }
+  .save.ghost { background: transparent; color: var(--ink-400); border: 1px solid var(--edge); min-width: 0 }
+  .spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; animation: spinst .7s linear infinite }
+
+  .empty { display:flex; flex-direction:column; align-items:center; gap: 10px; padding: 26px 10px }
+  .empty .bigst { font-size: 34px; color: var(--ink-500); animation: breathe 2.4s ease-in-out infinite }
+  @keyframes breathe { 50% { transform: scale(1.12); color: var(--star) } }
+  .where { display:flex; gap: 6px; flex-wrap: wrap; justify-content: center }
+
+  /* where ★ is pressed: a MOVERS card, as Insights → MARKET shows it */
+  .mv { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px }
+  .m { display:flex; align-items:center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.6); animation: up .4s both }
+  .m .who { flex: 1 }
+  .toast { align-self: center; font: 700 10px var(--mono); letter-spacing: .1em; padding: 7px 12px; border-radius: 999px; background: var(--ink-100); color: #fff; display:inline-flex; gap: 6px; align-items:center; animation: up .3s both }
+
+  /* TARGET bucket, opened */
+  .b { display:grid; grid-template-columns: 96px minmax(0,1fr) 210px 118px; align-items:center; gap: 14px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.7) }
+  .name { display:flex; align-items:center; gap: 8px; font: 500 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-200) }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none }
+  .track { position: relative; height: 10px; border-radius: 999px; background: rgba(30,30,50,.06) }
+  .fill { position:absolute; left: 0; top: 0; bottom: 0; border-radius: 999px }
+  .band { position:absolute; top: -3px; bottom: -3px; border-radius: 999px; border: 1.5px dashed currentColor; opacity: .55 }
+  .vals { display:flex; flex-direction:column; gap: 1px; font: 12px var(--mono) }
+  .vals .tgt { color: var(--ink-400); font-size: 10.5px }
+  .more { margin: 0 10px 6px 120px; padding: 10px 12px; border-left: 2px solid var(--edge); display:flex; flex-direction:column; gap: 6px }
+  .pos { display:flex; align-items:center; gap: 10px; font-size: 12.5px; animation: up .35s both }
+  .pos .tk { font: 700 10px var(--mono); width: 44px; color: var(--ink-300) }
+  .pos .nm { flex: 1; min-width: 0; color: var(--ink-200); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .pos .eur { font: 12px var(--mono); min-width: 64px; text-align: right }
+  .pos.watch .tk { color: #a87a08 }
+  .sep { font: 500 9px var(--mono); letter-spacing: .16em; color: var(--ink-500); margin-top: 4px }
+
+  /* the push, as the phone shows it */
+  .push { max-width: 380px; align-self: center; width: 100%; border-radius: 18px; padding: 12px 14px; background: rgba(255,255,255,.82); border: 1px solid var(--edge); box-shadow: var(--shadow); display:flex; gap: 10px; animation: drop .6s cubic-bezier(.2,1.4,.4,1) both }
+  @keyframes drop { from { transform: translateY(-16px); opacity: 0 } }
+  .push .app { width: 34px; height: 34px; border-radius: 9px; background: #1d1d2b; color: #b9b0ff; display:grid; place-items:center; font: 700 11px var(--mono); flex: none }
+  .push .t { font-weight: 600; font-size: 13px }
+  .push .b2 { font: 11.5px var(--mono); color: var(--ink-300) }
+
+  @media (max-width: 640px) {
+    .card { padding: 14px 12px 16px }
+    .th { display: none }
+    .w { grid-template-columns: 34px minmax(0,1fr) auto 44px; grid-template-areas: "l w p s" "l w d s" "g g g f" "v v a a"; gap: 6px 10px; padding: 12px 2px }
+    .w .logo { grid-area: l } .w .who { grid-area: w } .w .last { grid-area: p } .w .day { grid-area: d } .w .st { grid-area: s; justify-self: end }
+    .w .rng { grid-area: g } .w .from { grid-area: f } .w .vd { grid-area: v; flex-direction: row; align-items: center; gap: 8px } .w .al, .w .alw { grid-area: a; justify-self: end } .w .alw { flex-direction: row; align-items: center; gap: 6px }
+    .bell { margin-left: 4px }
+    .mv { grid-template-columns: 1fr }
+    .b { grid-template-columns: 1fr auto; grid-template-areas: "n s" "t t" "v v"; gap: 8px; padding: 10px 6px }
+    .b .name { grid-area: n } .b .state { grid-area: s } .b .track { grid-area: t } .b .vals { grid-area: v; flex-direction: row; gap: 10px }
+    .more { margin-left: 6px }
+    .pos .pill.star { display: none }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">sample ·
+    <button data-s="watch" class="on">watchlist</button>
+    <button data-s="press">★ on gainers</button>
+    <button data-s="rang">alert hit</button>
+    <button data-s="full">20 / 20</button>
+    <button data-s="empty">empty</button>
+    <button data-s="target">in target</button>
+  </div>
+  <div id="top" style="display:contents"></div>
+  <div class="card" id="card"></div>
+</div>
+<script>
+const eur = (n, d = 2) => '€' + n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+const eur0 = (n) => '€' + Math.round(n).toLocaleString('en-US')
+const TICK = '<svg class="i" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>'
+const BELL = '<svg class="i" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/></svg>'
+
+/* ticker, name, colour, price €, day %, 52w low, 52w high, call, good, bad, alert, rang day */
+const BASE = [
+  ['AMD', 'Advanced Micro Devices', '#1d1d2b', 141.20, -2.4, 118.4, 196.8, 'ADD', 3, 1, 150, null],
+  ['TSM', 'Taiwan Semiconductor', '#c8102e', 172.85, 0.8, 120.1, 188.3, 'HOLD', 2, 1, null, null],
+  ['NOVO', 'Novo Nordisk', '#0b3d91', 58.40, -1.1, 54.9, 128.6, 'WAIT', 1, 3, 55, null],
+  ['CRWD', 'CrowdStrike', '#e01f3d', 318.60, 3.2, 210.4, 352.0, 'HOLD', 2, 2, null, null],
+  ['COST', 'Costco Wholesale', '#005daa', 842.10, 0.3, 712.0, 905.5, 'HOLD', 2, 1, 800, null],
+]
+const MORE = [['PLTR','Palantir','#111'],['UBER','Uber','#000'],['SHOP','Shopify','#5e8e3e'],['NFLX','Netflix','#e50914'],['ADBE','Adobe','#fa0f00'],['SAP','SAP','#0a6ed1'],['MELI','MercadoLibre','#2d3277'],['ABNB','Airbnb','#ff5a5f'],['ARM','Arm Holdings','#0091bd'],['SNOW','Snowflake','#29b5e8'],['DDOG','Datadog','#632ca6'],['NET','Cloudflare','#f38020'],['ASML','ASML Holding','#10069f'],['LLY','Eli Lilly','#d52b1e'],['V','Visa','#1a1f71']]
+const PILL = { ADD: 'good', HOLD: 'ink', WAIT: 'warn' }
+
+let list, bellOpen = null, mode = 'watch', note = ''
+
+function reset(s) {
+  list = BASE.map((r) => [...r])
+  if (s === 'rang') list[2][11] = 'OCT 30'
+  if (s === 'rang') list[2][3] = 54.70
+  if (s === 'full') list = list.concat(MORE.map(([t, n, c], k) => [t, n, c, 40 + k * 17.3, (k % 3 - 1) * 1.4, 30 + k * 12, 60 + k * 22, ['HOLD','ADD','WAIT'][k % 3], 2, 1, null, null]))
+  if (s === 'empty') list = []
+  if (s === 'press') list = list.slice(0, 3)
+  bellOpen = null; note = ''
+}
+
+function row(r, i) {
+  const [tk, nm, col, px, day, lo, hi, call, g, b, al, rang] = r
+  const from = (px - hi) / hi * 100
+  const pos = Math.max(0, Math.min(100, (px - lo) / (hi - lo) * 100))
+  const sign = al && al < px ? '≤' : '≥'
+  const alert = rang
+    ? `<span class="vd alw"><button class="al rang" data-b="${tk}">${BELL} HIT ≤ ${eur0(al)}</button><span class="why">${rang}</span></span>`
+    : al ? `<button class="al set" data-b="${tk}">${BELL} ${sign} ${eur0(al)}</button>`
+    : `<button class="al" data-b="${tk}">${BELL} ALERT</button>`
+  let out = `<div class="w" data-t="${tk}" style="animation-delay:${Math.min(i, 8) * 50}ms">
+    <span class="logo" style="background:${col}">${tk.slice(0, 4)}</span>
+    <span class="who"><span class="tk">${tk}</span><span class="nm">${nm}</span></span>
+    <span class="cell last num">${eur(px)}</span>
+    <span class="cell day num ${day < 0 ? 'dn' : 'up'}">${day < 0 ? '▼' : '▲'} ${Math.abs(day).toFixed(1)}%</span>
+    <span class="rng hi"><span class="bar"><i style="left:${pos}%"></i></span><span class="ends num"><span>${eur0(lo)}</span><span>${eur0(hi)}</span></span></span>
+    <span class="cell from num ${from < -15 ? 'dn' : ''}">${from.toFixed(0)}%</span>
+    <span class="vd"><span class="pill ${PILL[call]}">${call}</span><span class="why">${g} BULL · ${b} BEAR</span></span>
+    ${alert}
+    <button class="st on" data-x="${tk}" title="★">★</button></div>`
+  if (bellOpen === tk) {
+    const has = al && !rang
+    out += `<div class="bell"><span class="caps" style="color:var(--lav-300)">${BELL} price alert · ${tk}</span>
+      <input inputmode="decimal" value="${al ?? Math.round(px * 0.9)}" />
+      <span class="ref num">LAST ${eur(px)} · 52W ${eur0(lo)}–${eur0(hi)}</span>
+      ${has ? `<button class="save ghost" data-off="${tk}">REMOVE</button>` : ''}
+      <button class="save" data-sv="${tk}">SAVE</button></div>`
+  }
+  return out
+}
+
+const TH = `<div class="th"><span></span><span>ticker</span><span class="r">last</span><span class="r">day</span><span>52w range</span><span class="r">vs high</span><span>signal</span><span>alert</span><span></span></div>`
+
+function watchCard() {
+  const full = list.length >= 20
+  const head = `<div class="head"><span class="caps" style="color:var(--ink-200)">★ watchlist</span>
+    <span class="count ${full ? 'full' : ''}">${list.length} / 20${full ? ' · FULL' : ''}</span></div>`
+  if (!list.length) return head + `<div class="empty"><span class="bigst">★</span><span class="count">0 / 20</span>
+    <div class="where"><span class="pill ink">★ MOVERS</span><span class="pill ink">★ OPPORTUNITIES</span><span class="pill ink">★ ASK</span><span class="pill ink">★ SEARCH</span></div></div>`
+  return head + `<div class="rows">${TH}${list.map(row).join('')}</div>`
+}
+
+const MOVERS = [['PLTR','Palantir','#111', 31.80, 8.2],['AMD','Advanced Micro Devices','#1d1d2b', 141.20, -2.4],['UBER','Uber','#000', 71.05, 5.6]]
+function moversCard() {
+  const on = new Set(list.map((r) => r[0]))
+  return `<div class="card"><div class="head"><span class="caps" style="color:var(--ink-200)">top gainers</span><span class="pill ink">YAHOO · 21:04</span></div>
+    <div class="mv">${MOVERS.map(([tk, nm, c, px, d], i) => `<div class="m" style="animation-delay:${i * 60}ms">
+      <span class="logo" style="background:${c}">${tk}</span>
+      <span class="who"><span class="tk">${tk}</span><span class="nm">${nm}</span></span>
+      <span class="px num"><span class="now">${eur(px)}</span><span class="d ${d < 0 ? 'dn' : 'up'}">${d < 0 ? '▼' : '▲'} ${Math.abs(d).toFixed(1)}%</span></span>
+      <button class="st ${on.has(tk) ? 'on' : ''}" data-add="${tk}">★</button></div>`).join('')}</div>
+    ${note}</div>`
+}
+
+function targetCard() {
+  const held = [['NVDA','NVIDIA',6120,'HOLD'],['ASML','ASML Holding',4380,'ADD'],['VWCE','Vanguard FTSE All-World',9800,'ADD']]
+  const watch = list.slice(0, 4)
+  return `<div class="head"><span class="caps">where the money is</span><span class="pill lav">TARGET</span></div>
+    <div class="b"><span class="name"><span class="dot" style="background:var(--stocks)"></span>stocks</span>
+      <div class="track"><div class="band" style="left:58%;width:20%;color:var(--stocks)"></div><div class="fill" style="width:52%;background:var(--stocks)"></div></div>
+      <span class="vals num"><span style="font-weight:600">NOW €20,300</span><span class="tgt">TARGET €22,000–€26,000</span></span>
+      <span class="state" style="justify-self:end"><span class="pill bad">TO ADD €1,700</span></span></div>
+    <div class="more"><span class="sep">HELD · 3</span>
+      ${held.map(([t, n, e, c], i) => `<div class="pos" style="animation-delay:${i*50}ms"><span class="tk">${t}</span><span class="nm">${n}</span><span class="eur num">${eur0(e)}</span><span class="pill ${PILL[c]}">${c}</span></div>`).join('')}
+      <span class="sep">★ WATCHLIST · ${watch.length}</span>
+      ${watch.map((r, i) => `<div class="pos watch" style="animation-delay:${(i+3)*50}ms"><span class="tk">${r[0]}</span><span class="nm">${r[1]}</span><span class="eur num">${eur(r[3])}</span><span class="pill ${PILL[r[7]]}">${r[7]}</span></div>`).join('')}
+    </div>`
+}
+
+function pushCard() {
+  const r = list.find((x) => x[11])
+  if (!r) return ''
+  return `<div class="push"><span class="app">SL</span><div><div class="t">🔔 ${r[0]} · CLOSE ${eur(r[3])} ≤ ${eur0(r[10])}</div>
+    <div class="b2">${r[11]} · PREV CLOSE ${eur(56.10)}</div></div></div>`
+}
+
+function render() {
+  const top = document.getElementById('top')
+  top.innerHTML = mode === 'press' || mode === 'full' ? moversCard() : mode === 'rang' ? pushCard() : ''
+  document.getElementById('card').innerHTML = mode === 'target' ? targetCard() : watchCard()
+}
+
+function go(s) { mode = s; reset(s); render() }
+
+document.querySelector('.ctl').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  document.querySelectorAll('.ctl button').forEach((x) => x.classList.toggle('on', x === b))
+  go(b.dataset.s)
+}
+
+document.body.addEventListener('click', (e) => {
+  const add = e.target.closest('[data-add]')
+  if (add) {
+    const tk = add.dataset.add
+    if (list.some((r) => r[0] === tk)) return
+    if (list.length >= 20) { add.classList.add('no'); note = `<span class="toast" style="background:var(--bad)">★ 20 / 20 · FULL</span>`; setTimeout(render, 400); return }
+    add.classList.add('saving'); add.textContent = '★'
+    setTimeout(() => {
+      const m = MOVERS.find((x) => x[0] === tk)
+      list.unshift([m[0], m[1], m[2], m[3], m[4], m[3] * 0.55, m[3] * 1.12, 'HOLD', 2, 1, null, null])
+      note = `<span class="toast">${TICK} ${tk} · WATCHLIST · ${list.length} / 20</span>`
+      render()
+      const st = document.querySelector(`[data-add="${tk}"]`); st && st.classList.add('pop')
+    }, 900)
+    return
+  }
+  const x = e.target.closest('[data-x]')
+  if (x) {
+    const rowEl = x.closest('.w')
+    x.classList.remove('on'); rowEl.classList.add('going')
+    setTimeout(() => { list = list.filter((r) => r[0] !== x.dataset.x); if (bellOpen === x.dataset.x) bellOpen = null; render() }, 320)
+    return
+  }
+  const b = e.target.closest('[data-b]')
+  if (b) { bellOpen = bellOpen === b.dataset.b ? null : b.dataset.b; render(); const i = document.querySelector('.bell input'); i && i.select(); return }
+  const off = e.target.closest('[data-off]')
+  if (off) { const r = list.find((r) => r[0] === off.dataset.off); r[10] = null; r[11] = null; bellOpen = null; render(); return }
+  const sv = e.target.closest('[data-sv]')
+  if (sv) {
+    const v = parseFloat(document.querySelector('.bell input').value)
+    sv.innerHTML = '<span class="spin"></span> SAVING…'
+    setTimeout(() => { sv.innerHTML = `<span style="animation:pop .5s both;display:inline-flex">${TICK}</span> SAVED`; sv.style.background = 'var(--good)' }, 800)
+    setTimeout(() => { const r = list.find((r) => r[0] === sv.dataset.sv); r[10] = v; r[11] = null; bellOpen = null; render() }, 1600)
+  }
+})
+
+go('watch')
+</script>
+</body>
+</html>

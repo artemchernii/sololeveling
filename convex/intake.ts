@@ -37,13 +37,12 @@ import {
 } from './files/write'
 import type { ConfirmRow } from './files/write'
 import {
-  MISSING_TEXT,
   batchAccount,
   batchAsk,
-  gatherBatch,
   isImage,
   mergedHoldings,
-} from './files/batch'
+} from './files/batchShape'
+import { MISSING_TEXT, gatherBatch } from './files/batch'
 import { buildReview, learnTails, reviewRow } from './files/review'
 import {
   DAY_MS,

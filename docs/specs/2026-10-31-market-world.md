@@ -31,9 +31,10 @@ week that really influenced my holdings").
 4. **OPPORTUNITIES** (built): DOWN FROM HIGH · CHEAP · TARGET ABOVE · BONDS
    · GOLD · SILVER, stocks by region, by the rule in CLAUDE.md (his "yes,
    the rule"). Icons on MARKET redone with it (his "icons are still bad").
-5. **COMING** (next 7 days: Finnhub earnings calendar, Fed/ECB/BoE, CPI,
-   jobs) and **MINE · THIS WEEK** (cards for holdings that moved 5% or had
-   news; the full table behind ▸).
+5. **COMING** (built: next 7 days, Finnhub earnings calendar, Fed/ECB/BoE,
+   CPI, jobs) and **MINE · THIS WEEK** (built: cards for holdings that
+   moved 5% or had results or an insider trade in 7 days — a 13F is a
+   quarter old, so only a line on a card; the full table behind ▸).
 
 ## Scenarios
 
@@ -48,6 +49,12 @@ week that really influenced my holdings").
   Broadcom HELD, ✕ ASIA NOT REACHED; US two rows; SOUTH AMERICA NONE;
   CHEAP one row; BONDS with US 2Y not reached; GOLD · SILVER; ✦ fills
   ASK. (`insights.spec` S8, `opportunities.test`)
+- S9 COMING: four days; Bank of England RATE · 12:00 with the UK flag,
+  US jobs report, ECB; PLTR `RESULTS · AFTER CLOSE · $0.17 EXPECTED`;
+  the held company HELD. MINE · THIS WEEK: the held company red,
+  `▼ 13.9%`, EARNINGS · INSIDER · BIG FUND, `$100.00 → $86.10`, WAS € /
+  NOW €; YOUR COMPANIES shut until ALL ▸. (`insights.spec` S9,
+  `coming.test`, `mineWeek.test`)
 - US inflation from FRED when BLS gives nothing. (`insightsMarket.test`)
 
 ## Data

@@ -153,6 +153,16 @@ export function BulkUpdate({
     )
   }
   if (view.status === 'done') return drop
+  /* Another account's unfinished drop is not this account's update (21
+     Nov: UPDATE on Cash opened Trade Republic's statement as "update ·
+     Cash"). It stays behind ADD's "update not finished". */
+  if (
+    forAccount &&
+    mine === null &&
+    view.files.length > 0 &&
+    view.files.every((f) => f.accountId != null && f.accountId !== forAccount)
+  )
+    return drop
   if (reading) return <BulkReading view={view} />
   if (forAccount) {
     if (accounts === undefined) return <div className="min-h-[320px]" />

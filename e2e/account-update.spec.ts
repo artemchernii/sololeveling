@@ -125,6 +125,37 @@ test('a connected bank: free cash is from the bank, nothing to type', async ({
   await page.screenshot(shot('account-update-connected'))
 })
 
+test("another account's unfinished drop: UPDATE on Cash is Cash's, ADD keeps the drop", async ({
+  page,
+}) => {
+  /* 21 Nov: UPDATE on Cash opened Trade Republic's statement as
+     "update · Cash". */
+  const days = await start(page)
+  const revolut = await update(page, 'Revolut')
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'account-statement.csv',
+    mimeType: 'text/csv',
+    buffer: revolutCsv(days),
+  })
+  await expect(
+    revolut.getByRole('button', { name: /apply 1 account/ }),
+  ).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(revolut).toBeHidden()
+  await expect(page.getByLabel('update not finished')).toBeVisible()
+
+  const cash = await update(page, 'Cash')
+  await expect(cash.getByLabel('Cash EUR')).toBeVisible()
+  await expect(cash.getByRole('button', { name: /apply/ })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  /* Still waiting, behind ADD and on its own account. */
+  await expect(page.getByLabel('update not finished')).toBeVisible()
+  const again = await update(page, 'Revolut')
+  await expect(
+    again.getByRole('button', { name: /apply 1 account/ }),
+  ).toBeVisible()
+})
+
 test('an update still being read: UPDATE opens on it, and closing asks', async ({
   page,
 }) => {

@@ -17,6 +17,8 @@ import type * as ai_intake from "../ai/intake.js";
 import type * as ai_market from "../ai/market.js";
 import type * as ai_read from "../ai/read.js";
 import type * as ai_rowsAsk from "../ai/rowsAsk.js";
+import type * as ai_tickers from "../ai/tickers.js";
+import type * as ai_trCsv from "../ai/trCsv.js";
 import type * as ai_week from "../ai/week.js";
 import type * as areas from "../areas.js";
 import type * as askReplies from "../askReplies.js";
@@ -158,6 +160,8 @@ declare const fullApi: ApiFromModules<{
   "ai/market": typeof ai_market;
   "ai/read": typeof ai_read;
   "ai/rowsAsk": typeof ai_rowsAsk;
+  "ai/tickers": typeof ai_tickers;
+  "ai/trCsv": typeof ai_trCsv;
   "ai/week": typeof ai_week;
   areas: typeof areas;
   askReplies: typeof askReplies;

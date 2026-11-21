@@ -41,7 +41,7 @@ const buy = (d: number, name: string, shares: number, price: number) => ({
   preferred: 0,
 })
 
-async function setup(opts: { stored?: boolean } = {}) {
+async function setup(opts: { stored?: boolean; newer?: boolean } = {}) {
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
   const ids = await t.run(async (ctx) => {
@@ -63,6 +63,18 @@ async function setup(opts: { stored?: boolean } = {}) {
       recordedAt: at(8, 20, 22),
       source: 'sync',
     })
+    if (opts.newer) {
+      /* The bank's answer of 12 Nov, after the statement's day. */
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key: `balance:${accountId}:EUR`,
+        value: 6.44,
+        unit: 'eur',
+        recordedAt: at(12, 9, 30),
+        source: 'sync',
+      })
+    }
     if (opts.stored) {
       /* The same buy, saved before from another door. */
       const instrumentId = await ctx.db.insert('instruments', {
@@ -171,5 +183,23 @@ describe('his Trade Republic statement of 12 Nov: a buy among the file’s order
     }))
     expect(saved.landed).toMatchObject({ was: 500.57, gap: 0 })
     expect(saved.trades).toBe(2)
+  })
+
+  test('applied over a newer reading: 12 Nov’s €6.44 stays the newest, 9 Nov is €399.72', async () => {
+    const { t, me, accountId, batchId } = await setup({ newer: true })
+    await me.mutation(api.intake.applyBatch, { batchId, dayStart: at(12, 0) })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    const readings = await t.run(async (ctx) =>
+      (
+        await ctx.db
+          .query('stateSnapshots')
+          .withIndex('by_owner_key_time', (q) =>
+            q.eq('ownerId', ME).eq('key', `balance:${accountId}:EUR`),
+          )
+          .collect()
+      ).map((r) => ({ value: r.value, at: r.recordedAt })),
+    )
+    expect(readings.at(-1)).toEqual({ value: 6.44, at: at(12, 9, 30) })
+    expect(readings).toContainEqual({ value: 399.72, at: at(9, 18) })
   })
 })

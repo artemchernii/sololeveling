@@ -195,9 +195,20 @@ export function BulkReview({
         const held = a.accountId
           ? balances?.accounts.find((x) => x.accountId === a.accountId)
           : undefined
-        const now = held?.pockets.some((p) => p.recordedAt !== null)
-          ? held.cashEur
-          : undefined
+        /* A file older than the account's newest reading does not move
+           its now (21 Nov: Trade Republic's 9 Nov statement drew
+           "now €6.44 → €399.72 · +€393.28" over the 12 Nov sync; APPLY
+           keeps €6.44). Saved at its day's 18:00 UTC, as write.ts does. */
+        const fileAt = a.last ? a.last.asOf + 6 * 3_600_000 : null
+        const newer =
+          fileAt !== null &&
+          held?.pockets.some(
+            (p) => p.recordedAt !== null && p.recordedAt > fileAt,
+          )
+        const now =
+          !newer && held?.pockets.some((p) => p.recordedAt !== null)
+            ? held.cashEur
+            : undefined
         return (
           <AccountBlock
             key={a.accountId ?? `new:${a.product?.id}`}

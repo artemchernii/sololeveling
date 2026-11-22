@@ -2394,7 +2394,7 @@ async function cashInEuros(
    buys were saved and the cash was not). Its cash is saved as a holdings
    statement's is: the broker's pocket of a bank that is also a broker;
    never for a broker whose cash a bank link brings. */
-async function statementCash(
+export async function statementCash(
   ctx: MutationCtx,
   ownerId: string,
   intake: Doc<'intakes'>,

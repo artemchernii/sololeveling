@@ -16,6 +16,10 @@ import type { ReadTrade, ReadTransaction } from './intake'
 
 export const TR_INSTITUTION = 'Trade Republic'
 
+/* A reading in code, at no cost: never reused, so a fix to it reaches
+   the next drop of the same file (22 Nov). */
+export const TR_CSV_READER = 'Trade Republic’s own columns'
+
 const COLUMNS = [
   'datetime',
   'date',

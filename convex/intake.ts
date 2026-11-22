@@ -6,6 +6,7 @@ import { fileNotice } from './fileNotice'
 import { fileTrade, fileTrades } from './fileTrades'
 import { findFor } from './recurring'
 import { notSaved } from './sharesCheck'
+import { TR_CSV_READER } from '../src/lib/trCsv'
 import { inStatement } from './holdingsKnown'
 import { holdingsTotal } from '../src/lib/holdingsTotal'
 import { internal } from './_generated/api'
@@ -302,6 +303,7 @@ async function beginIntake(
             (i.status === 'ready' || i.status === 'done') &&
             i.kind !== undefined &&
             i.reader === READER_VERSION &&
+            i.model !== TR_CSV_READER &&
             /* Read before a statement's orders were split out as
                trades (27 Sep): read it again, once. */
             !hasTradeRows(i.transactions ?? []),

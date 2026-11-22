@@ -2,7 +2,7 @@ import { internal } from '../_generated/api'
 import type { ActionCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
 import { csvTitle, skippedNote } from '../../src/lib/csvLayout'
-import { TR_INSTITUTION } from '../../src/lib/trCsv'
+import { TR_CSV_READER, TR_INSTITUTION } from '../../src/lib/trCsv'
 import type { TrCsvReading } from '../../src/lib/trCsv'
 import { Tickers } from './tickers'
 
@@ -45,6 +45,6 @@ export async function finishTrCsv(
     trades,
     costUsd: 0,
     note: skippedNote(reading.skipped),
-    model: 'Trade Republic’s own columns',
+    model: TR_CSV_READER,
   })
 }

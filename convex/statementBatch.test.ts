@@ -159,7 +159,10 @@ test('the Net Worth PDF dropped again: each position at its value, none twice', 
    part, each with its own cash. Both reach the broker's cash, the
    dollars at the stored rate; the positions the trades hold stay
    theirs. */
-async function revolutDrop(rate: number | null) {
+async function revolutDrop(
+  rate: number | null,
+  kind: 'holdings' | 'trades' = 'holdings',
+) {
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
   const rev = await me.mutation(api.accounts.create, {
@@ -219,7 +222,7 @@ async function revolutDrop(rate: number | null) {
       accountId: rev,
       storageIds: [],
       status: 'ready',
-      kind: 'holdings',
+      kind,
       title: 'Revolut statement · USD + EUR',
       institution: 'Revolut',
       readAt: SUN,
@@ -231,22 +234,47 @@ async function revolutDrop(rate: number | null) {
         { currency: 'USD', amount: 1000 },
         { currency: 'EUR', amount: 500 },
       ],
-      positions: [
-        {
-          name: 'NVIDIA',
-          shares: 2,
-          valueEur: 210,
-          preferred: 0,
-          candidates: [
-            {
-              symbol: 'NVDA',
-              name: 'NVIDIA Corp.',
-              exchange: 'X',
-              type: 'EQUITY',
-            },
-          ],
-        },
-      ],
+      /* Read as its orders, the 22 Nov way: the buy saved already, and
+         one new. */
+      trades:
+        kind === 'trades'
+          ? [2, 1].map((shares, k) => ({
+              occurredAt: Date.UTC(2026, 9 + k, 1),
+              name: 'NVIDIA',
+              side: 'buy' as const,
+              shares,
+              price: 100,
+              currency: 'EUR',
+              preferred: 0,
+              candidates: [
+                {
+                  symbol: 'NVDA',
+                  name: 'NVIDIA Corp.',
+                  exchange: 'X',
+                  type: 'EQUITY',
+                },
+              ],
+            }))
+          : undefined,
+      positions:
+        kind === 'trades'
+          ? undefined
+          : [
+              {
+                name: 'NVIDIA',
+                shares: 2,
+                valueEur: 210,
+                preferred: 0,
+                candidates: [
+                  {
+                    symbol: 'NVDA',
+                    name: 'NVIDIA Corp.',
+                    exchange: 'X',
+                    type: 'EQUITY',
+                  },
+                ],
+              },
+            ],
     })
     return batchId
   })
@@ -258,7 +286,10 @@ async function revolutDrop(rate: number | null) {
       dayStart: DAY_START,
       names: [],
     })
-  return await t.run(
+  const shares = await t.run(async (ctx) =>
+    (await ctx.db.query('trades').collect()).reduce((n, x) => n + x.shares, 0),
+  )
+  const cash = await t.run(
     async (ctx) =>
       (
         await ctx.db
@@ -270,6 +301,7 @@ async function revolutDrop(rate: number | null) {
           .first()
       )?.value,
   )
+  return kind === 'trades' ? { cash, shares } : cash
 }
 
 test('Revolut statement: the dollars and the euros both reach broker cash', async () => {
@@ -278,4 +310,8 @@ test('Revolut statement: the dollars and the euros both reach broker cash', asyn
 
 test('Revolut statement with no dollar rate stored: the cash is not cut to the euros', async () => {
   expect(await revolutDrop(null)).toBe(900)
+})
+
+test('Revolut statement read as its orders: the new buy and both cashes saved, the old buy once', async () => {
+  expect(await revolutDrop(0.9, 'trades')).toEqual({ cash: 1400, shares: 3 })
 })

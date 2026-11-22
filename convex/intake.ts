@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { requireUser } from './auth'
 import { refuseGuest } from './profiles'
-import { ownedAccount } from './accounts'
+import { hasBrokerCash, ownedAccount, writeBalance } from './accounts'
 import { fileNotice } from './fileNotice'
 import { fileTrade, fileTrades } from './fileTrades'
 import { findFor } from './recurring'
@@ -55,6 +55,7 @@ import {
   headingFor,
   keepUntil,
   liveAccounts,
+  sourceOf,
   suggestFor,
   suggestion,
 } from './files/shared'
@@ -2189,6 +2190,7 @@ export const applyOne = internalMutation({
         return c ? [{ index, trade: t, candidate: c }] : []
       })
       const done = await writeTrades(ctx, ownerId, account, intake._id, items)
+      await statementCash(ctx, ownerId, intake, account, args.dayStart)
       if (intake.accountTail)
         await learnTails(ctx, account, [intake.accountTail])
       await ctx.db.patch(intake._id, {
@@ -2385,4 +2387,44 @@ async function cashInEuros(
     cents += Math.round(l.amount * rate * 100)
   }
   return cents / 100
+}
+
+/* A statement read as its orders that also printed its cash (22 Nov:
+   Revolut's PDF came back as 22 trades with the USD and EUR cash — the
+   buys were saved and the cash was not). Its cash is saved as a holdings
+   statement's is: the broker's pocket of a bank that is also a broker;
+   never for a broker whose cash a bank link brings. */
+async function statementCash(
+  ctx: MutationCtx,
+  ownerId: string,
+  intake: Doc<'intakes'>,
+  account: Doc<'accounts'>,
+  dayStart: number,
+) {
+  const eur = await cashInEuros(ctx, ownerId, [intake])
+  if (eur === undefined || eur === null) return
+  const broker = hasBrokerCash(account)
+  if (!broker) {
+    const link = await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .unique()
+    if (link?.status === 'linked') return
+  }
+  if (!account.currencies.includes('EUR')) return
+  await writeBalance(
+    ctx,
+    ownerId,
+    account,
+    'EUR',
+    eur,
+    dayStart,
+    undefined,
+    sourceOf(intake),
+    broker ? 'broker' : 'free',
+    0,
+    intake._id,
+  )
 }

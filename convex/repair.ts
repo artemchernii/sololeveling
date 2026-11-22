@@ -19,7 +19,7 @@ export const moveTrade = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const t = await ctx.db.get(args.tradeId)
-    if (t === null || t.accountId === undefined) return null
+    if (t === null) return null
     const slots = [{ accountId: t.accountId, instrumentId: t.instrumentId }]
     if (args.to === undefined) await ctx.db.delete(t._id)
     else {

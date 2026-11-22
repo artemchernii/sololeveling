@@ -460,6 +460,7 @@ async function readWithModel(
         }
       : undefined,
     cashEur: parsed.cashEur,
+    cashLines: parsed.cash,
     totalEur: parsed.totalEur,
     costUsd: spent.usd,
   })

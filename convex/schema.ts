@@ -1360,6 +1360,11 @@ export default defineSchema({
       }),
     ),
     cashEur: v.optional(v.number()),
+    /* Uninvested cash per currency, as printed (22 Nov, Revolut's USD
+       and EUR parts); applied in euros at the stored ECB rate. */
+    cashLines: v.optional(
+      v.array(v.object({ currency: v.string(), amount: v.number() })),
+    ),
     totalEur: v.optional(v.number()),
     error: v.optional(v.string()),
     model: v.optional(v.string()),

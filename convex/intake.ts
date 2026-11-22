@@ -6,6 +6,7 @@ import { fileNotice } from './fileNotice'
 import { fileTrade, fileTrades } from './fileTrades'
 import { findFor } from './recurring'
 import { notSaved } from './sharesCheck'
+import { euroRateAt } from './money'
 import { TR_CSV_READER } from '../src/lib/trCsv'
 import { inStatement, tradedAs, tradedInstruments } from './holdingsKnown'
 import { holdingsTotal } from '../src/lib/holdingsTotal'
@@ -325,6 +326,7 @@ async function beginIntake(
       trades: before.trades,
       balance: before.balance,
       cashEur: before.cashEur,
+      cashLines: before.cashLines,
       totalEur: before.totalEur,
       model: before.model,
       readAt: now,
@@ -1349,6 +1351,7 @@ export const finish = internalMutation({
     trades: tradesValidator,
     balance: balanceValidator,
     cashEur: v.optional(v.number()),
+    cashLines: schema.tables.intakes.validator.fields.cashLines,
     totalEur: v.optional(v.number()),
     costUsd: v.optional(v.number()),
     note: v.optional(v.string()),
@@ -2141,7 +2144,11 @@ export const applyOne = internalMutation({
         if (held.symbol !== r.candidate.symbol)
           await dropMisplaced(ctx, ownerId, account._id, r.candidate.symbol)
       }
-      const cashEur = merged.cashEur ?? undefined
+      const lines = await cashInEuros(ctx, ownerId, screens)
+      const cashEur =
+        lines === undefined
+          ? (merged.cashEur ?? undefined)
+          : (lines ?? undefined)
       const done =
         fresh.length === 0 && cashEur === undefined
           ? { positions: 0 }
@@ -2347,4 +2354,35 @@ async function dropMisplaced(
     .take(200))
     if (h.accountId === accountId && h.importId !== undefined)
       await ctx.db.delete(h._id)
+}
+
+/* The broker's cash from a file that printed it per currency (22 Nov:
+   Revolut's statement, a USD part and a EUR part — one cash_eur kept
+   the euros and the dollars were gone). Each line in euros at the
+   stored ECB rate of the file's day (source 4); undefined when no file
+   printed lines, null when a rate is missing — then no cash is saved,
+   never a part of it. */
+async function cashInEuros(
+  ctx: MutationCtx,
+  ownerId: string,
+  screens: ReadonlyArray<Doc<'intakes'>>,
+): Promise<number | null | undefined> {
+  const screen = screens.find((i) => (i.cashLines ?? []).length > 0)
+  if (screen === undefined) return undefined
+  let cents = 0
+  for (const l of screen.cashLines ?? []) {
+    let rate: number
+    try {
+      rate = await euroRateAt(
+        ctx,
+        ownerId,
+        l.currency,
+        screen.readAt ?? screen._creationTime,
+      )
+    } catch {
+      return null
+    }
+    cents += Math.round(l.amount * rate * 100)
+  }
+  return cents / 100
 }

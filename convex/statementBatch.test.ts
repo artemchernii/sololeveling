@@ -154,3 +154,128 @@ test('the Net Worth PDF dropped again: each position at its value, none twice', 
   )
   expect(pos.totalEur).toBe(1221.5)
 })
+
+/* Revolut's statement, 22 Nov (made-up amounts): a USD part and a EUR
+   part, each with its own cash. Both reach the broker's cash, the
+   dollars at the stored rate; the positions the trades hold stay
+   theirs. */
+async function revolutDrop(rate: number | null) {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  const rev = await me.mutation(api.accounts.create, {
+    name: 'Revolut',
+    kinds: ['bank', 'broker'],
+    currencies: ['EUR', 'USD'],
+  })
+  const batchId = await t.run(async (ctx) => {
+    if (rate !== null)
+      await ctx.db.insert('fxRates', {
+        ownerId: ME,
+        currency: 'USD',
+        rate,
+        asOf: Date.UTC(2026, 10, 20),
+        fetchedAt: FRI_CLOSE,
+        source: 'ECB',
+      })
+    /* The cash an old screenshot saved. */
+    await ctx.db.insert('stateSnapshots', {
+      ownerId: ME,
+      area: 'money',
+      key: `brokerCash:${rev}:EUR`,
+      value: 900,
+      unit: 'eur',
+      recordedAt: Date.UTC(2026, 9, 19),
+      source: 'screenshot',
+    })
+    const instrumentId = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'NVDA',
+      name: 'NVIDIA Corp.',
+      type: 'EQUITY',
+      currency: 'USD',
+      exchange: 'X',
+    })
+    await ctx.db.insert('trades', {
+      ownerId: ME,
+      accountId: rev,
+      instrumentId,
+      side: 'buy',
+      shares: 2,
+      priceEur: 100,
+      occurredAt: Date.UTC(2026, 9, 1),
+    })
+    const batchId = await ctx.db.insert('batches', {
+      ownerId: ME,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    })
+    await ctx.db.insert('intakes', {
+      ownerId: ME,
+      batchId,
+      accountId: rev,
+      storageIds: [],
+      status: 'ready',
+      kind: 'holdings',
+      title: 'Revolut statement · USD + EUR',
+      institution: 'Revolut',
+      readAt: SUN,
+      files: [
+        { name: 'statement.pdf', size: 1, contentType: 'application/pdf' },
+      ],
+      cashEur: 500,
+      cashLines: [
+        { currency: 'USD', amount: 1000 },
+        { currency: 'EUR', amount: 500 },
+      ],
+      positions: [
+        {
+          name: 'NVIDIA',
+          shares: 2,
+          valueEur: 210,
+          preferred: 0,
+          candidates: [
+            {
+              symbol: 'NVDA',
+              name: 'NVIDIA Corp.',
+              exchange: 'X',
+              type: 'EQUITY',
+            },
+          ],
+        },
+      ],
+    })
+    return batchId
+  })
+  await me.query(api.intake.batchReview, { batchId })
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: DAY_START })
+  for (let i = 0; i < 4; i++)
+    await t.mutation(internal.intake.applyStep, {
+      batchId,
+      dayStart: DAY_START,
+      names: [],
+    })
+  return await t.run(
+    async (ctx) =>
+      (
+        await ctx.db
+          .query('stateSnapshots')
+          .withIndex('by_owner_key_time', (q) =>
+            q.eq('ownerId', ME).eq('key', `brokerCash:${rev}:EUR`),
+          )
+          .order('desc')
+          .first()
+      )?.value,
+  )
+}
+
+test('Revolut statement: the dollars and the euros both reach broker cash', async () => {
+  expect(await revolutDrop(0.9)).toBe(1400)
+})
+
+test('Revolut statement with no dollar rate stored: the cash is not cut to the euros', async () => {
+  expect(await revolutDrop(null)).toBe(900)
+})

@@ -7,7 +7,7 @@ import { fileTrade, fileTrades } from './fileTrades'
 import { findFor } from './recurring'
 import { notSaved } from './sharesCheck'
 import { TR_CSV_READER } from '../src/lib/trCsv'
-import { inStatement } from './holdingsKnown'
+import { inStatement, tradedAs, tradedInstruments } from './holdingsKnown'
 import { holdingsTotal } from '../src/lib/holdingsTotal'
 import { internal } from './_generated/api'
 import { internalMutation, internalQuery, query } from './_generated/server'
@@ -35,6 +35,7 @@ import {
   writeHoldings,
   writeTrades,
   writeTransactions,
+  statementValueEur,
 } from './files/write'
 import type { ConfirmRow } from './files/write'
 import {
@@ -2106,14 +2107,40 @@ export const applyOne = internalMutation({
       const merged = mergedHoldings(screens)
       if (merged === null || merged.missing > 0) return 0
       /* Positions the account's trades hold already are not saved again
-         (19 Oct): from such a screen only the cash is new. */
+         (19 Oct): from such a screen only the cash is new — unless it is
+         Trade Republic's statement with its values (22 Nov), whose look
+         goes on the position the trades hold, to price it. The same
+         company under another listing is the trades' one. */
+      const traded = await tradedInstruments(ctx, ownerId, account._id)
       const fresh = []
-      for (const r of merged.rows)
-        if (
-          r !== null &&
-          !(await inStatement(ctx, ownerId, account._id, r.candidate))
-        )
+      for (const r of merged.rows) {
+        if (r === null) continue
+        const held = (await inStatement(ctx, ownerId, account._id, r.candidate))
+          ? r.candidate
+          : tradedAs({ ...r.candidate, isin: r.isin }, traded)
+        if (held === null) {
           fresh.push(r)
+          continue
+        }
+        if (
+          statementValueEur(account, screens, r.candidate.symbol, r.shares) ===
+          undefined
+        )
+          continue
+        fresh.push({
+          ...r,
+          candidate: {
+            symbol: held.symbol,
+            name: held.name,
+            exchange: held.exchange,
+            type: held.type,
+          },
+          /* Its value is read by the file's own ticker. */
+          readAs: r.candidate.symbol,
+        })
+        if (held.symbol !== r.candidate.symbol)
+          await dropMisplaced(ctx, ownerId, account._id, r.candidate.symbol)
+      }
       const cashEur = merged.cashEur ?? undefined
       const done =
         fresh.length === 0 && cashEur === undefined
@@ -2283,4 +2310,41 @@ async function finishBatch(
   }) /* Flow (3 Oct): new statements can show a bill coming round — it goes
      onto its day with no question. */
   await findFor(ctx, b.ownerId)
+}
+
+/* A look a file saved on another listing of a company the account's
+   trades hold (22 Nov: GOOGL beside his GOOG, RHM.F beside RHM.DE —
+   each counted twice). Only a listing the account never traded, and only
+   what a file saved. */
+async function dropMisplaced(
+  ctx: MutationCtx,
+  ownerId: string,
+  accountId: Id<'accounts'>,
+  symbol: string,
+) {
+  const i = await ctx.db
+    .query('instruments')
+    .withIndex('by_owner_symbol', (q) =>
+      q.eq('ownerId', ownerId).eq('symbol', symbol),
+    )
+    .first()
+  if (i === null) return
+  const traded = await ctx.db
+    .query('trades')
+    .withIndex('by_owner_account_instrument_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', accountId)
+        .eq('instrumentId', i._id),
+    )
+    .first()
+  if (traded !== null) return
+  for (const h of await ctx.db
+    .query('holdings')
+    .withIndex('by_owner_instrument', (q) =>
+      q.eq('ownerId', ownerId).eq('instrumentId', i._id),
+    )
+    .take(200))
+    if (h.accountId === accountId && h.importId !== undefined)
+      await ctx.db.delete(h._id)
 }

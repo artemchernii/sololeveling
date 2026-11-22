@@ -529,7 +529,7 @@ export async function writeClosing(
 /* What Trade Republic's statement printed a position is worth, kept on
    the look so the position is valued at its price (src/lib/statementValue
    .ts). Only Trade Republic's, and only for the shares it printed. */
-function statementValueEur(
+export function statementValueEur(
   account: Doc<'accounts'>,
   files: ReadonlyArray<Doc<'intakes'>>,
   symbol: string,
@@ -537,7 +537,15 @@ function statementValueEur(
 ): number | undefined {
   if (
     account.name !== TR_INSTITUTION &&
-    !files.some((f) => f.institution === TR_INSTITUTION)
+    !files.some((f) => f.institution?.startsWith(TR_INSTITUTION))
+  )
+    return undefined
+  /* Its statement, not a screenshot of the app (a screen of positions
+     the trades hold saves only its cash, 19 Oct). */
+  if (
+    !files.some((f) =>
+      (f.files ?? []).some((x) => x.contentType === 'application/pdf'),
+    )
   )
     return undefined
   for (const f of files)
@@ -556,6 +564,9 @@ function statementValueEur(
 type HoldingRow = {
   candidate: Candidate
   isin?: string
+  /** The file's own ticker, when the row is saved on the trades' listing
+      of the same company (22 Nov). */
+  readAs?: string
   shares: number
   paidEur?: number
   sharesCalculated?: boolean
@@ -736,7 +747,7 @@ export async function writeHoldings(
       valueEur: statementValueEur(
         account,
         look.screens ?? [intake],
-        row.candidate.symbol,
+        row.readAs ?? row.candidate.symbol,
         row.shares,
       ),
     })

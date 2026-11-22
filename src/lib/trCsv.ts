@@ -9,9 +9,9 @@ import type { ReadTrade, ReadTransaction } from './intake'
 
    Read the way the app reads Trade Republic's PDF statement, so a row
    saved from either is the same row: a dividend is its amount after tax
-   (0.30 − 0.06 = 0.24), a top-up is what reached the account (505.20 −
-   5.00 − 0.20 = 500.00; the transfer check finds the 5.20 against the
-   other bank's side), a buy is a trade whose fee is the fee and the tax
+   (0.30 − 0.06 = 0.24), a top-up is the 505.20 sent and a row of its
+   5.20 fee, as the statement prints it (22 Nov: read as one 500.00 row,
+   it missed the statement's 505.20 and the top-up was saved twice), a buy is a trade whose fee is the fee and the tax
    (1.00 + 0.04), its cost the amount and both. */
 
 export const TR_INSTITUTION = 'Trade Republic'
@@ -117,13 +117,43 @@ export function readTrCsv(
       })
       continue
     }
-    /* Money: what moved the cash, fee and tax taken off. */
+    const description = cell('description')
+    /* A top-up: what was sent, and its fee as a row of its own — the
+       statement's shape, so the same top-up from either is one row. */
+    const cost = round2(fee + tax)
+    if (type !== 'DIVIDEND' && amount !== 0 && cost !== 0) {
+      const self =
+        type === 'CUSTOMER_INPAYMENT' || type === 'CUSTOMER_OUTPAYMENT'
+      const merchant = description || cell('name') || type
+      const at = { occurredAt, ...(time ? { time } : {}) }
+      out.transactions.push(
+        {
+          ...at,
+          merchant,
+          raw: merchant,
+          amount: round2(amount),
+          currency,
+          pending: false,
+          self,
+        },
+        {
+          ...at,
+          merchant: 'Transfer fee',
+          raw: `${merchant} · fee`,
+          amount: cost,
+          currency,
+          pending: false,
+          self: false,
+        },
+      )
+      continue
+    }
+    /* Money: what moved the cash, tax taken off. */
     const net = round2(amount + fee + tax)
     if (net === 0) {
       skip(`${category} · ${type || '—'}`)
       continue
     }
-    const description = cell('description')
     const merchant =
       type === 'DIVIDEND'
         ? 'Cash Dividend'

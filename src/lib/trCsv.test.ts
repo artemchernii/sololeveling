@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { parseCsv } from './csv'
+import { findDuplicates } from './intake'
 import { readTrCsv, trColumns } from './trCsv'
 
 /* Rows of his Trade Republic export of 21 Nov (names and ids left out). */
@@ -29,12 +30,28 @@ describe('Trade Republic export', () => {
     expect(trColumns(['date', 'amount', 'description'])).toBeNull()
   })
 
-  test('a dividend after tax, a top-up after fee and tax, as the PDF reads them', () => {
+  test('a dividend after tax, a top-up and its fee row, as the statement prints them', () => {
     expect(read().transactions).toMatchObject([
       { merchant: 'Cash Dividend', amount: 0.14, self: false },
-      { merchant: 'Apple Pay Top up', amount: 500, self: true },
-      { merchant: 'Apple Pay Top up', amount: 110, self: true },
+      { merchant: 'Apple Pay Top up', amount: 505.2, self: true },
+      { merchant: 'Transfer fee', amount: -5.2, self: false },
+      { merchant: 'Apple Pay Top up', amount: 111.14, self: true },
+      { merchant: 'Transfer fee', amount: -1.14, self: false },
     ])
+  })
+
+  /* 22 Nov: the statement had saved 6 Nov's top-up as 505.20 and a 5.20
+     fee; the file, read as one 500.00 row, saved it a second time. */
+  test('a top-up the statement saved is the same payment, not a new one', () => {
+    const rows = read().transactions.filter(
+      (t) => new Date(t.occurredAt).getDate() === 3,
+    )
+    const at = rows[0].occurredAt
+    const saved = [
+      { occurredAt: at, amount: 505.2, merchant: 'Apple Pay Top up' },
+      { occurredAt: at, amount: -5.2, merchant: 'Transfer fee' },
+    ]
+    expect(findDuplicates(rows, saved)).toEqual([0, 1])
   })
 
   test('buys are trades, the fee and the tax as their fee', () => {

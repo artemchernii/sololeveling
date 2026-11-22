@@ -315,3 +315,101 @@ test('Revolut statement with no dollar rate stored: the cash is not cut to the e
 test('Revolut statement read as its orders: the new buy and both cashes saved, the old buy once', async () => {
   expect(await revolutDrop(0.9, 'trades')).toEqual({ cash: 1400, shares: 3 })
 })
+
+/* Revolut prints a fund by its ticker alone ("VGWE") with its ISIN; the
+   fund he holds, VGWE.DE, was saved with no ISIN, and the search found
+   another listing (VHYA.L). The September buy is the one saved already,
+   the November one lands beside it — nothing on VHYA.L. */
+test('a ticker printed alone lands on the held listing, its old buy once', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  const rev = await me.mutation(api.accounts.create, {
+    name: 'Revolut',
+    kinds: ['bank', 'broker'],
+    currencies: ['EUR', 'USD'],
+  })
+  const batchId = await t.run(async (ctx) => {
+    const instrumentId = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'VGWE.DE',
+      name: 'Vanguard FTSE All-World High Dividend Yield UCITS ETF',
+      type: 'ETF',
+      currency: 'EUR',
+      exchange: 'XETRA',
+    })
+    await ctx.db.insert('trades', {
+      ownerId: ME,
+      accountId: rev,
+      instrumentId,
+      side: 'buy',
+      shares: 2.5,
+      priceEur: 94,
+      occurredAt: Date.UTC(2026, 8, 8, 12),
+    })
+    const batchId = await ctx.db.insert('batches', {
+      ownerId: ME,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    })
+    await ctx.db.insert('intakes', {
+      ownerId: ME,
+      batchId,
+      accountId: rev,
+      storageIds: [],
+      status: 'ready',
+      kind: 'trades',
+      title: 'Revolut statement',
+      institution: 'Revolut',
+      readAt: SUN,
+      files: [
+        { name: 'statement.pdf', size: 1, contentType: 'application/pdf' },
+      ],
+      trades: [
+        [2.5, 94, Date.UTC(2026, 8, 8, 12)],
+        [3, 95, Date.UTC(2026, 10, 6, 12)],
+      ].map(([shares, price, occurredAt]) => ({
+        occurredAt,
+        name: 'VGWE',
+        isin: 'IE00TEST0001',
+        side: 'buy' as const,
+        shares,
+        price,
+        currency: 'EUR',
+        preferred: 0,
+        candidates: [
+          {
+            symbol: 'VHYA.L',
+            name: 'Vanguard FTSE All-World High Dividend Yield UCITS ETF USD Accumulation',
+            exchange: 'London',
+            type: 'ETF',
+          },
+        ],
+      })),
+    })
+    return batchId
+  })
+  await me.query(api.intake.batchReview, { batchId })
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: DAY_START })
+  for (let i = 0; i < 4; i++)
+    await t.mutation(internal.intake.applyStep, {
+      batchId,
+      dayStart: DAY_START,
+      names: [],
+    })
+  const saved = await t.run(async (ctx) => {
+    const out: Array<[string, number]> = []
+    for (const x of await ctx.db.query('trades').collect()) {
+      const i = await ctx.db.get(x.instrumentId)
+      out.push([i?.symbol ?? '?', x.shares])
+    }
+    return out.sort((a, b) => a[1] - b[1])
+  })
+  expect(saved).toEqual([
+    ['VGWE.DE', 2.5],
+    ['VGWE.DE', 3],
+  ])
+})

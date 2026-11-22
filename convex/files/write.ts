@@ -423,7 +423,17 @@ export async function writeTrades(
     if (free) {
       if (!(shares > 0)) throw new ConvexError('That needs a number of shares.')
     } else checkTrade(shares, priceEur)
-    const same = sameCompany({ name: t.name, isin: t.isin }, held)
+    /* A file that prints only the ticker (22 Nov: Revolut's "VGWE", his
+       VGWE.DE saved with no ISIN) is the held listing of that ticker —
+       before the ISIN, which the search's other listing (VHYA.L) has. */
+    const code = t.name.trim().toUpperCase()
+    const byTicker = /^[A-Z0-9]{1,6}$/.test(code)
+      ? held.findIndex((h) => h.symbol.split(/[.-]/)[0].toUpperCase() === code)
+      : -1
+    const same =
+      byTicker >= 0
+        ? byTicker
+        : sameCompany({ name: t.name, isin: t.isin }, held)
     const instrumentId =
       same >= 0
         ? held[same]._id

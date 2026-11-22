@@ -1,3 +1,4 @@
+import { statementHolds, statementOf } from '../../src/lib/statementValue'
 import { movedSince, tradedSince } from './moves'
 import { v } from 'convex/values'
 import { brokerCashKey, hasBrokerCash } from '../accounts'
@@ -109,6 +110,9 @@ export const positionRow = {
   rate: v.union(v.number(), v.null()),
   rateAsOf: v.union(v.number(), v.null()),
   valueEur: v.union(v.number(), v.null()),
+  /** Valued at Trade Republic's own price, from its statement of this
+      day (22 Nov) — null when the market's close values it. */
+  statementAt: v.union(v.number(), v.null()),
   /** Coins given for holding it (staking), in its own units. */
   staked: v.number(),
 }
@@ -456,6 +460,7 @@ export async function investedInputs(
       shares: h.shares,
       paidEur: h.paidEur,
       asOf: h.asOf,
+      valueEur: h.valueEur,
     })
 
   const instruments = new Map(
@@ -687,6 +692,7 @@ export async function readPositions(
       shares: h.shares,
       paidEur: h.paidEur,
       asOf: h.asOf,
+      valueEur: h.valueEur,
     })
   /* Every instrument once, side by side. */
   const instruments = new Map(
@@ -776,8 +782,12 @@ export async function readPositions(
       .first()
     const { base, divide } = quoteToRate(instrument.currency)
     const rate = await rateFor(base)
-    const valueEur =
-      price === null || rate === null
+    /* Trade Republic's own price, while no close is newer (22 Nov). */
+    const statement = statementOf(p.looks, shares)
+    const byStatement = statementHolds(statement, price)
+    const valueEur = byStatement
+      ? statement.valueEur
+      : price === null || rate === null
         ? null
         : Math.round(((shares * price.price) / divide) * rate.rate * 100) / 100
     /* Sold out, or dust left by a sale — 0.06 XLM, €0.01 — is not a
@@ -805,6 +815,7 @@ export async function readPositions(
           rate: rate?.rate ?? null,
           rateAsOf: rate?.asOf ?? null,
           valueEur: 0,
+          statementAt: null,
           staked: 0,
           soldFor: s.soldFor,
           soldAt: s.soldAt,
@@ -835,6 +846,7 @@ export async function readPositions(
       rate: rate?.rate ?? null,
       rateAsOf: rate?.asOf ?? null,
       valueEur,
+      statementAt: byStatement ? statement.asOf : null,
       staked: Math.round(p.staked * 1e6) / 1e6,
     })
   }

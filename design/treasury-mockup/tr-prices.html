@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · Trade Republic priced by Trade Republic</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* 22 Nov. Artem, after his Net Worth PDF and the app valued the
+     same shares about 1% apart: "price from TR". Trade Republic's
+     own price per share, from its Net Worth statement, values its
+     positions; a newer Yahoo close takes over until the next statement.
+     Numbers are made up. */
+  :root {
+    --bg: #ece9e3; --panel: #f4f2ee; --ink-100: #1d1b26; --ink-200: #33303f; --ink-300: #55516a; --ink-400: #77738a; --ink-500: #99959f;
+    --lav: #5b4fc4; --lav-soft: rgba(91,79,196,.10); --lav-edge: rgba(91,79,196,.30);
+    --good: oklch(0.55 0.15 155); --danger: oklch(0.55 0.19 25); --warn: oklch(0.62 0.15 70);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(0,0,0,.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--lav); background: var(--lav-soft); border-color: var(--lav-edge) }
+  .cap { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500) }
+  .row2 { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start }
+  @media (max-width: 720px) { .row2 { grid-template-columns: 1fr } }
+  .card { background: var(--panel); border-radius: 20px; padding: 16px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.07), 0 10px 30px -18px rgba(0,0,0,.35); display: flex; flex-direction: column; gap: 10px; animation: land .4s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.15) } }
+  .head { display: flex; align-items: center; gap: 10px }
+  .logo { width: 36px; height: 36px; border-radius: 10px; background: #fff; display: grid; place-items: center; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08) }
+  .head b { font-weight: 400; font-size: 17px }
+  .big { font-size: 32px; font-weight: 300; letter-spacing: -.01em }
+  .kv { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12.5px; color: var(--ink-300) }
+  .kv b { font-weight: 400; color: var(--ink-100) }
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap }
+  .badge.tr { color: var(--lav); background: var(--lav-soft); box-shadow: inset 0 0 0 1px var(--lav-edge) }
+  .badge.yh { color: var(--ink-300); background: rgba(0,0,0,.05); box-shadow: inset 0 0 0 1px rgba(0,0,0,.1) }
+  .badge.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .badge.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+  .badge svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 3; animation: pop .45s .3s both }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08) }
+  .pair div { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px }
+  .pair div + div { border-left: 1px solid rgba(0,0,0,.08) }
+  .pair span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .pair b { font-weight: 300; font-size: 16px }
+  .list { display: flex; flex-direction: column }
+  .pos { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 9px 4px; border-top: 1px solid rgba(0,0,0,.06) }
+  .pos:first-child { border-top: 0 }
+  .pos .n { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+  .pos .n b { font-weight: 400; font-size: 13.5px }
+  .pos .n small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .pos .p { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end }
+  .pos .p span { font-family: var(--mono); font-size: 12px; color: var(--ink-300) }
+  .pos .v { font-family: var(--mono); font-size: 14px; min-width: 76px; text-align: right }
+  .more { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); padding: 8px 4px 0; letter-spacing: .08em; text-transform: uppercase }
+  .drop { display: flex; align-items: center; gap: 10px; border-radius: 14px; padding: 10px 12px; background: rgba(0,0,0,.04); box-shadow: inset 0 0 0 1px rgba(0,0,0,.07) }
+  .drop .f { width: 26px; height: 30px; border-radius: 5px; background: rgba(0,0,0,.08); display: grid; place-items: center; font-family: var(--mono); font-size: 8.5px; color: var(--ink-400) }
+  .drop div { flex: 1; display: flex; flex-direction: column; gap: 2px }
+  .drop small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen">
+    <button data-s="file" class="on">PDF dropped · Sun 22 Nov</button>
+    <button data-s="newer">Mon 23 Nov · Yahoo newer</button>
+    <button data-s="none">No PDF yet</button>
+  </div>
+  <div class="row2">
+    <div>
+      <p class="cap" style="margin:0 0 8px 4px">Account card · Finances</p>
+      <div class="card" id="card"></div>
+    </div>
+    <div>
+      <p class="cap" style="margin:0 0 8px 4px">Portfolio · Trade Republic</p>
+      <div class="card"><div class="list" id="list"></div><div class="more" id="more"></div></div>
+    </div>
+  </div>
+</div>
+<script>
+/* Made-up positions: name, shares, TR price, TR value, Yahoo value, Monday price. */
+const POS = [
+  ['NVIDIA', 4.877167, 110.64, 650.13, 633.4, 137.49],
+  ['Alphabet', 1.696337, 231.02, 472.16, 463.31, 280.95],
+  ['Amazon', 1.724771, 213.18, 443.01, 440.43, 258.55],
+  ['Microsoft', 0.858731, 416.74, 431.17, 430.46, 504.88],
+  ['Netflix', 6.124572, 48.91, 360.92, 359.46, 59.47],
+  ['GE Vernova', 0.46171, 596.24, 331.68, 334.05, 727.79],
+  ['Meta', 0.562556, 486.2, 329.53, 326.41, 590.96],
+]
+const CHECK = '<svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>'
+const eur = (n) => '€' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function draw(s) {
+  const tr = s === 'file'
+  const newer = s === 'newer'
+  const inv = tr ? 6125.00 : newer ? 6178.30 : 6079.90
+  const src = tr
+    ? '<span class="badge tr">prices · Trade Republic · 20 Nov</span>'
+    : newer
+      ? '<span class="badge yh">prices · Yahoo · 23 Nov</span>'
+      : '<span class="badge yh">prices · Yahoo · 20 Nov</span>'
+  document.getElementById('card').innerHTML = `
+    <div class="head"><div class="logo">≋</div><b>Trade Republic</b></div>
+    <div class="big">${eur(inv + 6.42)}</div>
+    <div class="kv"><span>free cash</span><b>€6.42</b></div>
+    <div class="kv"><span>investments</span><b>${eur(inv)}</b></div>
+    <div>${src}</div>
+    ${tr ? `<div class="pair"><div><span>Trade Republic</span><b>€6,131.42</b></div><div><span>app</span><b style="display:flex;align-items:center;gap:6px">€6,131.42 <span class="badge good" style="padding:2px 5px">${CHECK}</span></b></div></div>` : ''}
+    ${newer ? `<div class="pair"><div><span>in the file · 20 Nov</span><b>€6,131.42</b></div><div><span>now · 23 Nov</span><b>${eur(inv + 6.42)}</b></div></div>` : ''}
+    ${s === 'none' ? `<div class="drop"><div class="f">PDF</div><div><b style="font-weight:400">Net Worth.pdf</b><small>not saved · drop on UPDATE</small></div></div>` : ''}
+  `
+  document.getElementById('list').innerHTML = POS.map(([n, sh, trp, trv, yv, mon]) => {
+    const price = tr ? trp : newer ? mon : yv / sh
+    const val = tr ? trv : newer ? Math.round(mon * sh * 100) / 100 : yv
+    const b = tr ? '<span class="badge tr">TR · 20 Nov</span>' : newer ? '<span class="badge yh">Yahoo · 23 Nov</span>' : '<span class="badge yh">Yahoo · 20 Nov</span>'
+    return `<div class="pos"><div class="n"><b>${n}</b><small>${sh} shares</small></div>
+      <div class="p"><span>${eur(price)}</span>${b}</div><div class="v">${eur(val)}</div></div>`
+  }).join('')
+  document.getElementById('more').textContent = '10 more · 17 positions'
+}
+document.getElementById('scen').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  document.querySelectorAll('#scen button').forEach((x) => x.classList.toggle('on', x === b))
+  draw(b.dataset.s)
+})
+draw('file')
+</script>
+</body>
+</html>

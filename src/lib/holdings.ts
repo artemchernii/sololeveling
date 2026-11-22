@@ -27,6 +27,9 @@ export type Observation = {
   /** What the screen said was paid for these shares, if it said. */
   paidEur?: number
   asOf: number
+  /** What the broker's own statement said they were worth (Trade
+      Republic's Net Worth PDF, 22 Nov) — statementValue. */
+  valueEur?: number
 }
 
 /**

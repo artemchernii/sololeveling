@@ -156,6 +156,13 @@ SIGNALS tab:
   money. His alert price is his own number (like a target); the 21:30
   job rings once when a stored close reaches it, that close and the
   close before it on the push.
+- **Trade Republic's own price** (22 Nov, "go" on the mockup
+  `design/treasury-mockup/tr-prices.html`, his "price from TR" after his
+  Net Worth PDF and the app valued the same shares about 1% apart): what that statement printed a position is worth, stored on
+  its holding (`holdings.valueEur`), attributed to Trade Republic and
+  shown with its day. It values the position — never derived, never a
+  price for another account — while no Yahoo close is newer and the
+  shares are the ones it counted (`src/lib/statementValue.ts`).
 - **News** (13 Oct, "we simply fetch it and show"): headlines with
   publisher, time and link, fetched on open, never stored, never
   summarised, not an input to the verdict.

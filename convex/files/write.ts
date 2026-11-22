@@ -1,3 +1,4 @@
+import { TR_INSTITUTION } from '../../src/lib/trCsv'
 import { DAY_MS, MAX_TRADES, keepUntil, sourceOf } from './shared'
 import { learnTails, openSide } from './review'
 import { costPrice } from '../../src/lib/tradeCost'
@@ -520,8 +521,36 @@ export async function writeClosing(
       paidEur: heldCost(upTo),
       asOf,
       importId: intake._id,
+      valueEur: statementValueEur(account, [intake], c.symbol, p.shares),
     })
   }
+}
+
+/* What Trade Republic's statement printed a position is worth, kept on
+   the look so the position is valued at its price (src/lib/statementValue
+   .ts). Only Trade Republic's, and only for the shares it printed. */
+function statementValueEur(
+  account: Doc<'accounts'>,
+  files: ReadonlyArray<Doc<'intakes'>>,
+  symbol: string,
+  shares: number,
+): number | undefined {
+  if (
+    account.name !== TR_INSTITUTION &&
+    !files.some((f) => f.institution === TR_INSTITUTION)
+  )
+    return undefined
+  for (const f of files)
+    for (const p of f.positions ?? [])
+      if (
+        p.candidates.at(p.preferred ?? 0)?.symbol === symbol &&
+        p.valueEur !== undefined &&
+        p.valueEur > 0 &&
+        p.shares !== undefined &&
+        Math.abs(p.shares - shares) < 1e-6
+      )
+        return Math.round(p.valueEur * 100) / 100
+  return undefined
 }
 
 type HoldingRow = {
@@ -704,6 +733,12 @@ export async function writeHoldings(
       sharesCalculated: row.sharesCalculated ? true : undefined,
       asOf: look.asOf,
       importId: intake._id,
+      valueEur: statementValueEur(
+        account,
+        look.screens ?? [intake],
+        row.candidate.symbol,
+        row.shares,
+      ),
     })
   }
   /* A connected broker's cash is the bank's (19 Oct): a screenshot brings

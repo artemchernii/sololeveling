@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { netDeposits, rangeReturn } from './portfolioReturn'
+import { dayReturn, netDeposits, rangeReturn } from './portfolioReturn'
 
 const DAY = 86_400_000
 /* Five day ends, the last one today. */
@@ -97,5 +97,40 @@ describe('rangeReturn', () => {
     expect(
       rangeReturn(ends, [null, null, null, null, 700], [0, 0, 0, 0, 0], 4),
     ).toBeNull()
+  })
+})
+
+describe('dayReturn', () => {
+  /* Thu 19 … Mon 23 Nov 2026, noon local. */
+  const week = [19, 20, 21, 22, 23].map((d) =>
+    new Date(2026, 10, d, 12).getTime(),
+  )
+
+  test('on a Monday, PREV. CLOSE is Friday, not Sunday', () => {
+    const r = dayReturn(week, [990, 1000, 1001, 1002, 1100], [0, 0, 0, 0, 0])
+    expect(r).toMatchObject({
+      startAt: week[1],
+      start: 1000,
+      end: 1100,
+      change: 100,
+    })
+  })
+
+  test('a buy over the weekend is taken out of the day', () => {
+    const r = dayReturn(week, [990, 1000, 1000, 1500, 1520], [0, 0, 0, 500, 0])
+    expect(r).toMatchObject({
+      start: 1000,
+      end: 1520,
+      deposits: 500,
+      change: 20,
+    })
+  })
+
+  test('on a Tuesday it is Monday', () => {
+    const days = [23, 24].map((d) => new Date(2026, 10, d, 12).getTime())
+    expect(dayReturn(days, [1000, 1010], [0, 0])).toMatchObject({
+      startAt: days[0],
+      change: 10,
+    })
   })
 })

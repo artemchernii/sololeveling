@@ -5,7 +5,7 @@ import { Veiled } from '@/components/finances/Veil'
 import { dayEndsBack } from '@/components/finances/WorthChart'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
-import { rangeReturn } from '@/lib/portfolioReturn'
+import { dayReturn, rangeReturn } from '@/lib/portfolioReturn'
 import type { RangeReturn } from '@/lib/portfolioReturn'
 import { useWorthHistory } from '@/lib/useWorthHistory'
 import { useVeil } from '@/lib/veil'
@@ -96,7 +96,9 @@ export function PortfolioChart({
   const r = useMemo(
     () =>
       history
-        ? rangeReturn(dayEnds, history.invested, history.deposits, days)
+        ? days === 1
+          ? dayReturn(dayEnds, history.invested, history.deposits)
+          : rangeReturn(dayEnds, history.invested, history.deposits, days)
         : null,
     [history, dayEnds, days],
   )

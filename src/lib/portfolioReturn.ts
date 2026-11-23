@@ -93,3 +93,34 @@ export function rangeReturn(
     points,
   }
 }
+
+/**
+ * DAY'S CHANGE: the last day with a value against the last weekday before
+ * it that has one — PREV. CLOSE is a trading day's close, so on a Monday
+ * it is Friday's, never Sunday's (23 Nov). Deposits between them are taken
+ * out, as in a range. Null without both.
+ */
+export function dayReturn(
+  dayEnds: ReadonlyArray<number>,
+  invested: ReadonlyArray<number | null>,
+  deposits: ReadonlyArray<number>,
+): RangeReturn | null {
+  let last = dayEnds.length - 1
+  while (last >= 0 && (invested[last] ?? null) === null) last--
+  let prev = last - 1
+  const weekend = (t: number) => [0, 6].includes(new Date(t).getDay())
+  while (
+    prev >= 0 &&
+    ((invested[prev] ?? null) === null || weekend(dayEnds[prev]))
+  )
+    prev--
+  if (prev < 0) return null
+  return rangeReturn(
+    dayEnds.slice(0, last + 1),
+    invested
+      .slice(0, last + 1)
+      .map((v, i) => (i > prev && i < last ? null : v)),
+    deposits.slice(0, last + 1),
+    last - prev,
+  )
+}

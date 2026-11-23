@@ -215,8 +215,10 @@ export function PortfolioChart({
             </linearGradient>
           </defs>
           <path d={area} fill="url(#pf-area)" />
-          {/* Drawn in on each range: motion-draw's dash is 24 long. */}
-          <g key={range} className="motion-draw">
+          {/* Arrives on each range. Not a dash draw: with a stretched
+              viewBox and a non-scaling stroke the dash broke the line
+              into pieces (23 Nov, his "line is a bit weird"). */}
+          <g key={range} className="motion-fade">
             <path
               d={line}
               fill="none"
@@ -224,7 +226,6 @@ export function PortfolioChart({
               strokeWidth="2.2"
               vectorEffect="non-scaling-stroke"
               strokeLinejoin="round"
-              pathLength={24}
             />
           </g>
           {hover !== null ? (

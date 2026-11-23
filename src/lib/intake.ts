@@ -1176,13 +1176,19 @@ export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
    phone bill ("Vodafone carregamento"), so only money in counts. */
 const TOP_UP = /\b(top[- ]?up|carregamento)\b/i
 
+/* Revolut's euros turned into a coin, a metal or another currency (23 Nov:
+   "Exchanged to BTC" −€100 from the bank was counted as spent): his own
+   money in another form, either way. */
+const EXCHANGE = /\bexchanged? (to|from)\b/i
+
 const plain = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /**
  * His own money, whatever the reader thought (1 Oct: ActivoBank's "TRF.
  * P/O ARTEM CHERNII" +€400 was filed as income). True for a transfer from
- * or to his own name, cash out of an ATM, money arriving on a top-up.
+ * or to his own name, cash out of an ATM, money arriving on a top-up,
+ * euros exchanged to a coin, a metal or a currency and back.
  * `names` are his — the statement's holder, his sign-in — and a name
  * counts only whole, every word of it, in either order.
  */
@@ -1198,6 +1204,7 @@ export function ownMoney(
   const said = `${row.merchant} ${row.raw ?? ''}`
   if (WITHDRAWAL.test(said)) return true
   if (row.amount > 0 && TOP_UP.test(said)) return true
+  if (EXCHANGE.test(said)) return true
   /* Only who is on the other side counts — the merchant or counterparty
      the reader named — never the whole printed line: going out, "From:
      ARTEM" is the sender, him; coming in, a salary can print "To: ARTEM"

@@ -46,3 +46,26 @@ export const statementCashAgain = internalMutation({
     return null
   },
 })
+
+/** Rows the bank sync saved as spent that were his own money changing form
+    (23 Nov: "Exchanged to BTC" and four more): each becomes a move out of
+    the same account, signed, as a file's own row is written. */
+export const asMove = internalMutation({
+  args: { logIds: v.array(v.id('logs')) },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    let moved = 0
+    for (const id of args.logIds) {
+      const l = await ctx.db.get(id)
+      if (l === null || (l.kind !== 'expense' && l.kind !== 'income')) continue
+      const value = l.value ?? 0
+      await ctx.db.patch(l._id, {
+        kind: 'move',
+        value: l.kind === 'expense' ? -value : value,
+        meta: { ...l.meta, category: undefined, recurringId: undefined },
+      })
+      moved++
+    }
+    return moved
+  },
+})

@@ -914,6 +914,13 @@ describe('his own money', () => {
     expect(ownMoney(row(-10, 'Vodafone carregamento'), [])).toBe(false)
   })
 
+  test('euros exchanged to a coin, a metal or a currency, and back', () => {
+    expect(ownMoney(row(-100, 'Exchanged to BTC'), [])).toBe(true)
+    expect(ownMoney(row(-50, 'Exchanged to XAU'), [])).toBe(true)
+    expect(ownMoney(row(80, 'Exchanged from ETH'), [])).toBe(true)
+    expect(ownMoney(row(-12, 'Currency Exchange Bureau'), [])).toBe(false)
+  })
+
   test('a salary printing him as its receiver stays income', () => {
     expect(
       ownMoney(

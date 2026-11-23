@@ -122,7 +122,7 @@ export function MoneyMap({
   return (
     <div className="mt-4 flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="label-caps">where the money is</span>
+        <span className="label-caps">allocation</span>
         <div className="inline-flex gap-0.5 rounded-full bg-lift/[0.05] p-[3px] ring-1 ring-lift/10 ring-inset">
           {(['kind', 'sector', 'region', 'target'] as const).map((l) => (
             <button

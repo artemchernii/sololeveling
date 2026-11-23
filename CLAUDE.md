@@ -172,6 +172,18 @@ to what each misses; what is left STAYS as cash — `src/lib/targets.ts`,
 nothing stored, every line showing its now and its target beside the €.
 Never an input to `verdict()`.
 
+PORTFOLIO's chart was allowed on 2026-11-23 ("Go, build it" on the
+mockup `design/treasury-mockup/portfolio-chart.html`; his "we dont have
+chart of total portfolio … day week month year", "use financial terms").
+Only on PORTFOLIO's head: the INVESTED line of `worthHistory` over
+1W · 1M · 3M · 1Y, and over the range its RETURN — the last day's value
+minus the first's minus NET DEPOSITS (each day's buys in and sells out at
+the trade's own price, a sum of trade rows), over the first plus the
+deposits (`src/lib/portfolioReturn.ts`). 1D is DAY'S CHANGE: the last
+two day ends, PREV. CLOSE and LAST. Both ends, their days and the net
+deposits are always beside it; a deposit is a dot on the line; nothing
+stored, never an input to `verdict()`.
+
 Insights, Finances' fourth room, was allowed on 2026-10-19 ("go" on the
 mockup `design/treasury-mockup/insights.html`, spec
 `docs/specs/2026-10-19-insights.md`). Only on that room:

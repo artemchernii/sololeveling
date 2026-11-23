@@ -22,6 +22,7 @@ import { internalQuery, query } from './_generated/server'
 import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { MAX_ROWS, MONEY_ROWS } from './reads/limits'
+import { netDeposits } from '../src/lib/portfolioReturn'
 import {
   TRADE_ROWS,
   closeAtEnd,
@@ -1664,6 +1665,9 @@ const worthReturns = {
   cashAccounts: accountSeries,
   investedAccounts: accountSeries,
   unpriced: v.array(v.number()),
+  /** NET DEPOSITS per day: bought minus sold, at each trade's own price
+      (src/lib/portfolioReturn.ts) — PORTFOLIO's RETURN takes them out. */
+  deposits: v.array(v.number()),
   /** His moves between his own accounts in the range, once each. */
   moves: v.array(
     v.object({
@@ -1737,6 +1741,10 @@ export const worthHistory = query({
       cashAccounts: cash.accounts,
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
+      deposits: netDeposits(
+        dayEnds,
+        slots.flatMap((p) => p.trades),
+      ),
       moves: cash.moves,
       starts: cash.starts,
     }
@@ -1874,6 +1882,10 @@ export const worthPast = query({
       cashAccounts: cash.accounts,
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
+      deposits: netDeposits(
+        dayEnds,
+        slots.flatMap((p) => p.trades),
+      ),
       moves: cash.moves,
       starts: cash.starts,
       today: {

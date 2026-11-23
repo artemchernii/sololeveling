@@ -8,6 +8,7 @@ import { euros } from '@/lib/money'
 import { rangeReturn } from '@/lib/portfolioReturn'
 import type { RangeReturn } from '@/lib/portfolioReturn'
 import { useWorthHistory } from '@/lib/useWorthHistory'
+import { useVeil } from '@/lib/veil'
 
 /* PORTFOLIO's chart (23 Nov, "go" on the mockup
    design/treasury-mockup/portfolio-chart.html; his "we dont have chart of
@@ -100,6 +101,8 @@ export function PortfolioChart({
     [history, dayEnds, days],
   )
   const [hover, setHover] = useState<number | null>(null)
+  /* Hidden amounts blur the line too, as on Overview. */
+  const { shown } = useVeil()
 
   if (history === undefined)
     return (
@@ -176,7 +179,7 @@ export function PortfolioChart({
     <div className="flex flex-col gap-3">
       {head}
       <div
-        className="relative h-[220px] select-none"
+        className={`relative h-[220px] transition-[filter] select-none ${shown ? '' : 'blur-[8px]'}`}
         onMouseMove={(e) => {
           const box = e.currentTarget.getBoundingClientRect()
           const f = (e.clientX - box.left) / box.width

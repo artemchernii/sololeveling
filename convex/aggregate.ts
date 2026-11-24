@@ -1,3 +1,4 @@
+import { statementOf } from '../src/lib/statementValue'
 import { v } from 'convex/values'
 import type { Infer } from 'convex/values'
 import { hasBrokerCash } from './accounts'
@@ -1776,6 +1777,11 @@ const worthTodayArgs = {
         v.null(),
       ),
       paid: v.union(v.number(), v.null()),
+      /** Trade Republic's statement value for these shares (22 Nov). */
+      statement: v.union(
+        v.object({ valueEur: v.number(), asOf: v.number() }),
+        v.null(),
+      ),
     }),
   ),
   rates: v.array(
@@ -1879,6 +1885,10 @@ export const worthPast = query({
         base: base === 'EUR' ? null : base,
         close: closesOf.get(p.instrumentId)?.at(-1) ?? null,
         paid,
+        statement: statementOf(
+          p.looks.filter((o) => o.asOf <= end),
+          shares,
+        ),
       })
     }
     return {
@@ -1959,6 +1969,7 @@ export const worthToday = query({
         shares: p.shares,
         divide: p.divide,
         close: closes.get(p.instrumentId) ?? p.close,
+        statement: p.statement,
         rate:
           p.base === null
             ? { rate: 1 }

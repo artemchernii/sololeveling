@@ -1,3 +1,4 @@
+import { pricedAt } from '@/components/finances/PortfolioList'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -210,6 +211,10 @@ export function Accounts() {
                 )
                 return rows?.length ? paidSums(rows) : null
               })()}
+              pricedAt={pricedAt(
+                positions?.rows.filter((r) => r.accountId === a.accountId) ??
+                  [],
+              )}
               line={
                 history?.accounts
                   .find((h) => h.accountId === a.accountId)

@@ -1,12 +1,14 @@
 import { ConvexError, v } from 'convex/values'
 import { requireUser } from './auth'
 import { refuseGuest } from './profiles'
-import { ownedAccount } from './accounts'
+import { hasBrokerCash, ownedAccount, writeBalance } from './accounts'
 import { fileNotice } from './fileNotice'
 import { fileTrade, fileTrades } from './fileTrades'
 import { findFor } from './recurring'
 import { notSaved } from './sharesCheck'
-import { inStatement } from './holdingsKnown'
+import { euroRateAt } from './money'
+import { TR_CSV_READER } from '../src/lib/trCsv'
+import { inStatement, tradedAs, tradedInstruments } from './holdingsKnown'
 import { holdingsTotal } from '../src/lib/holdingsTotal'
 import { internal } from './_generated/api'
 import { internalMutation, internalQuery, query } from './_generated/server'
@@ -34,16 +36,16 @@ import {
   writeHoldings,
   writeTrades,
   writeTransactions,
+  statementValueEur,
 } from './files/write'
 import type { ConfirmRow } from './files/write'
 import {
-  MISSING_TEXT,
   batchAccount,
   batchAsk,
-  gatherBatch,
   isImage,
   mergedHoldings,
-} from './files/batch'
+} from './files/batchShape'
+import { MISSING_TEXT, gatherBatch } from './files/batch'
 import { buildReview, learnTails, reviewRow } from './files/review'
 import {
   DAY_MS,
@@ -53,6 +55,7 @@ import {
   headingFor,
   keepUntil,
   liveAccounts,
+  sourceOf,
   suggestFor,
   suggestion,
 } from './files/shared'
@@ -303,6 +306,7 @@ async function beginIntake(
             (i.status === 'ready' || i.status === 'done') &&
             i.kind !== undefined &&
             i.reader === READER_VERSION &&
+            i.model !== TR_CSV_READER &&
             /* Read before a statement's orders were split out as
                trades (27 Sep): read it again, once. */
             !hasTradeRows(i.transactions ?? []),
@@ -323,6 +327,7 @@ async function beginIntake(
       trades: before.trades,
       balance: before.balance,
       cashEur: before.cashEur,
+      cashLines: before.cashLines,
       totalEur: before.totalEur,
       model: before.model,
       readAt: now,
@@ -1347,6 +1352,7 @@ export const finish = internalMutation({
     trades: tradesValidator,
     balance: balanceValidator,
     cashEur: v.optional(v.number()),
+    cashLines: schema.tables.intakes.validator.fields.cashLines,
     totalEur: v.optional(v.number()),
     costUsd: v.optional(v.number()),
     note: v.optional(v.string()),
@@ -2105,15 +2111,45 @@ export const applyOne = internalMutation({
       const merged = mergedHoldings(screens)
       if (merged === null || merged.missing > 0) return 0
       /* Positions the account's trades hold already are not saved again
-         (19 Oct): from such a screen only the cash is new. */
+         (19 Oct): from such a screen only the cash is new — unless it is
+         Trade Republic's statement with its values (22 Nov), whose look
+         goes on the position the trades hold, to price it. The same
+         company under another listing is the trades' one. */
+      const traded = await tradedInstruments(ctx, ownerId, account._id)
       const fresh = []
-      for (const r of merged.rows)
-        if (
-          r !== null &&
-          !(await inStatement(ctx, ownerId, account._id, r.candidate))
-        )
+      for (const r of merged.rows) {
+        if (r === null) continue
+        const held = (await inStatement(ctx, ownerId, account._id, r.candidate))
+          ? r.candidate
+          : tradedAs({ ...r.candidate, isin: r.isin }, traded)
+        if (held === null) {
           fresh.push(r)
-      const cashEur = merged.cashEur ?? undefined
+          continue
+        }
+        if (
+          statementValueEur(account, screens, r.candidate.symbol, r.shares) ===
+          undefined
+        )
+          continue
+        fresh.push({
+          ...r,
+          candidate: {
+            symbol: held.symbol,
+            name: held.name,
+            exchange: held.exchange,
+            type: held.type,
+          },
+          /* Its value is read by the file's own ticker. */
+          readAs: r.candidate.symbol,
+        })
+        if (held.symbol !== r.candidate.symbol)
+          await dropMisplaced(ctx, ownerId, account._id, r.candidate.symbol)
+      }
+      const lines = await cashInEuros(ctx, ownerId, screens)
+      const cashEur =
+        lines === undefined
+          ? (merged.cashEur ?? undefined)
+          : (lines ?? undefined)
       const done =
         fresh.length === 0 && cashEur === undefined
           ? { positions: 0 }
@@ -2154,6 +2190,7 @@ export const applyOne = internalMutation({
         return c ? [{ index, trade: t, candidate: c }] : []
       })
       const done = await writeTrades(ctx, ownerId, account, intake._id, items)
+      await statementCash(ctx, ownerId, intake, account, args.dayStart)
       if (intake.accountTail)
         await learnTails(ctx, account, [intake.accountTail])
       await ctx.db.patch(intake._id, {
@@ -2282,4 +2319,112 @@ async function finishBatch(
   }) /* Flow (3 Oct): new statements can show a bill coming round — it goes
      onto its day with no question. */
   await findFor(ctx, b.ownerId)
+}
+
+/* A look a file saved on another listing of a company the account's
+   trades hold (22 Nov: GOOGL beside his GOOG, RHM.F beside RHM.DE —
+   each counted twice). Only a listing the account never traded, and only
+   what a file saved. */
+async function dropMisplaced(
+  ctx: MutationCtx,
+  ownerId: string,
+  accountId: Id<'accounts'>,
+  symbol: string,
+) {
+  const i = await ctx.db
+    .query('instruments')
+    .withIndex('by_owner_symbol', (q) =>
+      q.eq('ownerId', ownerId).eq('symbol', symbol),
+    )
+    .first()
+  if (i === null) return
+  const traded = await ctx.db
+    .query('trades')
+    .withIndex('by_owner_account_instrument_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', accountId)
+        .eq('instrumentId', i._id),
+    )
+    .first()
+  if (traded !== null) return
+  for (const h of await ctx.db
+    .query('holdings')
+    .withIndex('by_owner_instrument', (q) =>
+      q.eq('ownerId', ownerId).eq('instrumentId', i._id),
+    )
+    .take(200))
+    if (h.accountId === accountId && h.importId !== undefined)
+      await ctx.db.delete(h._id)
+}
+
+/* The broker's cash from a file that printed it per currency (22 Nov:
+   Revolut's statement, a USD part and a EUR part — one cash_eur kept
+   the euros and the dollars were gone). Each line in euros at the
+   stored ECB rate of the file's day (source 4); undefined when no file
+   printed lines, null when a rate is missing — then no cash is saved,
+   never a part of it. */
+async function cashInEuros(
+  ctx: MutationCtx,
+  ownerId: string,
+  screens: ReadonlyArray<Doc<'intakes'>>,
+): Promise<number | null | undefined> {
+  const screen = screens.find((i) => (i.cashLines ?? []).length > 0)
+  if (screen === undefined) return undefined
+  let cents = 0
+  for (const l of screen.cashLines ?? []) {
+    let rate: number
+    try {
+      rate = await euroRateAt(
+        ctx,
+        ownerId,
+        l.currency,
+        screen.readAt ?? screen._creationTime,
+      )
+    } catch {
+      return null
+    }
+    cents += Math.round(l.amount * rate * 100)
+  }
+  return cents / 100
+}
+
+/* A statement read as its orders that also printed its cash (22 Nov:
+   Revolut's PDF came back as 22 trades with the USD and EUR cash — the
+   buys were saved and the cash was not). Its cash is saved as a holdings
+   statement's is: the broker's pocket of a bank that is also a broker;
+   never for a broker whose cash a bank link brings. */
+export async function statementCash(
+  ctx: MutationCtx,
+  ownerId: string,
+  intake: Doc<'intakes'>,
+  account: Doc<'accounts'>,
+  dayStart: number,
+) {
+  const eur = await cashInEuros(ctx, ownerId, [intake])
+  if (eur === undefined || eur === null) return
+  const broker = hasBrokerCash(account)
+  if (!broker) {
+    const link = await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .unique()
+    if (link?.status === 'linked') return
+  }
+  if (!account.currencies.includes('EUR')) return
+  await writeBalance(
+    ctx,
+    ownerId,
+    account,
+    'EUR',
+    eur,
+    dayStart,
+    undefined,
+    sourceOf(intake),
+    broker ? 'broker' : 'free',
+    0,
+    intake._id,
+  )
 }

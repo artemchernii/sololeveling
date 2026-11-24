@@ -215,7 +215,15 @@ async function described(
       instruments.set(t.instrumentId, await ctx.db.get(t.instrumentId))
     const ins = instruments.get(t.instrumentId)
     if (!ins || ins.ownerId !== ownerId) continue
-    const printed = (i.trades ?? []).find((r) => r.occurredAt === t.occurredAt)
+    /* The file's line of this trade: its day and its shares (22 Nov: three
+       buys on 12 Nov, and the Nebius one was matched to the NVIDIA line
+       by its day alone — "saved on another asset", a false alarm). */
+    const sameDay = (i.trades ?? []).filter(
+      (r) => r.occurredAt === t.occurredAt,
+    )
+    const printed =
+      sameDay.find((r) => Math.abs(r.shares - t.shares) < 1e-6) ??
+      (sameDay.length === 1 ? sameDay[0] : undefined)
     const c = printed?.candidates.at(printed.preferred ?? 0)
     const misread =
       things.get(ins.symbol)?.read ??

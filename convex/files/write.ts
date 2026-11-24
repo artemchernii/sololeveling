@@ -1,3 +1,4 @@
+import { TR_INSTITUTION } from '../../src/lib/trCsv'
 import { DAY_MS, MAX_TRADES, keepUntil, sourceOf } from './shared'
 import { learnTails, openSide } from './review'
 import { costPrice } from '../../src/lib/tradeCost'
@@ -422,7 +423,17 @@ export async function writeTrades(
     if (free) {
       if (!(shares > 0)) throw new ConvexError('That needs a number of shares.')
     } else checkTrade(shares, priceEur)
-    const same = sameCompany({ name: t.name, isin: t.isin }, held)
+    /* A file that prints only the ticker (22 Nov: Revolut's "VGWE", his
+       VGWE.DE saved with no ISIN) is the held listing of that ticker —
+       before the ISIN, which the search's other listing (VHYA.L) has. */
+    const code = t.name.trim().toUpperCase()
+    const byTicker = /^[A-Z0-9]{1,6}$/.test(code)
+      ? held.findIndex((h) => h.symbol.split(/[.-]/)[0].toUpperCase() === code)
+      : -1
+    const same =
+      byTicker >= 0
+        ? byTicker
+        : sameCompany({ name: t.name, isin: t.isin }, held)
     const instrumentId =
       same >= 0
         ? held[same]._id
@@ -520,13 +531,52 @@ export async function writeClosing(
       paidEur: heldCost(upTo),
       asOf,
       importId: intake._id,
+      valueEur: statementValueEur(account, [intake], c.symbol, p.shares),
     })
   }
+}
+
+/* What Trade Republic's statement printed a position is worth, kept on
+   the look so the position is valued at its price (src/lib/statementValue
+   .ts). Only Trade Republic's, and only for the shares it printed. */
+export function statementValueEur(
+  account: Doc<'accounts'>,
+  files: ReadonlyArray<Doc<'intakes'>>,
+  symbol: string,
+  shares: number,
+): number | undefined {
+  if (
+    account.name !== TR_INSTITUTION &&
+    !files.some((f) => f.institution?.startsWith(TR_INSTITUTION))
+  )
+    return undefined
+  /* Its statement, not a screenshot of the app (a screen of positions
+     the trades hold saves only its cash, 19 Oct). */
+  if (
+    !files.some((f) =>
+      (f.files ?? []).some((x) => x.contentType === 'application/pdf'),
+    )
+  )
+    return undefined
+  for (const f of files)
+    for (const p of f.positions ?? [])
+      if (
+        p.candidates.at(p.preferred ?? 0)?.symbol === symbol &&
+        p.valueEur !== undefined &&
+        p.valueEur > 0 &&
+        p.shares !== undefined &&
+        Math.abs(p.shares - shares) < 1e-6
+      )
+        return Math.round(p.valueEur * 100) / 100
+  return undefined
 }
 
 type HoldingRow = {
   candidate: Candidate
   isin?: string
+  /** The file's own ticker, when the row is saved on the trades' listing
+      of the same company (22 Nov). */
+  readAs?: string
   shares: number
   paidEur?: number
   sharesCalculated?: boolean
@@ -704,6 +754,12 @@ export async function writeHoldings(
       sharesCalculated: row.sharesCalculated ? true : undefined,
       asOf: look.asOf,
       importId: intake._id,
+      valueEur: statementValueEur(
+        account,
+        look.screens ?? [intake],
+        row.readAs ?? row.candidate.symbol,
+        row.shares,
+      ),
     })
   }
   /* A connected broker's cash is the bank's (19 Oct): a screenshot brings

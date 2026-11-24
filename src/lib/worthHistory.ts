@@ -1,3 +1,5 @@
+import { statementHolds } from './statementValue'
+import type { StatementValue } from './statementValue'
 import { reconcile } from './holdings'
 import type { LedgerTrade, Observation } from './holdings'
 
@@ -137,6 +139,8 @@ export function investedDay<TAccount>(
     rate: { rate: number } | null
     /** What the shares cost; null when no file says. */
     paid: number | null
+    /** Trade Republic's own value, while no close is newer (22 Nov). */
+    statement?: StatementValue | null
   }>,
   accounts: ReadonlyArray<{ accountId: TAccount; before: boolean }>,
   totalBefore: boolean,
@@ -154,6 +158,14 @@ export function investedDay<TAccount>(
   )
   for (const p of positions) {
     if (p.shares <= 0) continue
+    const statement = p.statement ?? null
+    if (statementHolds(statement, p.close)) {
+      const cents = Math.round(statement.valueEur * 100)
+      values.set(p.accountId, plusCents(values.get(p.accountId) ?? null, cents))
+      total = plusCents(total, cents)
+      cost = plusCents(cost, costCents(p.paid, cents))
+      continue
+    }
     if (p.close === null || p.rate === null) {
       unpriced++
       values.set(p.accountId, values.get(p.accountId) ?? 0)

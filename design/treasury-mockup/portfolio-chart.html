@@ -54,6 +54,8 @@
   .box b { font-size: 28px; font-weight: 300; font-variant-numeric: tabular-nums }
   .box .caps { font-size: 10px }
   .mid { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--mono); font-size: 20px; color: var(--ink-500) }
+  .mk { position: absolute; transform: translate(-50%, -150%); font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; color: var(--ink-300); background: #fff; padding: 1px 5px; border-radius: 5px; box-shadow: 0 2px 8px -4px rgba(0,0,0,.3); pointer-events: none }
+  .mk.low { transform: translate(-50%, 60%); color: var(--danger) }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); letter-spacing: .1em; text-transform: uppercase }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0 }
   .split { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid rgba(0,0,0,.06) }
@@ -89,6 +91,7 @@
       <p class="src" style="margin-top:6px">as of 22 Nov · Yahoo Finance</p>
     </div>
     <div class="move" id="move"></div>
+    <div class="move" id="dd" style="margin-top:-8px"></div>
     <div id="body"></div>
     <div class="legend" id="legend"></div>
     <div class="split">
@@ -147,6 +150,7 @@ function draw() {
       <div class="mid"><span>→</span><span class="pill ${cls}" style="font-size:12px">${diff < 0 ? '▼' : '▲'} ${pct.toFixed(1)}%</span></div>
       <div class="box"><span class="caps">Last · ${dayName(data.at(-1).d)}</span><b>${eur(now)}</b></div></div>`
     legend.innerHTML = ''
+    document.getElementById('dd').innerHTML = ''
     return
   }
   const n = RANGES.find((r) => r[0] === range)[1]
@@ -157,6 +161,22 @@ function draw() {
   const cls = diff < 0 ? 'dn' : 'up'
   const since = dayName(first.d).toUpperCase()
   move.innerHTML = `<span>RETURN</span><span class="pill ${cls}">${diff < 0 ? '▼' : '▲'} ${diff < 0 ? '−' : '+'}${eur(diff)} ${pct.toFixed(1)}%</span><span>${since}</span><b>${eur(first.v)}</b><span class="arrow">→</span><span>${dayName(last.d).toUpperCase()}</span><b>${eur(last.v)}</b>${added ? `<span>· NET DEPOSITS</span><b>${eur(added, 0)}</b>` : ''}`
+  /* MAX DRAWDOWN: the biggest fall from a peak, deposits taken out
+     (time-weighted): each day's move is its value less that day's
+     deposit, over the day before. */
+  let idx = 1, top = 1, topI = 0, dd = { pct: 0, peak: 0, low: 0 }
+  for (let i = 1; i < pts.length; i++) {
+    idx *= (pts[i].v - pts[i].buy) / pts[i - 1].v
+    if (idx > top) { top = idx; topI = i }
+    const fall = 1 - idx / top
+    if (fall > dd.pct) dd = { pct: fall, peak: topI, low: i }
+  }
+  const ddEl = document.getElementById('dd')
+  if (dd.pct > 0.0005) {
+    const between = pts.slice(dd.peak + 1, dd.low + 1).reduce((s, p) => s + p.buy, 0)
+    const drop = pts[dd.peak].v + between - pts[dd.low].v
+    ddEl.innerHTML = `<span>MAX DRAWDOWN</span><span class="pill dn">▼ −${eur(drop)} −${(dd.pct * 100).toFixed(1)}%</span><span>PEAK ${dayName(pts[dd.peak].d).toUpperCase()}</span><b>${eur(pts[dd.peak].v)}</b><span class="arrow">→</span><span>LOW ${dayName(pts[dd.low].d).toUpperCase()}</span><b>${eur(pts[dd.low].v)}</b>${between ? `<span>· NET DEPOSITS</span><b>${eur(between, 0)}</b>` : ''}`
+  } else ddEl.innerHTML = '<span>MAX DRAWDOWN</span><b>€0.00 · 0.0%</b>'
   const W = 1000, H = 220, pad = 8
   const vs = pts.map((p) => p.v)
   const lo = Math.min(...vs) * 0.985, hi = Math.max(...vs) * 1.01
@@ -172,8 +192,9 @@ function draw() {
     <path d="${area}" fill="url(#g)"/>
     <path d="${line}" fill="none" stroke="#7b6fe0" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" pathLength="1" style="stroke-dasharray:1;stroke-dashoffset:1;animation:dr .7s ease-out forwards"/>
     <line id="cross" x1="0" x2="0" y1="10" y2="${H - 18}" stroke="#55516a" stroke-dasharray="3 4" vector-effect="non-scaling-stroke" style="display:none"/>
-    ${dots}${ticks}</svg><div class="tag" id="tag"></div></div>`
-  legend.innerHTML = dots ? '<span><i style="background:#fff;box-shadow:inset 0 0 0 2.5px #b8913f"></i>Deposit</span>' : ''
+    ${dd.pct > 0.0005 ? `<line x1="${x(dd.peak)}" x2="${x(dd.low)}" y1="${y(pts[dd.peak].v)}" y2="${y(pts[dd.peak].v)}" stroke="#c0392b" stroke-opacity=".5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/><line x1="${x(dd.low)}" x2="${x(dd.low)}" y1="${y(pts[dd.peak].v)}" y2="${y(pts[dd.low].v)}" stroke="#c0392b" stroke-opacity=".5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : ''}
+    ${dots}${ticks}</svg>${dd.pct > 0.0005 ? `<span class="mk" style="left:${x(dd.peak) / W * 100}%;top:${y(pts[dd.peak].v)}px">PEAK</span><span class="mk low" style="left:${x(dd.low) / W * 100}%;top:${y(pts[dd.low].v)}px">LOW</span>` : ''}<div class="tag" id="tag"></div></div>`
+  legend.innerHTML = (dots ? '<span><i style="background:#fff;box-shadow:inset 0 0 0 2.5px #b8913f"></i>Deposit</span>' : '') + (dd.pct > 0.0005 ? '<span><i style="background:none;border-radius:0;border-top:2px dashed rgba(192,57,43,.6);height:0;width:14px;vertical-align:3px"></i>Max drawdown</span>' : '')
   const chart = document.getElementById('chart'), tag = document.getElementById('tag'), cross = document.getElementById('cross')
   chart.addEventListener('mousemove', (e) => {
     const r = chart.getBoundingClientRect()

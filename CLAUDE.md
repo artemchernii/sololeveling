@@ -180,7 +180,12 @@ Only on PORTFOLIO's head: the INVESTED line of `worthHistory` over
 minus the first's minus NET DEPOSITS (each day's buys in and sells out at
 the trade's own price, a sum of trade rows), over the first plus the
 deposits (`src/lib/portfolioReturn.ts`). 1D is DAY'S CHANGE: the last
-two day ends, PREV. CLOSE and LAST. Both ends, their days and the net
+two day ends, PREV. CLOSE and LAST (the last weekday's close before
+the last day). On 2026-11-24 ("Go, build it" on the same mockup) MAX
+DRAWDOWN joined it: over the range, the biggest fall from a PEAK to a
+LOW of the line with each day's deposit taken out (time-weighted), in %
+and as peak plus net deposits minus low in € (`maxDrawdown()`), both days
+and values beside it, the two marked on the line. Both ends, their days and the net
 deposits are always beside it; a deposit is a dot on the line; nothing
 stored, never an input to `verdict()`.
 

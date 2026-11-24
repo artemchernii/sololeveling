@@ -5,7 +5,7 @@ import { Veiled } from '@/components/finances/Veil'
 import { dayEndsBack } from '@/components/finances/WorthChart'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
-import { dayReturn, rangeReturn } from '@/lib/portfolioReturn'
+import { dayReturn, maxDrawdown, rangeReturn } from '@/lib/portfolioReturn'
 import type { RangeReturn } from '@/lib/portfolioReturn'
 import { useWorthHistory } from '@/lib/useWorthHistory'
 import { useVeil } from '@/lib/veil'
@@ -176,10 +176,46 @@ export function PortfolioChart({
   const at = hover === null ? null : pts[hover]
   const ticks = [0, Math.floor((pts.length - 1) / 2), pts.length - 1]
   const anyDeposit = pts.some((p, i) => i > 0 && p.deposit !== 0)
+  const dd = maxDrawdown(pts)
+  const peakI = dd ? pts.findIndex((p) => p.at === dd.peakAt) : -1
+  const lowI = dd ? pts.findIndex((p) => p.at === dd.lowAt) : -1
 
   return (
     <div className="flex flex-col gap-3">
       {head}
+      <div className="-mt-2 flex min-h-[30px] flex-wrap items-center gap-x-2.5 gap-y-1">
+        <span className={caps}>MAX DRAWDOWN</span>
+        {dd ? (
+          <>
+            <span
+              key={range}
+              className="motion-arrive inline-flex items-center gap-2 rounded-[8px] bg-state-danger/10 px-2.5 py-1 font-mono text-[13px] text-state-danger"
+            >
+              <Veiled>{`▼ −${euros(dd.drop)}`}</Veiled>
+              <span>{`−${dd.pct.toFixed(1)}%`}</span>
+            </span>
+            <span className={caps}>PEAK {day(dd.peakAt)}</span>
+            <span className={num}>
+              <Veiled>{euros(dd.peak)}</Veiled>
+            </span>
+            <span className="text-ink-500">→</span>
+            <span className={caps}>LOW {day(dd.lowAt)}</span>
+            <span className={num}>
+              <Veiled>{euros(dd.low)}</Veiled>
+            </span>
+            {dd.deposits !== 0 ? (
+              <>
+                <span className={caps}>· NET DEPOSITS</span>
+                <span className={num}>
+                  <Veiled>{`${dd.deposits < 0 ? '−' : ''}${euros(Math.abs(dd.deposits))}`}</Veiled>
+                </span>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <span className={num}>€0.00 · 0.0%</span>
+        )}
+      </div>
       <div
         className={`relative h-[220px] transition-[filter] select-none ${shown ? '' : 'blur-[8px]'}`}
         onMouseMove={(e) => {
@@ -228,6 +264,16 @@ export function PortfolioChart({
               strokeLinejoin="round"
             />
           </g>
+          {dd ? (
+            <path
+              d={`M${xp(peakI)},${yp(dd.peak)}L${xp(lowI)},${yp(dd.peak)}L${xp(lowI)},${yp(dd.low)}`}
+              fill="none"
+              stroke="var(--color-state-danger)"
+              strokeOpacity="0.5"
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
           {hover !== null ? (
             <line
               x1={xp(hover)}
@@ -249,6 +295,22 @@ export function PortfolioChart({
             />
           ) : null,
         )}
+        {dd ? (
+          <>
+            <span
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-[150%] rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-ink-300 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
+              style={{ left: `${xp(peakI)}%`, top: `${yp(dd.peak) * 2}px` }}
+            >
+              PEAK
+            </span>
+            <span
+              className="pointer-events-none absolute -translate-x-1/2 translate-y-[60%] rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-state-danger shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
+              style={{ left: `${xp(lowI)}%`, top: `${yp(dd.low) * 2}px` }}
+            >
+              LOW
+            </span>
+          </>
+        ) : null}
         {at !== null && hover !== null ? (
           <span
             className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 rounded-[8px] bg-background px-2 py-1 font-mono text-[11px] whitespace-nowrap shadow-[0_4px_14px_-6px_rgba(0,0,0,0.3)]"
@@ -270,10 +332,20 @@ export function PortfolioChart({
           ))}
         </div>
       </div>
-      {anyDeposit ? (
-        <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.1em] text-ink-400 uppercase">
-          <span className="size-2 rounded-full bg-background ring-2 ring-money-cash" />
-          deposit
+      {anyDeposit || dd ? (
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10.5px] tracking-[0.1em] text-ink-400 uppercase">
+          {anyDeposit ? (
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-background ring-2 ring-money-cash" />
+              deposit
+            </span>
+          ) : null}
+          {dd ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 border-t-2 border-dashed border-state-danger/60" />
+              max drawdown
+            </span>
+          ) : null}
         </span>
       ) : null}
     </div>

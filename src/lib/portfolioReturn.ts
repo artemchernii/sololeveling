@@ -124,3 +124,60 @@ export function dayReturn(
     last - prev,
   )
 }
+
+export type Drawdown = {
+  peakAt: number
+  peak: number
+  lowAt: number
+  low: number
+  /** Bought minus sold after the peak, up to the low. */
+  deposits: number
+  /** peak + deposits − low: what the market took. */
+  drop: number
+  /** The fall of the time-weighted line, in %. */
+  pct: number
+}
+
+/**
+ * MAX DRAWDOWN over a range's points (24 Nov, "Go, build it" on the
+ * mockup): the biggest fall from a peak, deposits taken out — each day's
+ * move is its value less that day's deposit, over the day before, so a
+ * buy is never a peak and never hides a fall. Null when nothing fell.
+ */
+export function maxDrawdown(
+  points: ReadonlyArray<{ at: number; value: number; deposit: number }>,
+): Drawdown | null {
+  let line = 1
+  let top = 1
+  let topI = 0
+  let best: { pct: number; peak: number; low: number } | null = null
+  for (let i = 1; i < points.length; i++) {
+    const before = points[i - 1].value
+    if (before <= 0) continue
+    line *= (points[i].value - points[i].deposit) / before
+    if (line > top) {
+      top = line
+      topI = i
+    }
+    const fall = 1 - line / top
+    if (fall > 0 && (best === null || fall > best.pct))
+      best = { pct: fall, peak: topI, low: i }
+  }
+  if (best === null) return null
+  const peak = points[best.peak]
+  const low = points[best.low]
+  const deposits = cents(
+    points
+      .slice(best.peak + 1, best.low + 1)
+      .reduce((s, p) => s + p.deposit, 0),
+  )
+  return {
+    peakAt: peak.at,
+    peak: peak.value,
+    lowAt: low.at,
+    low: low.value,
+    deposits,
+    drop: cents(peak.value + deposits - low.value),
+    pct: Math.round(best.pct * 1000) / 10,
+  }
+}

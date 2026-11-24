@@ -184,8 +184,10 @@ two day ends, PREV. CLOSE and LAST (the last weekday's close before
 the last day). On 2026-11-24 ("Go, build it" on the same mockup) MAX
 DRAWDOWN joined it: over the range, the biggest fall from a PEAK to a
 LOW of the line with each day's deposit taken out (time-weighted), in %
-and as peak plus net deposits minus low in € (`maxDrawdown()`), both days
-and values beside it, the two marked on the line. Both ends, their days and the net
+and as peak plus net deposits minus low in € (`maxDrawdown()`), its two
+days beside it and the period shaded on the line — never the two values,
+which buys in between make read upside down (his "how is peak lower than
+low?"). Both ends, their days and the net
 deposits are always beside it; a deposit is a dot on the line; nothing
 stored, never an input to `verdict()`.
 

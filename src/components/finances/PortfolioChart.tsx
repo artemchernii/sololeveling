@@ -194,23 +194,9 @@ export function PortfolioChart({
               <Veiled>{`▼ −${euros(dd.drop)}`}</Veiled>
               <span>{`−${dd.pct.toFixed(1)}%`}</span>
             </span>
-            <span className={caps}>PEAK {day(dd.peakAt)}</span>
-            <span className={num}>
-              <Veiled>{euros(dd.peak)}</Veiled>
+            <span className={caps}>
+              {day(dd.peakAt)} → {day(dd.lowAt)}
             </span>
-            <span className="text-ink-500">→</span>
-            <span className={caps}>LOW {day(dd.lowAt)}</span>
-            <span className={num}>
-              <Veiled>{euros(dd.low)}</Veiled>
-            </span>
-            {dd.deposits !== 0 ? (
-              <>
-                <span className={caps}>· NET DEPOSITS</span>
-                <span className={num}>
-                  <Veiled>{`${dd.deposits < 0 ? '−' : ''}${euros(Math.abs(dd.deposits))}`}</Veiled>
-                </span>
-              </>
-            ) : null}
           </>
         ) : (
           <span className={num}>€0.00 · 0.0%</span>
@@ -265,13 +251,13 @@ export function PortfolioChart({
             />
           </g>
           {dd ? (
-            <path
-              d={`M${xp(peakI)},${yp(dd.peak)}L${xp(lowI)},${yp(dd.peak)}L${xp(lowI)},${yp(dd.low)}`}
-              fill="none"
-              stroke="var(--color-state-danger)"
-              strokeOpacity="0.5"
-              strokeDasharray="4 4"
-              vectorEffect="non-scaling-stroke"
+            <rect
+              x={xp(peakI)}
+              y="0"
+              width={Math.max(0.4, xp(lowI) - xp(peakI))}
+              height="100"
+              fill="var(--color-state-danger)"
+              fillOpacity="0.07"
             />
           ) : null}
           {hover !== null ? (
@@ -298,14 +284,14 @@ export function PortfolioChart({
         {dd ? (
           <>
             <span
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-[150%] rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-ink-300 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
-              style={{ left: `${xp(peakI)}%`, top: `${yp(dd.peak) * 2}px` }}
+              className="pointer-events-none absolute top-0 -translate-x-1/2 rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-ink-300 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
+              style={{ left: `${xp(peakI)}%` }}
             >
               PEAK
             </span>
             <span
-              className="pointer-events-none absolute -translate-x-1/2 translate-y-[60%] rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-state-danger shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
-              style={{ left: `${xp(lowI)}%`, top: `${yp(dd.low) * 2}px` }}
+              className="pointer-events-none absolute top-0 -translate-x-1/2 rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-state-danger shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
+              style={{ left: `${xp(lowI)}%` }}
             >
               LOW
             </span>
@@ -342,7 +328,7 @@ export function PortfolioChart({
           ) : null}
           {dd ? (
             <span className="flex items-center gap-1.5">
-              <span className="w-3.5 border-t-2 border-dashed border-state-danger/60" />
+              <span className="h-2.5 w-3.5 rounded-[2px] bg-state-danger/15" />
               max drawdown
             </span>
           ) : null}

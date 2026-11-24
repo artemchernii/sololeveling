@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import {
-  dayReturn,
-  netDeposits,
-  plHighLow,
-  plPct,
-  rangeReturn,
-} from './portfolioReturn'
+import { dayReturn, netDeposits, rangeReturn } from './portfolioReturn'
 
 const DAY = 86_400_000
 /* Five day ends, the last one today. */
@@ -104,31 +98,5 @@ describe('dayReturn', () => {
       startAt: days[0],
       change: 10,
     })
-  })
-})
-
-describe('plHighLow', () => {
-  const pt = (at: number, value: number, cost: number) => ({
-    at,
-    value,
-    cost,
-    deposit: 0,
-  })
-
-  test('the days most and least up on cost, whatever was bought between', () => {
-    const h = plHighLow([
-      pt(1, 1000, 1000),
-      pt(2, 1100, 1000),
-      pt(3, 1950, 2000),
-      pt(4, 2020, 2000),
-    ])
-    expect(h?.high.at).toBe(2)
-    expect(h?.low.at).toBe(3)
-    expect(h?.now.at).toBe(4)
-    expect(plPct(pt(2, 1100, 1000))).toBe(10)
-  })
-
-  test('one day is no range', () => {
-    expect(plHighLow([pt(1, 100, 100)])).toBeNull()
   })
 })

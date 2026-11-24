@@ -5,14 +5,7 @@ import { Veiled } from '@/components/finances/Veil'
 import { dayEndsBack } from '@/components/finances/WorthChart'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
-import {
-  dayReturn,
-  pl,
-  plHighLow,
-  plPct,
-  rangeReturn,
-} from '@/lib/portfolioReturn'
-import type { PlPoint } from '@/lib/portfolioReturn'
+import { dayReturn, pl, rangeReturn } from '@/lib/portfolioReturn'
 import { useWorthHistory } from '@/lib/useWorthHistory'
 import { useVeil } from '@/lib/veil'
 
@@ -22,8 +15,8 @@ import { useVeil } from '@/lib/veil'
    The INVESTED line of aggregate.worthHistory — the Overview chart's own
    numbers — over its COST BASIS (24 Nov, his "vs … total money we dumped
    in the market"), the gap between them the P/L, green or red. RETURN is
-   how the P/L moved; P/L HIGH, LOW and NOW say when the shares were most
-   and least up on cost (src/lib/portfolioReturn.ts). 1D is two numbers:
+   how the P/L moved (src/lib/portfolioReturn.ts); his "i want it simple"
+   took the P/L high/low row off. 1D is two numbers:
    the app stores one close a day, so there is no line in it. */
 
 export const RANGES = [
@@ -139,7 +132,6 @@ export function PortfolioChart({
   if (r === null) return null
 
   const caps = 'font-mono text-[12px] text-ink-400'
-  const num = 'font-mono text-[12.5px]'
 
   if (days === 1)
     return (
@@ -159,7 +151,6 @@ export function PortfolioChart({
     )
 
   const pts = r.points
-  const hl = plHighLow(pts)
   const all = pts.flatMap((p) => [p.value, p.cost])
   const lo = Math.min(...all) * 0.985
   const hi = Math.max(...all) * 1.01
@@ -180,26 +171,6 @@ export function PortfolioChart({
     .join('')
   const at = hover === null ? null : pts[hover]
   const ticks = [0, Math.floor((pts.length - 1) / 2), pts.length - 1]
-  const mark = (p: PlPoint, label: string, up: boolean) => {
-    const i = pts.indexOf(p)
-    return (
-      <span key={label}>
-        <span
-          className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground"
-          style={{ left: `${xp(i)}%`, top: `${yp(p.value) * 2}px` }}
-        />
-        <span
-          className={`pointer-events-none absolute -translate-x-1/2 rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] whitespace-nowrap text-ink-300 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)] ${up ? '-translate-y-[170%]' : 'translate-y-[70%]'}`}
-          style={{
-            left: `${Math.min(95, Math.max(5, xp(i)))}%`,
-            top: `${yp(p.value) * 2}px`,
-          }}
-        >
-          {label}
-        </span>
-      </span>
-    )
-  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -210,20 +181,6 @@ export function PortfolioChart({
           {day(r.startAt)} → {day(r.endAt)}
         </span>
       </div>
-      {hl ? (
-        <div className="-mt-2 flex min-h-[30px] flex-wrap items-center gap-x-2.5 gap-y-1">
-          <span className={caps}>P/L HIGH {day(hl.high.at)}</span>
-          <span className={`${num} ${tone(pl(hl.high))}`}>
-            <Veiled>{sign(pl(hl.high))}</Veiled> {pctText(plPct(hl.high))}
-          </span>
-          <span className={caps}>· P/L LOW {day(hl.low.at)}</span>
-          <span className={`${num} ${tone(pl(hl.low))}`}>
-            <Veiled>{sign(pl(hl.low))}</Veiled> {pctText(plPct(hl.low))}
-          </span>
-          <span className={caps}>· P/L NOW</span>
-          <Pill amount={pl(hl.now)} pct={plPct(hl.now)} k={`now${range}`} />
-        </div>
-      ) : null}
       <div
         className={`relative h-[220px] transition-[filter] select-none ${shown ? '' : 'blur-[8px]'}`}
         onMouseMove={(e) => {
@@ -294,12 +251,6 @@ export function PortfolioChart({
             />
           ) : null}
         </svg>
-        {hl ? (
-          <>
-            {mark(hl.high, 'P/L HIGH', true)}
-            {hl.low !== hl.high ? mark(hl.low, 'P/L LOW', false) : null}
-          </>
-        ) : null}
         {at !== null && hover !== null ? (
           <span
             className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 rounded-[8px] bg-background px-2 py-1 font-mono text-[11px] whitespace-nowrap shadow-[0_4px_14px_-6px_rgba(0,0,0,0.3)]"

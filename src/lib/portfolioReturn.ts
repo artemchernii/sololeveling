@@ -42,10 +42,6 @@ export type PlPoint = {
 }
 
 export const pl = (p: PlPoint) => cents(p.value - p.cost)
-/** P/L over what was paid, in %. */
-export const plPct = (p: PlPoint) =>
-  p.cost > 0 ? Math.round(((p.value - p.cost) / p.cost) * 1000) / 10 : 0
-
 export type RangeReturn = {
   points: Array<PlPoint>
   startAt: number
@@ -132,24 +128,4 @@ export function dayReturn(
     deposits.slice(0, last + 1),
     last - prev,
   )
-}
-
-/**
- * P/L HIGH, P/L LOW and P/L NOW of a range (24 Nov, his "how low we from
- * the peak", then "vs … total money we dumped in the market"): the days
- * the shares were most and least up on what they cost, and the last day.
- */
-export function plHighLow(points: ReadonlyArray<PlPoint>): {
-  high: PlPoint
-  low: PlPoint
-  now: PlPoint
-} | null {
-  if (points.length < 2) return null
-  let high = points[0]
-  let low = points[0]
-  for (const p of points) {
-    if (pl(p) >= pl(high)) high = p
-    if (pl(p) < pl(low)) low = p
-  }
-  return { high, low, now: points[points.length - 1] }
 }

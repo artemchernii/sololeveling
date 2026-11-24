@@ -117,6 +117,7 @@ import type * as reads_moves from "../reads/moves.js";
 import type * as reads_positions from "../reads/positions.js";
 import type * as reads_week from "../reads/week.js";
 import type * as recurring from "../recurring.js";
+import type * as repair from "../repair.js";
 import type * as repo from "../repo.js";
 import type * as reviews from "../reviews.js";
 import type * as rowBalance from "../rowBalance.js";
@@ -260,6 +261,7 @@ declare const fullApi: ApiFromModules<{
   "reads/positions": typeof reads_positions;
   "reads/week": typeof reads_week;
   recurring: typeof recurring;
+  repair: typeof repair;
   repo: typeof repo;
   reviews: typeof reviews;
   rowBalance: typeof rowBalance;

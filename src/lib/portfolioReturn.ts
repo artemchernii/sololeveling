@@ -1,11 +1,11 @@
 import type { LedgerTrade } from './holdings'
 
 /* PORTFOLIO's chart (23 Nov, "go" on the mockup
-   design/treasury-mockup/portfolio-chart.html): the INVESTED line of
-   aggregate.worthHistory over 1W–1Y, and over a range its RETURN — the
-   market's part of the move, with what was bought or sold in between
-   taken out. Nothing here is stored; both ends and the net deposits are
-   always shown beside the result. */
+   design/treasury-mockup/portfolio-chart.html; 24 Nov, "Go, build it" on
+   its COST BASIS version): the INVESTED line of aggregate.worthHistory
+   and its COST BASIS over 1W–1Y. P/L is the one minus the other; RETURN
+   is how the P/L moved over the range, so a buy — both lines up alike —
+   is never a gain. Nothing here is stored. */
 
 const cents = (x: number) => Math.round(x * 100) / 100
 
@@ -31,36 +31,47 @@ export function netDeposits(
   return out.map(cents)
 }
 
+export type PlPoint = {
+  at: number
+  /** MARKET VALUE. */
+  value: number
+  /** COST BASIS. */
+  cost: number
+  /** Bought minus sold that day, at the trades' prices. */
+  deposit: number
+}
+
+export const pl = (p: PlPoint) => cents(p.value - p.cost)
+/** P/L over what was paid, in %. */
+export const plPct = (p: PlPoint) =>
+  p.cost > 0 ? Math.round(((p.value - p.cost) / p.cost) * 1000) / 10 : 0
+
 export type RangeReturn = {
-  /** The first day of the range that has a value. */
+  points: Array<PlPoint>
   startAt: number
   start: number
   endAt: number
   end: number
-  /** Bought minus sold after the first day, up to the last. */
-  deposits: number
-  /** end − start − deposits. */
+  /** P/L at the end minus P/L at the start. */
   change: number
-  /** change over start + deposits, in %. */
+  /** change over the end's cost, in %. */
   pct: number
-  /** Days with a value and their deposits, oldest first: the line. */
-  points: Array<{ at: number; value: number; deposit: number }>
 }
 
 /**
- * RETURN over the last `days` days of the series (the last point is
- * today): from the first day in the range that has a value. A day with no
- * value carries its deposits to the next day that has one. Null when
- * fewer than two days have one.
+ * The last `days` days of the line from the first that has a value (the
+ * last point is today), and RETURN over them. A day with no value passes
+ * its deposits to the next one drawn. Null below two days.
  */
 export function rangeReturn(
   dayEnds: ReadonlyArray<number>,
   invested: ReadonlyArray<number | null>,
+  cost: ReadonlyArray<number | null>,
   deposits: ReadonlyArray<number>,
   days: number,
 ): RangeReturn | null {
   const from = Math.max(0, dayEnds.length - 1 - days)
-  const points: RangeReturn['points'] = []
+  const points: Array<PlPoint> = []
   let carry = 0
   for (let i = from; i < dayEnds.length; i++) {
     const value = invested[i] ?? null
@@ -72,6 +83,7 @@ export function rangeReturn(
     points.push({
       at: dayEnds[i],
       value,
+      cost: cost[i] ?? value,
       deposit: points.length === 0 ? 0 : cents(d + carry),
     })
     carry = 0
@@ -79,30 +91,27 @@ export function rangeReturn(
   if (points.length < 2) return null
   const first = points[0]
   const last = points[points.length - 1]
-  const added = cents(points.reduce((s, p) => s + p.deposit, 0))
-  const change = cents(last.value - first.value - added)
-  const base = first.value + added
+  const change = cents(pl(last) - pl(first))
   return {
+    points,
     startAt: first.at,
     start: first.value,
     endAt: last.at,
     end: last.value,
-    deposits: added,
     change,
-    pct: base > 0 ? Math.round((change / base) * 1000) / 10 : 0,
-    points,
+    pct: last.cost > 0 ? Math.round((change / last.cost) * 1000) / 10 : 0,
   }
 }
 
 /**
  * DAY'S CHANGE: the last day with a value against the last weekday before
  * it that has one — PREV. CLOSE is a trading day's close, so on a Monday
- * it is Friday's, never Sunday's (23 Nov). Deposits between them are taken
- * out, as in a range. Null without both.
+ * it is Friday's, never Sunday's (23 Nov). Null without both.
  */
 export function dayReturn(
   dayEnds: ReadonlyArray<number>,
   invested: ReadonlyArray<number | null>,
+  cost: ReadonlyArray<number | null>,
   deposits: ReadonlyArray<number>,
 ): RangeReturn | null {
   let last = dayEnds.length - 1
@@ -115,43 +124,32 @@ export function dayReturn(
   )
     prev--
   if (prev < 0) return null
+  const keep = (i: number) => i <= prev || i === last
   return rangeReturn(
     dayEnds.slice(0, last + 1),
-    invested
-      .slice(0, last + 1)
-      .map((v, i) => (i > prev && i < last ? null : v)),
+    invested.slice(0, last + 1).map((v, i) => (keep(i) ? v : null)),
+    cost.slice(0, last + 1),
     deposits.slice(0, last + 1),
     last - prev,
   )
 }
 
 /**
- * HIGH and LOW of a range's line and how far the last day is from the
- * high (24 Nov, his "what is maximum total amount and minimum … and how
- * low we from the peak"): the line's own values, deposits in them, each
- * with its day; VS HIGH is last minus high, both always beside it.
+ * P/L HIGH, P/L LOW and P/L NOW of a range (24 Nov, his "how low we from
+ * the peak", then "vs … total money we dumped in the market"): the days
+ * the shares were most and least up on what they cost, and the last day.
  */
-export function highLow(points: ReadonlyArray<{ at: number; value: number }>): {
-  high: { at: number; value: number }
-  low: { at: number; value: number }
-  last: { at: number; value: number }
-  vsHigh: number
-  pct: number
+export function plHighLow(points: ReadonlyArray<PlPoint>): {
+  high: PlPoint
+  low: PlPoint
+  now: PlPoint
 } | null {
   if (points.length < 2) return null
   let high = points[0]
   let low = points[0]
   for (const p of points) {
-    if (p.value >= high.value) high = p
-    if (p.value < low.value) low = p
+    if (pl(p) >= pl(high)) high = p
+    if (pl(p) < pl(low)) low = p
   }
-  const last = points[points.length - 1]
-  const vsHigh = cents(last.value - high.value)
-  return {
-    high: { at: high.at, value: high.value },
-    low: { at: low.at, value: low.value },
-    last: { at: last.at, value: last.value },
-    vsHigh,
-    pct: high.value > 0 ? Math.round((vsHigh / high.value) * 1000) / 10 : 0,
-  }
+  return { high, low, now: points[points.length - 1] }
 }

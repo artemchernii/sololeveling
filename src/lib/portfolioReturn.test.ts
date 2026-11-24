@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { dayReturn, highLow, netDeposits, rangeReturn } from './portfolioReturn'
+import {
+  dayReturn,
+  netDeposits,
+  plHighLow,
+  plPct,
+  rangeReturn,
+} from './portfolioReturn'
 
 const DAY = 86_400_000
 /* Five day ends, the last one today. */
@@ -35,67 +41,38 @@ describe('netDeposits', () => {
 })
 
 describe('rangeReturn', () => {
-  test('a buy is taken out: a rise that was only money put in is no return', () => {
+  test('a buy lifts value and cost alike: no return in it', () => {
+    /* Up 100 on 1000 paid, then 1000 more bought, then down 50. */
     const r = rangeReturn(
       ends,
-      [1000, 990, 2000, 1950, 1900],
+      [1000, 1100, 2100, 2050, 2050],
+      [1000, 1000, 2000, 2000, 2000],
       [0, 0, 1000, 0, 0],
       4,
     )
-    expect(r).toMatchObject({
-      start: 1000,
-      end: 1900,
-      deposits: 1000,
-      change: -100,
-      pct: -5,
-    })
+    expect(r).toMatchObject({ start: 1000, end: 2050, change: 50, pct: 2.5 })
     expect(r?.points.map((p) => p.deposit)).toEqual([0, 0, 1000, 0, 0])
-  })
-
-  test('the range is the last days, the first deposit of it not counted', () => {
-    const r = rangeReturn(
-      ends,
-      [1000, 1100, 1200, 1300, 1250],
-      [0, 500, 0, 0, 0],
-      1,
-    )
-    expect(r).toMatchObject({
-      start: 1300,
-      end: 1250,
-      deposits: 0,
-      change: -50,
-    })
   })
 
   test('a range longer than the data starts at the first day with a value', () => {
     const r = rangeReturn(
       ends,
       [null, null, 500, 520, 510],
+      [null, null, 500, 500, 500],
       [0, 0, 500, 0, 0],
       30,
     )
-    expect(r).toMatchObject({
-      startAt: 3 * DAY,
-      start: 500,
-      deposits: 0,
-      change: 10,
-      pct: 2,
-    })
+    expect(r).toMatchObject({ startAt: 3 * DAY, change: 10 })
   })
 
-  test('a day with no value passes its deposits to the next one', () => {
-    const r = rangeReturn(
-      ends,
-      [1000, null, 1600, 1600, 1600],
-      [0, 500, 0, 0, 0],
-      4,
-    )
-    expect(r).toMatchObject({ deposits: 500, change: 100 })
+  test('no cost known for a day: counted at its value', () => {
+    const r = rangeReturn(ends.slice(0, 2), [100, 120], [null, null], [0, 0], 1)
+    expect(r?.points.map((p) => p.cost)).toEqual([100, 120])
   })
 
   test('fewer than two days with a value: no return', () => {
     expect(
-      rangeReturn(ends, [null, null, null, null, 700], [0, 0, 0, 0, 0], 4),
+      rangeReturn(ends, [null, null, null, null, 700], [], [0, 0, 0, 0, 0], 4),
     ).toBeNull()
   })
 })
@@ -107,7 +84,12 @@ describe('dayReturn', () => {
   )
 
   test('on a Monday, PREV. CLOSE is Friday, not Sunday', () => {
-    const r = dayReturn(week, [990, 1000, 1001, 1002, 1100], [0, 0, 0, 0, 0])
+    const r = dayReturn(
+      week,
+      [990, 1000, 1001, 1002, 1100],
+      [900, 900, 900, 900, 900],
+      [0, 0, 0, 0, 0],
+    )
     expect(r).toMatchObject({
       startAt: week[1],
       start: 1000,
@@ -116,47 +98,37 @@ describe('dayReturn', () => {
     })
   })
 
-  test('a buy over the weekend is taken out of the day', () => {
-    const r = dayReturn(week, [990, 1000, 1000, 1500, 1520], [0, 0, 0, 500, 0])
-    expect(r).toMatchObject({
-      start: 1000,
-      end: 1520,
-      deposits: 500,
-      change: 20,
-    })
-  })
-
   test('on a Tuesday it is Monday', () => {
     const days = [23, 24].map((d) => new Date(2026, 10, d, 12).getTime())
-    expect(dayReturn(days, [1000, 1010], [0, 0])).toMatchObject({
+    expect(dayReturn(days, [1000, 1010], [1000, 1000], [0, 0])).toMatchObject({
       startAt: days[0],
       change: 10,
     })
   })
 })
 
-describe('highLow', () => {
-  const pt = (value: number, at: number) => ({ at, value })
-
-  test('the highest and lowest day, and the last day against the high', () => {
-    const h = highLow([pt(100, 1), pt(120, 2), pt(90, 3), pt(110, 4)])
-    expect(h).toEqual({
-      high: { at: 2, value: 120 },
-      low: { at: 3, value: 90 },
-      last: { at: 4, value: 110 },
-      vsHigh: -10,
-      pct: -8.3,
-    })
+describe('plHighLow', () => {
+  const pt = (at: number, value: number, cost: number) => ({
+    at,
+    value,
+    cost,
+    deposit: 0,
   })
 
-  test('a new high today: 0 from it', () => {
-    expect(highLow([pt(100, 1), pt(130, 2)])).toMatchObject({
-      vsHigh: 0,
-      pct: 0,
-    })
+  test('the days most and least up on cost, whatever was bought between', () => {
+    const h = plHighLow([
+      pt(1, 1000, 1000),
+      pt(2, 1100, 1000),
+      pt(3, 1950, 2000),
+      pt(4, 2020, 2000),
+    ])
+    expect(h?.high.at).toBe(2)
+    expect(h?.low.at).toBe(3)
+    expect(h?.now.at).toBe(4)
+    expect(plPct(pt(2, 1100, 1000))).toBe(10)
   })
 
   test('one day is no range', () => {
-    expect(highLow([pt(100, 1)])).toBeNull()
+    expect(plHighLow([pt(1, 100, 100)])).toBeNull()
   })
 })

@@ -174,19 +174,28 @@ Never an input to `verdict()`.
 
 PORTFOLIO's chart was allowed on 2026-11-23 ("Go, build it" on the
 mockup `design/treasury-mockup/portfolio-chart.html`; his "we dont have
-chart of total portfolio … day week month year", "use financial terms").
-Only on PORTFOLIO's head: the INVESTED line of `worthHistory` over
-1W · 1M · 3M · 1Y, and over the range its RETURN — the last day's value
-minus the first's minus NET DEPOSITS (each day's buys in and sells out at
-the trade's own price, a sum of trade rows), over the first plus the
-deposits (`src/lib/portfolioReturn.ts`). 1D is DAY'S CHANGE: the last
-two day ends, PREV. CLOSE and LAST (the last weekday's close before
-the last day). On 2026-11-24 the range's HIGH and LOW joined it (his "what is maximum
-total amount and minimum … and how low we from the peak", after MAX
-DRAWDOWN read upside down and was dropped): the line's highest and
-lowest day in the range, deposits in them, each with its day and marked
-on the line, and VS HIGH — the last day minus the high, both beside it
-(`highLow()`). Both ends, their days and the net
+chart of total portfolio … day week month year", "use financial terms"),
+and its COST BASIS on 2026-11-24 ("Go, build it" on the same mockup; his
+"calculate vs not only total money we have now but as well total money
+we dumped in the market"). Only on PORTFOLIO's head, all in
+`src/lib/portfolioReturn.ts`, nothing stored, never an input to
+`verdict()`:
+
+- **Two lines** over 1W · 1M · 3M · 1Y: MARKET VALUE (`worthHistory`'s
+  invested) and COST BASIS — what the priced shares held that day cost,
+  by the rule Portfolio's paid uses (`reconcile`; a position no file
+  gives a cost for counts at its value). The gap is the P/L, shaded green
+  over cost and red under: a state, never a grade.
+- **RETURN**: the P/L at the range's last day minus at its first, over
+  the last day's cost — a buy moves both lines alike and is never a
+  gain. Its two days beside it.
+- **P/L HIGH, P/L LOW, P/L NOW**: the days the shares were most and least
+  up on cost, and the last, each € and %, high and low marked on the
+  line. They replaced a range HIGH/LOW and a MAX DRAWDOWN that buys made
+  read upside down (his "how is peak lower than low?").
+- **1D**: DAY'S CHANGE, PREV. CLOSE (the last weekday's close) and LAST.
+- **Hover**: the day's value, COST, P/L, and BUY / SELL — the day's
+  trades at their own prices (`netDeposits()`, a sum of trade rows). Both ends, their days and the net
 deposits are always beside it; a deposit is a dot on the line; nothing
 stored, never an input to `verdict()`.
 

@@ -6,6 +6,33 @@ const at = (d: number, h = 23) => new Date(2026, 8, d, h, 59).getTime()
 const ends = [1, 2, 3, 4].map((d) => at(d))
 
 describe('investedSeries', () => {
+  test('COST BASIS: what the shares held cost, a sell taking out its share', () => {
+    const r = investedSeries(ends, [
+      {
+        accountId: 'tr',
+        trades: [
+          { side: 'buy', shares: 2, priceEur: 90, occurredAt: at(2, 10) },
+          { side: 'sell', shares: 1, priceEur: 99, occurredAt: at(4, 10) },
+        ],
+        looks: [],
+        closes: [{ asOf: at(1, 20), price: 100 }],
+        divide: 1,
+        rates: null,
+      },
+      /* A screenshot with no cost: counted at its value, P/L 0. */
+      {
+        accountId: 'tr',
+        trades: [],
+        looks: [{ shares: 1, asOf: at(3, 9) }],
+        closes: [{ asOf: at(1, 20), price: 50 }],
+        divide: 1,
+        rates: null,
+      },
+    ])
+    expect(r.total).toEqual([null, 200, 250, 150])
+    expect(r.cost).toEqual([null, 180, 230, 140])
+  })
+
   test('shares held × that day’s close × that day’s rate', () => {
     const r = investedSeries(ends, [
       {

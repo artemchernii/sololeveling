@@ -50,8 +50,13 @@ export function investedSeries<TAccount>(
   accounts: Array<{ accountId: TAccount; values: Array<number | null> }>
   /** Per day, how many held positions had no close or rate to value. */
   unpriced: Array<number>
+  /** COST BASIS per day (24 Nov): what the priced positions held cost; a
+      position whose cost no file says counts at its value, so the gap to
+      `total` is the P/L of what has a cost. */
+  cost: Array<number | null>
 } {
   const total: Array<number | null> = dayEnds.map(() => null)
+  const cost: Array<number | null> = dayEnds.map(() => null)
   const unpriced = dayEnds.map(() => 0)
   const byAccount = new Map<TAccount, Array<number | null>>()
   for (const h of holdings) {
@@ -64,10 +69,11 @@ export function investedSeries<TAccount>(
         )
         .get(h.accountId)!
     for (const [i, end] of dayEnds.entries()) {
-      const shares = reconcile(
+      const held = reconcile(
         h.trades.filter((t) => t.occurredAt <= end),
         h.looks.filter((o) => o.asOf <= end),
-      ).shares
+      )
+      const shares = held.shares
       if (shares <= 0) continue
       const close = lastBy(h.closes, end)
       const rate = h.rates === null ? { rate: 1 } : lastBy(h.rates, end)
@@ -80,6 +86,7 @@ export function investedSeries<TAccount>(
       const cents = positionCents(shares, close.price, h.divide, rate.rate)
       values[i] = plusCents(values[i], cents)
       total[i] = plusCents(total[i], cents)
+      cost[i] = plusCents(cost[i], costCents(held.paid, cents))
     }
   }
   /* Once shares were first held, a day holding none is €0, not a gap (1
@@ -96,8 +103,13 @@ export function investedSeries<TAccount>(
       values: fromFirst(values),
     })),
     unpriced,
+    cost: fromFirst(cost),
   }
 }
+
+/* What a priced position cost, in cents: its value where no file says. */
+const costCents = (paid: number | null, cents: number) =>
+  paid === null ? cents : Math.round(paid * 100)
 
 /* One position's worth on a day, in cents, and a running euro sum: the
    one rounding both investedSeries and investedDay use. */
@@ -123,6 +135,8 @@ export function investedDay<TAccount>(
     divide: number
     close: Close | null
     rate: { rate: number } | null
+    /** What the shares cost; null when no file says. */
+    paid: number | null
   }>,
   accounts: ReadonlyArray<{ accountId: TAccount; before: boolean }>,
   totalBefore: boolean,
@@ -130,8 +144,10 @@ export function investedDay<TAccount>(
   invested: number | null
   accounts: Array<{ accountId: TAccount; value: number | null }>
   unpriced: number
+  cost: number | null
 } {
   let total: number | null = null
+  let cost: number | null = null
   let unpriced = 0
   const values = new Map<TAccount, number | null>(
     accounts.map((a) => [a.accountId, null]),
@@ -147,6 +163,7 @@ export function investedDay<TAccount>(
     const cents = positionCents(p.shares, p.close.price, p.divide, p.rate.rate)
     values.set(p.accountId, plusCents(values.get(p.accountId) ?? null, cents))
     total = plusCents(total, cents)
+    cost = plusCents(cost, costCents(p.paid, cents))
   }
   return {
     invested: total ?? (totalBefore ? 0 : null),
@@ -155,6 +172,7 @@ export function investedDay<TAccount>(
       value: values.get(a.accountId) ?? (a.before ? 0 : null),
     })),
     unpriced,
+    cost: cost ?? (totalBefore ? 0 : null),
   }
 }
 
@@ -168,6 +186,7 @@ type Series<TAccount> = {
     values: Array<number | null>
   }>
   unpriced: Array<number>
+  cost: Array<number | null>
 }
 
 /**
@@ -194,6 +213,7 @@ export function joinWorth<TAccount, TPast extends Series<TAccount>>(
       values: last(a.values, today.accounts[k].value),
     })),
     unpriced: last(past.unpriced, today.unpriced),
+    cost: last(past.cost, today.cost),
   }
 }
 

@@ -55,7 +55,10 @@
   .box .caps { font-size: 10px }
   .mid { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--mono); font-size: 20px; color: var(--ink-500) }
   .mk { position: absolute; transform: translate(-50%, -150%); font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; color: var(--ink-300); background: #fff; padding: 1px 5px; border-radius: 5px; box-shadow: 0 2px 8px -4px rgba(0,0,0,.3); pointer-events: none }
-  .mk.low { transform: translate(-50%, 60%); color: var(--danger) }
+  .mk.low { transform: translate(-50%, 70%) }
+  .move b.up { color: var(--good) } .move b.down { color: var(--danger) }
+  .mk { white-space: nowrap }
+  .dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-100); transform: translate(-50%, -50%); pointer-events: none }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); letter-spacing: .1em; text-transform: uppercase }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0 }
   .split { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid rgba(0,0,0,.06) }
@@ -102,111 +105,106 @@
   </div>
 </div>
 <script>
+/* 24 Nov, his "calculate vs not only total money we have now but as
+   well total money we dumped in the market": a COST BASIS line under
+   MARKET VALUE, the gap between them the P/L, shaded green or red.
+   P/L HIGH, P/L LOW and P/L NOW replace HIGH / LOW — buys move both lines
+   alike, so they never read as a gain. */
 const RANGES = [['1D',1],['1W',7],['1M',30],['3M',91],['1Y',365]]
 const eur = (n, d = 2) => '€' + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d })
+const sgn = (n) => (n < 0 ? '−' : '+') + eur(n)
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const TODAY = new Date(2026, 10, 22)
 const dayName = (d) => `${d.getDate()} ${MON[d.getMonth()]}`
 
-/* Made-up closes: a year with new money on some days (dots) and a fall
-   in November. Each close is the worth of what was held that day. */
+/* Made-up closes and what was paid for what was held each day. */
 function series() {
   let seed = 7
   const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280)
-  const buys = { 300: 2000, 250: 1500, 200: 1000, 150: 1000, 100: 2500, 60: 1500, 30: 1000, 16: 1000 }
+  const buys = { 300: 2000, 250: 1500, 200: 1000, 150: 1000, 100: 2500, 60: 1500, 30: 1000, 16: 1000, 5: 500 }
   const out = []
-  let v = 14200
+  let v = 14200, cost = 13600
   for (let i = 364; i >= 0; i--) {
     const d = new Date(TODAY); d.setDate(d.getDate() - i)
     const drift = i < 22 ? -0.0024 : 0.0006
     v = v * (1 + drift + (rnd() - 0.5) * 0.016)
     const buy = buys[i] ?? 0
-    v += buy
-    out.push({ d, v, buy })
+    v += buy; cost += buy
+    out.push({ d, v, cost, buy })
   }
   const k = 21480.55 / out.at(-1).v
-  return out.map((p) => ({ ...p, v: Math.round(p.v * k * 100) / 100, buy: p.buy }))
+  const r = (x) => Math.round(x * k * 100) / 100
+  return out.map((p) => ({ d: p.d, v: r(p.v), cost: r(p.cost), buy: r(p.buy) }))
 }
 const ALL = series()
 let scen = 'year', range = '1M'
+const pl = (p) => p.v - p.cost
 
 function draw() {
   const data = scen === 'short' ? ALL.slice(-12) : ALL
   const have = data.length
-  /* A range is pressable while the one before it is shorter than the
-     closes there are: 12 days open 1W and 1M (as SINCE), not 3M or 1Y. */
   document.getElementById('ranges').innerHTML = RANGES.map(([id], k) =>
     `<button data-r="${id}" class="${id === range ? 'on' : ''}" ${k > 1 && RANGES[k - 1][1] >= have ? 'disabled' : ''}>${id}</button>`).join('')
-  const move = document.getElementById('move')
-  const body = document.getElementById('body')
-  const legend = document.getElementById('legend')
+  const move = document.getElementById('move'), hlEl = document.getElementById('dd')
+  const body = document.getElementById('body'), legend = document.getElementById('legend')
   if (range === '1D') {
-    const close = data.at(-2), now = data.at(-1).v
-    const diff = now - close.v, pct = diff / close.v * 100
-    const cls = diff < 0 ? 'dn' : 'up'
-    move.innerHTML = `<span>DAY'S CHANGE</span><span class="pill ${cls}">${diff < 0 ? '▼' : '▲'} ${diff < 0 ? '−' : '+'}${eur(diff)} ${pct.toFixed(1)}%</span>`
+    const a = data.at(-2), b = data.at(-1)
+    const diff = pl(b) - pl(a), pct = diff / a.v * 100, cls = diff < 0 ? 'dn' : 'up'
+    move.innerHTML = `<span>DAY'S CHANGE</span><span class="pill ${cls}">${diff < 0 ? '▼' : '▲'} ${sgn(diff)} ${pct.toFixed(1)}%</span>`
+    hlEl.innerHTML = ''
     body.innerHTML = `<div class="day1">
-      <div class="box"><span class="caps">Prev. close · ${dayName(close.d)}</span><b>${eur(close.v)}</b></div>
+      <div class="box"><span class="caps">Prev. close · ${dayName(a.d)}</span><b>${eur(a.v)}</b></div>
       <div class="mid"><span>→</span><span class="pill ${cls}" style="font-size:12px">${diff < 0 ? '▼' : '▲'} ${pct.toFixed(1)}%</span></div>
-      <div class="box"><span class="caps">Last · ${dayName(data.at(-1).d)}</span><b>${eur(now)}</b></div></div>`
+      <div class="box"><span class="caps">Last · ${dayName(b.d)}</span><b>${eur(b.v)}</b></div></div>`
     legend.innerHTML = ''
-    document.getElementById('dd').innerHTML = ''
     return
   }
   const n = RANGES.find((r) => r[0] === range)[1]
   const pts = data.slice(-Math.min(n + 1, have))
   const first = pts[0], last = pts.at(-1)
-  const added = pts.slice(1).reduce((s, p) => s + p.buy, 0)
-  const diff = last.v - first.v - added, pct = diff / (first.v + added) * 100
-  const cls = diff < 0 ? 'dn' : 'up'
-  const since = dayName(first.d).toUpperCase()
-  move.innerHTML = `<span>RETURN</span><span class="pill ${cls}">${diff < 0 ? '▼' : '▲'} ${diff < 0 ? '−' : '+'}${eur(diff)} ${pct.toFixed(1)}%</span><span>${since}</span><b>${eur(first.v)}</b><span class="arrow">→</span><span>${dayName(last.d).toUpperCase()}</span><b>${eur(last.v)}</b>${added ? `<span>· NET DEPOSITS</span><b>${eur(added, 0)}</b>` : ''}`
-  /* MAX DRAWDOWN: the biggest fall from a peak, deposits taken out
-     (time-weighted): each day's move is its value less that day's
-     deposit, over the day before. */
-  let idx = 1, top = 1, topI = 0, dd = { pct: 0, peak: 0, low: 0 }
-  for (let i = 1; i < pts.length; i++) {
-    idx *= (pts[i].v - pts[i].buy) / pts[i - 1].v
-    if (idx > top) { top = idx; topI = i }
-    const fall = 1 - idx / top
-    if (fall > dd.pct) dd = { pct: fall, peak: topI, low: i }
-  }
-  const ddEl = document.getElementById('dd')
-  if (dd.pct > 0.0005) {
-    const between = pts.slice(dd.peak + 1, dd.low + 1).reduce((s, p) => s + p.buy, 0)
-    const drop = pts[dd.peak].v + between - pts[dd.low].v
-    ddEl.innerHTML = `<span>MAX DRAWDOWN</span><span class="pill dn">▼ −${eur(drop)} −${(dd.pct * 100).toFixed(1)}%</span><span>PEAK ${dayName(pts[dd.peak].d).toUpperCase()}</span><b>${eur(pts[dd.peak].v)}</b><span class="arrow">→</span><span>LOW ${dayName(pts[dd.low].d).toUpperCase()}</span><b>${eur(pts[dd.low].v)}</b>${between ? `<span>· NET DEPOSITS</span><b>${eur(between, 0)}</b>` : ''}`
-  } else ddEl.innerHTML = '<span>MAX DRAWDOWN</span><b>€0.00 · 0.0%</b>'
-  const W = 1000, H = 220, pad = 8
-  const vs = pts.map((p) => p.v)
-  const lo = Math.min(...vs) * 0.985, hi = Math.max(...vs) * 1.01
-  const x = (i) => pad + (i / Math.max(1, pts.length - 1)) * (W - pad * 2)
-  const y = (v) => H - 18 - ((v - lo) / (hi - lo)) * (H - 40)
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('')
-  const area = `${line}L${x(pts.length - 1)},${H - 18}L${x(0)},${H - 18}Z`
-  const dots = pts.map((p, i) => p.buy && i ? `<circle cx="${x(i)}" cy="${y(p.v)}" r="5" fill="#fff" stroke="${'#b8913f'}" stroke-width="2.5"/>` : '').join('')
+  /* RETURN: the P/L's move over the range. */
+  const ret = pl(last) - pl(first), retPct = ret / (first.cost + (last.cost - first.cost)) * 100
+  move.innerHTML = `<span>RETURN</span><span class="pill ${ret < 0 ? 'dn' : 'up'}">${ret < 0 ? '▼' : '▲'} ${sgn(ret)} ${retPct.toFixed(1)}%</span><span>${dayName(first.d).toUpperCase()} → ${dayName(last.d).toUpperCase()}</span>`
+  let hi = pts[0], lo = pts[0]
+  for (const p of pts) { if (pl(p) >= pl(hi)) hi = p; if (pl(p) < pl(lo)) lo = p }
+  const pc = (p) => `${pl(p) < 0 ? '−' : '+'}${Math.abs(pl(p) / p.cost * 100).toFixed(1)}%`
+  const tone = (p) => pl(p) < 0 ? 'down' : 'up'
+  hlEl.innerHTML = `<span>P/L HIGH ${dayName(hi.d).toUpperCase()}</span><b class="${tone(hi)}">${sgn(pl(hi))} ${pc(hi)}</b><span>· P/L LOW ${dayName(lo.d).toUpperCase()}</span><b class="${tone(lo)}">${sgn(pl(lo))} ${pc(lo)}</b><span>· P/L NOW</span><span class="pill ${pl(last) < 0 ? 'dn' : 'up'}">${pl(last) < 0 ? '▼' : '▲'} ${sgn(pl(last))} ${pc(last)}</span>`
+  const W = 1000, H = 220
+  const vs = pts.flatMap((p) => [p.v, p.cost])
+  const lo2 = Math.min(...vs) * 0.985, hi2 = Math.max(...vs) * 1.01
+  const x = (i) => 8 + (i / Math.max(1, pts.length - 1)) * (W - 16)
+  const y = (v) => H - 18 - ((v - lo2) / (hi2 - lo2)) * (H - 40)
+  const valLine = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('')
+  /* Cost steps: flat until a buy, then straight up. */
+  const costLine = pts.map((p, i) => i ? `L${x(i).toFixed(1)},${y(pts[i - 1].cost).toFixed(1)}L${x(i).toFixed(1)},${y(p.cost).toFixed(1)}` : `M${x(0)},${y(p.cost)}`).join('')
+  /* The gap, day by day: green where value is over cost, red under. */
+  const gaps = pts.slice(1).map((p, k) => {
+    const a = pts[k], i = k + 1
+    const up = pl(a) + pl(p) >= 0
+    return `<path d="M${x(i - 1)},${y(a.v)}L${x(i)},${y(p.v)}L${x(i)},${y(p.cost)}L${x(i - 1)},${y(a.cost)}Z" fill="${up ? 'oklch(0.55 0.15 155)' : 'oklch(0.55 0.19 25)'}" fill-opacity=".16"/>`
+  }).join('')
   const ticks = [0, Math.floor((pts.length - 1) / 2), pts.length - 1].map((i) =>
-    `<text x="${x(i)}" y="${H}" font-family="JetBrains Mono" font-size="11" fill="#99959f" text-anchor="${i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'middle'}">${dayName(pts[i].d)}</text>`).join('')
+    `<span style="position:absolute;bottom:0;left:${x(i) / W * 100}%;transform:translateX(${i === 0 ? '0' : i === pts.length - 1 ? '-100%' : '-50%'});font-family:var(--mono);font-size:11px;color:var(--ink-500);white-space:nowrap">${dayName(pts[i].d)}</span>`).join('')
+  const mk = (p, label, cls) => { const i = pts.indexOf(p); return `<span class="dot" style="left:${x(i) / W * 100}%;top:${y(p.v)}px"></span><span class="mk ${cls}" style="left:${Math.min(96, Math.max(4, x(i) / W * 100))}%;top:${y(p.v)}px">${label}</span>` }
   body.innerHTML = `<div class="chart" id="chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7b6fe0" stop-opacity=".32"/><stop offset="1" stop-color="#7b6fe0" stop-opacity="0"/></linearGradient></defs>
-    <path d="${area}" fill="url(#g)"/>
-    <path d="${line}" fill="none" stroke="#7b6fe0" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" pathLength="1" style="stroke-dasharray:1;stroke-dashoffset:1;animation:dr .7s ease-out forwards"/>
+    ${gaps}
+    <path d="${costLine}" fill="none" stroke="#55516a" stroke-width="1.6" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
+    <path d="${valLine}" fill="none" stroke="#7b6fe0" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" style="animation:pop .4s both"/>
     <line id="cross" x1="0" x2="0" y1="10" y2="${H - 18}" stroke="#55516a" stroke-dasharray="3 4" vector-effect="non-scaling-stroke" style="display:none"/>
-    ${dd.pct > 0.0005 ? `<line x1="${x(dd.peak)}" x2="${x(dd.low)}" y1="${y(pts[dd.peak].v)}" y2="${y(pts[dd.peak].v)}" stroke="#c0392b" stroke-opacity=".5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/><line x1="${x(dd.low)}" x2="${x(dd.low)}" y1="${y(pts[dd.peak].v)}" y2="${y(pts[dd.low].v)}" stroke="#c0392b" stroke-opacity=".5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : ''}
-    ${dots}${ticks}</svg>${dd.pct > 0.0005 ? `<span class="mk" style="left:${x(dd.peak) / W * 100}%;top:${y(pts[dd.peak].v)}px">PEAK</span><span class="mk low" style="left:${x(dd.low) / W * 100}%;top:${y(pts[dd.low].v)}px">LOW</span>` : ''}<div class="tag" id="tag"></div></div>`
-  legend.innerHTML = (dots ? '<span><i style="background:#fff;box-shadow:inset 0 0 0 2.5px #b8913f"></i>Deposit</span>' : '') + (dd.pct > 0.0005 ? '<span><i style="background:none;border-radius:0;border-top:2px dashed rgba(192,57,43,.6);height:0;width:14px;vertical-align:3px"></i>Max drawdown</span>' : '')
+    </svg>${mk(hi, 'P/L HIGH', '')}${mk(lo, 'P/L LOW', 'low')}${ticks}<div class="tag" id="tag"></div></div>`
+  legend.innerHTML = `<span><i style="background:#7b6fe0"></i>Market value</span><span><i style="background:none;border-radius:0;border-top:2px dashed #55516a;height:0;width:14px;vertical-align:3px"></i>Cost basis</span><span><i style="background:oklch(0.55 0.15 155 / .3);border-radius:2px"></i>Profit</span><span><i style="background:oklch(0.55 0.19 25 / .3);border-radius:2px"></i>Loss</span>`
   const chart = document.getElementById('chart'), tag = document.getElementById('tag'), cross = document.getElementById('cross')
   chart.addEventListener('mousemove', (e) => {
     const r = chart.getBoundingClientRect()
-    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((e.clientX - r.left) / r.width * W - pad) / (W - pad * 2) * (pts.length - 1))))
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((e.clientX - r.left) / r.width * W - 8) / (W - 16) * (pts.length - 1))))
     const p = pts[i]
     cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.style.display = ''
     tag.style.display = 'block'; tag.style.left = `${x(i) / W * 100}%`
-    tag.innerHTML = `<small>${dayName(p.d).toUpperCase()}</small> ${eur(p.v)}${p.buy ? ` <small>· DEPOSIT ${eur(p.buy, 0)}</small>` : ''}`
+    tag.innerHTML = `<small>${dayName(p.d).toUpperCase()}</small> ${eur(p.v)} <small>· COST ${eur(p.cost)} · P/L</small> <span class="${tone(p)}">${sgn(pl(p))}</span>${p.buy ? ` <small>· BUY ${eur(p.buy, 0)}</small>` : ''}`
   })
   chart.addEventListener('mouseleave', () => { tag.style.display = 'none'; cross.style.display = 'none' })
 }
-document.head.insertAdjacentHTML('beforeend', '<style>@keyframes dr{to{stroke-dashoffset:0}}</style>')
 document.getElementById('ranges').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.disabled) return; range = b.dataset.r; draw() })
 document.getElementById('scen').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return

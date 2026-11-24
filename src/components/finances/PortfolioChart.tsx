@@ -5,7 +5,7 @@ import { Veiled } from '@/components/finances/Veil'
 import { dayEndsBack } from '@/components/finances/WorthChart'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
-import { dayReturn, maxDrawdown, rangeReturn } from '@/lib/portfolioReturn'
+import { dayReturn, highLow, rangeReturn } from '@/lib/portfolioReturn'
 import type { RangeReturn } from '@/lib/portfolioReturn'
 import { useWorthHistory } from '@/lib/useWorthHistory'
 import { useVeil } from '@/lib/veil'
@@ -176,32 +176,35 @@ export function PortfolioChart({
   const at = hover === null ? null : pts[hover]
   const ticks = [0, Math.floor((pts.length - 1) / 2), pts.length - 1]
   const anyDeposit = pts.some((p, i) => i > 0 && p.deposit !== 0)
-  const dd = maxDrawdown(pts)
-  const peakI = dd ? pts.findIndex((p) => p.at === dd.peakAt) : -1
-  const lowI = dd ? pts.findIndex((p) => p.at === dd.lowAt) : -1
+  const hl = highLow(pts)
+  const highI = hl ? pts.findIndex((p) => p.at === hl.high.at) : -1
+  const lowI = hl ? pts.findIndex((p) => p.at === hl.low.at) : -1
 
   return (
     <div className="flex flex-col gap-3">
       {head}
-      <div className="-mt-2 flex min-h-[30px] flex-wrap items-center gap-x-2.5 gap-y-1">
-        <span className={caps}>MAX DRAWDOWN</span>
-        {dd ? (
-          <>
-            <span
-              key={range}
-              className="motion-arrive inline-flex items-center gap-2 rounded-[8px] bg-state-danger/10 px-2.5 py-1 font-mono text-[13px] text-state-danger"
-            >
-              <Veiled>{`▼ −${euros(dd.drop)}`}</Veiled>
-              <span>{`−${dd.pct.toFixed(1)}%`}</span>
-            </span>
-            <span className={caps}>
-              {day(dd.peakAt)} → {day(dd.lowAt)}
-            </span>
-          </>
-        ) : (
-          <span className={num}>€0.00 · 0.0%</span>
-        )}
-      </div>
+      {hl ? (
+        <div className="-mt-2 flex min-h-[30px] flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span className={caps}>HIGH {day(hl.high.at)}</span>
+          <span className={num}>
+            <Veiled>{euros(hl.high.value)}</Veiled>
+          </span>
+          <span className={caps}>· LOW {day(hl.low.at)}</span>
+          <span className={num}>
+            <Veiled>{euros(hl.low.value)}</Veiled>
+          </span>
+          <span className={caps}>· VS HIGH</span>
+          <span
+            key={range}
+            className={`motion-arrive inline-flex items-center gap-2 rounded-[8px] px-2.5 py-1 font-mono text-[13px] ${hl.vsHigh < 0 ? 'bg-state-danger/10 text-state-danger' : 'bg-state-good/12 text-state-good'}`}
+          >
+            <Veiled>
+              {hl.vsHigh < 0 ? `▼ −${euros(-hl.vsHigh)}` : euros(0)}
+            </Veiled>
+            <span>{`${hl.pct < 0 ? '−' : ''}${Math.abs(hl.pct).toFixed(1)}%`}</span>
+          </span>
+        </div>
+      ) : null}
       <div
         className={`relative h-[220px] transition-[filter] select-none ${shown ? '' : 'blur-[8px]'}`}
         onMouseMove={(e) => {
@@ -250,16 +253,6 @@ export function PortfolioChart({
               strokeLinejoin="round"
             />
           </g>
-          {dd ? (
-            <rect
-              x={xp(peakI)}
-              y="0"
-              width={Math.max(0.4, xp(lowI) - xp(peakI))}
-              height="100"
-              fill="var(--color-state-danger)"
-              fillOpacity="0.07"
-            />
-          ) : null}
           {hover !== null ? (
             <line
               x1={xp(hover)}
@@ -281,20 +274,40 @@ export function PortfolioChart({
             />
           ) : null,
         )}
-        {dd ? (
+        {hl ? (
           <>
-            <span
-              className="pointer-events-none absolute top-0 -translate-x-1/2 rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-ink-300 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
-              style={{ left: `${xp(peakI)}%` }}
-            >
-              PEAK
-            </span>
-            <span
-              className="pointer-events-none absolute top-0 -translate-x-1/2 rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] text-state-danger shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)]"
-              style={{ left: `${xp(lowI)}%` }}
-            >
-              LOW
-            </span>
+            {[
+              {
+                i: highI,
+                v: hl.high.value,
+                label: 'HIGH',
+                tone: 'text-ink-300',
+                up: true,
+              },
+              {
+                i: lowI,
+                v: hl.low.value,
+                label: 'LOW',
+                tone: 'text-ink-300',
+                up: false,
+              },
+            ].map((m) => (
+              <span key={m.label}>
+                <span
+                  className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground"
+                  style={{ left: `${xp(m.i)}%`, top: `${yp(m.v) * 2}px` }}
+                />
+                <span
+                  className={`pointer-events-none absolute -translate-x-1/2 rounded-[5px] bg-background px-1.5 py-px font-mono text-[9.5px] tracking-[0.12em] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.3)] ${m.tone} ${m.up ? '-translate-y-[170%]' : 'translate-y-[70%]'}`}
+                  style={{
+                    left: `${Math.min(96, Math.max(4, xp(m.i)))}%`,
+                    top: `${yp(m.v) * 2}px`,
+                  }}
+                >
+                  {m.label}
+                </span>
+              </span>
+            ))}
           </>
         ) : null}
         {at !== null && hover !== null ? (
@@ -318,20 +331,10 @@ export function PortfolioChart({
           ))}
         </div>
       </div>
-      {anyDeposit || dd ? (
-        <span className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10.5px] tracking-[0.1em] text-ink-400 uppercase">
-          {anyDeposit ? (
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-background ring-2 ring-money-cash" />
-              deposit
-            </span>
-          ) : null}
-          {dd ? (
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-3.5 rounded-[2px] bg-state-danger/15" />
-              max drawdown
-            </span>
-          ) : null}
+      {anyDeposit ? (
+        <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.1em] text-ink-400 uppercase">
+          <span className="size-2 rounded-full bg-background ring-2 ring-money-cash" />
+          deposit
         </span>
       ) : null}
     </div>

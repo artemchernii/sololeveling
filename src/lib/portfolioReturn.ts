@@ -125,59 +125,33 @@ export function dayReturn(
   )
 }
 
-export type Drawdown = {
-  peakAt: number
-  peak: number
-  lowAt: number
-  low: number
-  /** Bought minus sold after the peak, up to the low. */
-  deposits: number
-  /** peak + deposits − low: what the market took. */
-  drop: number
-  /** The fall of the time-weighted line, in %. */
-  pct: number
-}
-
 /**
- * MAX DRAWDOWN over a range's points (24 Nov, "Go, build it" on the
- * mockup): the biggest fall from a peak, deposits taken out — each day's
- * move is its value less that day's deposit, over the day before, so a
- * buy is never a peak and never hides a fall. Null when nothing fell.
+ * HIGH and LOW of a range's line and how far the last day is from the
+ * high (24 Nov, his "what is maximum total amount and minimum … and how
+ * low we from the peak"): the line's own values, deposits in them, each
+ * with its day; VS HIGH is last minus high, both always beside it.
  */
-export function maxDrawdown(
-  points: ReadonlyArray<{ at: number; value: number; deposit: number }>,
-): Drawdown | null {
-  let line = 1
-  let top = 1
-  let topI = 0
-  let best: { pct: number; peak: number; low: number } | null = null
-  for (let i = 1; i < points.length; i++) {
-    const before = points[i - 1].value
-    if (before <= 0) continue
-    line *= (points[i].value - points[i].deposit) / before
-    if (line > top) {
-      top = line
-      topI = i
-    }
-    const fall = 1 - line / top
-    if (fall > 0 && (best === null || fall > best.pct))
-      best = { pct: fall, peak: topI, low: i }
+export function highLow(points: ReadonlyArray<{ at: number; value: number }>): {
+  high: { at: number; value: number }
+  low: { at: number; value: number }
+  last: { at: number; value: number }
+  vsHigh: number
+  pct: number
+} | null {
+  if (points.length < 2) return null
+  let high = points[0]
+  let low = points[0]
+  for (const p of points) {
+    if (p.value >= high.value) high = p
+    if (p.value < low.value) low = p
   }
-  if (best === null) return null
-  const peak = points[best.peak]
-  const low = points[best.low]
-  const deposits = cents(
-    points
-      .slice(best.peak + 1, best.low + 1)
-      .reduce((s, p) => s + p.deposit, 0),
-  )
+  const last = points[points.length - 1]
+  const vsHigh = cents(last.value - high.value)
   return {
-    peakAt: peak.at,
-    peak: peak.value,
-    lowAt: low.at,
-    low: low.value,
-    deposits,
-    drop: cents(peak.value + deposits - low.value),
-    pct: Math.round(best.pct * 1000) / 10,
+    high: { at: high.at, value: high.value },
+    low: { at: low.at, value: low.value },
+    last: { at: last.at, value: last.value },
+    vsHigh,
+    pct: high.value > 0 ? Math.round((vsHigh / high.value) * 1000) / 10 : 0,
   }
 }

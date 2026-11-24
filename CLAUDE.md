@@ -181,13 +181,12 @@ minus the first's minus NET DEPOSITS (each day's buys in and sells out at
 the trade's own price, a sum of trade rows), over the first plus the
 deposits (`src/lib/portfolioReturn.ts`). 1D is DAY'S CHANGE: the last
 two day ends, PREV. CLOSE and LAST (the last weekday's close before
-the last day). On 2026-11-24 ("Go, build it" on the same mockup) MAX
-DRAWDOWN joined it: over the range, the biggest fall from a PEAK to a
-LOW of the line with each day's deposit taken out (time-weighted), in %
-and as peak plus net deposits minus low in € (`maxDrawdown()`), its two
-days beside it and the period shaded on the line — never the two values,
-which buys in between make read upside down (his "how is peak lower than
-low?"). Both ends, their days and the net
+the last day). On 2026-11-24 the range's HIGH and LOW joined it (his "what is maximum
+total amount and minimum … and how low we from the peak", after MAX
+DRAWDOWN read upside down and was dropped): the line's highest and
+lowest day in the range, deposits in them, each with its day and marked
+on the line, and VS HIGH — the last day minus the high, both beside it
+(`highLow()`). Both ends, their days and the net
 deposits are always beside it; a deposit is a dot on the line; nothing
 stored, never an input to `verdict()`.
 

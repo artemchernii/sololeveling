@@ -1,11 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import {
-  dayReturn,
-  maxDrawdown,
-  netDeposits,
-  rangeReturn,
-} from './portfolioReturn'
+import { dayReturn, highLow, netDeposits, rangeReturn } from './portfolioReturn'
 
 const DAY = 86_400_000
 /* Five day ends, the last one today. */
@@ -140,42 +135,28 @@ describe('dayReturn', () => {
   })
 })
 
-describe('maxDrawdown', () => {
-  const pt = (value: number, deposit = 0, at = value) => ({
-    at,
-    value,
-    deposit,
-  })
+describe('highLow', () => {
+  const pt = (value: number, at: number) => ({ at, value })
 
-  test('the biggest fall from a peak, in € and %', () => {
-    const d = maxDrawdown([pt(100), pt(120), pt(90), pt(110), pt(100)])
-    expect(d).toMatchObject({
-      peak: 120,
-      low: 90,
-      deposits: 0,
-      drop: 30,
-      pct: 25,
+  test('the highest and lowest day, and the last day against the high', () => {
+    const h = highLow([pt(100, 1), pt(120, 2), pt(90, 3), pt(110, 4)])
+    expect(h).toEqual({
+      high: { at: 2, value: 120 },
+      low: { at: 3, value: 90 },
+      last: { at: 4, value: 110 },
+      vsHigh: -10,
+      pct: -8.3,
     })
   })
 
-  test('a deposit is never a peak: the fall is from before it', () => {
-    /* 1000 → 1100 (+100 market), deposit 1000 → 2100, then down to 1900. */
-    const d = maxDrawdown([pt(1000), pt(1100), pt(2100, 1000), pt(1900)])
-    expect(d).toMatchObject({
-      peak: 1100,
-      low: 1900,
-      deposits: 1000,
-      drop: 200,
+  test('a new high today: 0 from it', () => {
+    expect(highLow([pt(100, 1), pt(130, 2)])).toMatchObject({
+      vsHigh: 0,
+      pct: 0,
     })
   })
 
-  test('a deposit does not hide a fall', () => {
-    /* 1000 → 900 the market, then 1000 put in. */
-    const d = maxDrawdown([pt(1000), pt(900), pt(1900, 1000)])
-    expect(d).toMatchObject({ peak: 1000, low: 900, drop: 100, pct: 10 })
-  })
-
-  test('nothing fell: none', () => {
-    expect(maxDrawdown([pt(100), pt(110), pt(120)])).toBeNull()
+  test('one day is no range', () => {
+    expect(highLow([pt(100, 1)])).toBeNull()
   })
 })

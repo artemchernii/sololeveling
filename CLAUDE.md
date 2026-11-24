@@ -195,9 +195,13 @@ we dumped in the market"). Only on PORTFOLIO's head, all in
   over cost and red under: a state, never a grade.
 - **RETURN**: the P/L at the range's last day minus at its first, over
   the last day's cost — a buy moves both lines alike and is never a
-  gain. Its two days beside it. A P/L HIGH / LOW / NOW row, a range
-  HIGH/LOW and a MAX DRAWDOWN were each tried and dropped (24 Nov: "i
-  want it simple").
+  gain. Its two days beside it.
+- **MAX PROFIT, MAX LOSS, NOW**: the most and least the shares held
+  were up on what they cost in the range, and today, each € and % with
+  no date beside it (24 Nov: "simple and understandable, not some date");
+  the two are marked on the line, and hover gives their day. They
+  replaced a range HIGH/LOW and a MAX DRAWDOWN that buys made read upside
+  down (his "how is peak lower than low?").
 - **1D**: DAY'S CHANGE, PREV. CLOSE (the last weekday's close) and LAST.
 - **Hover**: the day's value, COST, P/L, and BUY / SELL — the day's
   trades at their own prices (`netDeposits()`, a sum of trade rows). Both ends, their days and the net

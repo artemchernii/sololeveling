@@ -101,7 +101,7 @@ test('the Net Worth PDF dropped again: each position at its value, none twice', 
         })
       }
     }
-    const batchId = await ctx.db.insert('batches', {
+    const newBatch = await ctx.db.insert('batches', {
       ownerId: ME,
       status: 'open',
       leftOut: [],
@@ -112,7 +112,7 @@ test('the Net Worth PDF dropped again: each position at its value, none twice', 
     })
     await ctx.db.insert('intakes', {
       ownerId: ME,
-      batchId,
+      batchId: newBatch,
       accountId: tr,
       storageIds: [],
       status: 'ready',
@@ -132,7 +132,7 @@ test('the Net Worth PDF dropped again: each position at its value, none twice', 
         ],
       })),
     })
-    return batchId
+    return newBatch
   })
   await me.query(api.intake.batchReview, { batchId })
   await me.mutation(api.intake.applyBatch, { batchId, dayStart: DAY_START })
@@ -207,7 +207,7 @@ async function revolutDrop(
       priceEur: 100,
       occurredAt: Date.UTC(2026, 9, 1),
     })
-    const batchId = await ctx.db.insert('batches', {
+    const newBatch = await ctx.db.insert('batches', {
       ownerId: ME,
       status: 'open',
       leftOut: [],
@@ -218,7 +218,7 @@ async function revolutDrop(
     })
     await ctx.db.insert('intakes', {
       ownerId: ME,
-      batchId,
+      batchId: newBatch,
       accountId: rev,
       storageIds: [],
       status: 'ready',
@@ -276,7 +276,7 @@ async function revolutDrop(
               },
             ],
     })
-    return batchId
+    return newBatch
   })
   await me.query(api.intake.batchReview, { batchId })
   await me.mutation(api.intake.applyBatch, { batchId, dayStart: DAY_START })
@@ -346,7 +346,7 @@ test('a ticker printed alone lands on the held listing, its old buy once', async
       priceEur: 94,
       occurredAt: Date.UTC(2026, 8, 8, 12),
     })
-    const batchId = await ctx.db.insert('batches', {
+    const newBatch = await ctx.db.insert('batches', {
       ownerId: ME,
       status: 'open',
       leftOut: [],
@@ -357,7 +357,7 @@ test('a ticker printed alone lands on the held listing, its old buy once', async
     })
     await ctx.db.insert('intakes', {
       ownerId: ME,
-      batchId,
+      batchId: newBatch,
       accountId: rev,
       storageIds: [],
       status: 'ready',
@@ -390,7 +390,7 @@ test('a ticker printed alone lands on the held listing, its old buy once', async
         ],
       })),
     })
-    return batchId
+    return newBatch
   })
   await me.query(api.intake.batchReview, { batchId })
   await me.mutation(api.intake.applyBatch, { batchId, dayStart: DAY_START })

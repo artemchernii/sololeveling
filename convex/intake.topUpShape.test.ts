@@ -133,7 +133,7 @@ test('his re-drop: 3 Oct and 6 Nov already saved, 12 Nov and 28 Sep added once',
   const at = (y: number, m: number, d: number) =>
     new Date(y, m, d, 12).getTime()
   const { tr, intakeId } = await t.run(async (ctx) => {
-    const tr = await ctx.db.insert('accounts', {
+    const trId = await ctx.db.insert('accounts', {
       ownerId: ME,
       name: 'Trade Republic',
       kinds: ['broker'],
@@ -156,7 +156,7 @@ test('his re-drop: 3 Oct and 6 Nov already saved, 12 Nov and 28 Sep added once',
         unit: 'eur',
         occurredAt: d,
         text: merchant,
-        accountId: tr,
+        accountId: trId,
         meta: { merchant },
       })
     /* What the statement saved (21 Nov). */
@@ -165,9 +165,9 @@ test('his re-drop: 3 Oct and 6 Nov already saved, 12 Nov and 28 Sep added once',
     await log(at(2026, 10, 6), 'move', 505.2, 'Apple Pay Top up')
     await log(at(2026, 10, 6), 'expense', 5.2, 'Transfer fee')
     await log(at(2026, 10, 9), 'income', 0.24, 'Cash Dividend')
-    const intakeId = await ctx.db.insert('intakes', {
+    const newIntake = await ctx.db.insert('intakes', {
       ownerId: ME,
-      accountId: tr,
+      accountId: trId,
       storageIds: [],
       status: 'ready',
       kind: 'transactions',
@@ -177,7 +177,7 @@ test('his re-drop: 3 Oct and 6 Nov already saved, 12 Nov and 28 Sep added once',
         { name: 'Transaction export.csv', size: 1, contentType: 'text/csv' },
       ],
     })
-    return { tr, intakeId }
+    return { tr: trId, intakeId: newIntake }
   })
   const review = await me.query(api.intake.review, { intakeId })
   const rows = review?.rows ?? []

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · Portfolio chart</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* 23 Nov. Artem: "we dont have chart of total portfolio, and to see
+     dynamic day week month year". The Overview chart's INVESTED line,
+     on top of PORTFOLIO, with 1D (two numbers: the last close and now,
+     the app stores a close a day) and 1W–1Y (a line of daily closes).
+     A buy with new money is a dot on the line, so a jump up is never read
+     as a gain. Numbers are made up. */
+  :root {
+    --bg: #ece9f1; --panel: rgba(255,255,255,.62); --ink-100: #1d1b26; --ink-200: #33303f; --ink-300: #55516a; --ink-400: #77738a; --ink-500: #99959f;
+    --lav: #5b4fc4; --lav-line: #7b6fe0; --lav-soft: rgba(91,79,196,.10); --lav-edge: rgba(91,79,196,.30);
+    --good: oklch(0.55 0.15 155); --danger: oklch(0.55 0.19 25);
+    --good-bg: color-mix(in oklch, oklch(0.55 0.15 155) 12%, transparent); --danger-bg: color-mix(in oklch, oklch(0.55 0.19 25) 10%, transparent);
+    --gold: #b8913f; --teal: #2f7f97; --amber: #b7791f;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(900px 500px at 80% -10%, #f6e9e2 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0 }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(0,0,0,.14); color: var(--ink-400) }
+  .scen button.on { color: var(--lav); background: var(--lav-soft); border-color: var(--lav-edge) }
+  .card { background: var(--panel); backdrop-filter: blur(18px); border-radius: 24px; padding: 22px 24px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 18px 40px -26px rgba(40,30,80,.35); display: flex; flex-direction: column; gap: 14px }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap }
+  .ranges { display: inline-flex; padding: 3px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); background: rgba(255,255,255,.4) }
+  .ranges button { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; padding: 6px 12px; border-radius: 999px; color: var(--ink-400); transition: background .2s, color .2s }
+  .ranges button.on { background: var(--lav-soft); color: var(--lav); box-shadow: inset 0 0 0 1px var(--lav-edge) }
+  .ranges button:disabled { opacity: .35; cursor: default }
+  .worth { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
+  .big { font-size: 44px; font-weight: 300; letter-spacing: -.02em; font-variant-numeric: tabular-nums }
+  .usd { font-size: 44px; font-weight: 300; color: var(--ink-400); letter-spacing: -.02em }
+  .src { font-family: var(--mono); font-size: 11.5px; color: var(--ink-400) }
+  .move { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-size: 12.5px; color: var(--ink-300); min-height: 30px }
+  .move b { font-weight: 400; color: var(--ink-100) }
+  .move .arrow { color: var(--ink-500) }
+  .pill { font-family: var(--mono); font-size: 13px; padding: 5px 10px; border-radius: 8px; white-space: nowrap; animation: pop .35s cubic-bezier(.2,.8,.2,1) both }
+  .pill.dn { color: var(--danger); background: var(--danger-bg) }
+  .pill.up { color: var(--good); background: var(--good-bg) }
+  @keyframes pop { from { opacity: 0; transform: translateY(3px) } }
+  .chart { position: relative; height: 220px; }
+  .chart svg { width: 100%; height: 100%; display: block; overflow: visible }
+  .chart .tag { position: absolute; top: -4px; transform: translateX(-50%); font-family: var(--mono); font-size: 11px; background: #fff; border-radius: 8px; padding: 4px 8px; box-shadow: 0 4px 14px -6px rgba(0,0,0,.3); white-space: nowrap; pointer-events: none; display: none }
+  .chart .tag small { color: var(--ink-400) }
+  .day1 { height: 220px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px }
+  .box { border-radius: 16px; padding: 16px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); background: rgba(255,255,255,.45); display: flex; flex-direction: column; gap: 6px; animation: pop .35s both }
+  .box b { font-size: 28px; font-weight: 300; font-variant-numeric: tabular-nums }
+  .box .caps { font-size: 10px }
+  .mid { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--mono); font-size: 20px; color: var(--ink-500) }
+  .mk { position: absolute; transform: translate(-50%, -150%); font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; color: var(--ink-300); background: #fff; padding: 1px 5px; border-radius: 5px; box-shadow: 0 2px 8px -4px rgba(0,0,0,.3); pointer-events: none }
+  .mk.low { transform: translate(-50%, 70%) }
+  .mk.peak { color: var(--lav-400, #7b6fe0) }
+  #dd { flex-direction: column; align-items: flex-start; gap: 6px }
+  #dd .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+  #dd .row.new { outline: 1.5px dashed #7b6fe0; outline-offset: 4px; border-radius: 6px }
+  .move b.up { color: var(--good) } .move b.down { color: var(--danger) }
+  .mk { white-space: nowrap }
+  .dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-100); transform: translate(-50%, -50%); pointer-events: none }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); letter-spacing: .1em; text-transform: uppercase }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0 }
+  .split { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid rgba(0,0,0,.06) }
+  .bar { display: flex; gap: 4px; height: 10px }
+  .bar span { border-radius: 999px }
+  .kinds { display: flex; gap: 18px; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; color: var(--ink-300); letter-spacing: .08em }
+  .kinds i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px }
+  @media (max-width: 600px) {
+    .card { padding: 16px }
+    .big, .usd { font-size: 32px }
+    .day1 { grid-template-columns: 1fr; height: auto }
+    .mid { flex-direction: row }
+    .ranges button { padding: 6px 9px }
+    .usd { flex-basis: 100% }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen">
+    <button data-s="year" class="on">A year of closes</button>
+    <button data-s="short">12 days of closes</button>
+  </div>
+  <p class="caps" style="margin:0 0 -8px 4px">Finances · Portfolio</p>
+  <div class="card">
+    <div class="top">
+      <span class="caps">Portfolio · all accounts</span>
+      <div class="ranges" id="ranges"></div>
+    </div>
+    <div>
+      <p class="caps" style="margin-bottom:6px">Market value</p>
+      <div class="worth"><span class="big">€21,480.55</span><span class="usd">· $23,410.12</span></div>
+      <p class="src" style="margin-top:6px">as of 22 Nov · Yahoo Finance</p>
+    </div>
+    <div class="move" id="move"></div>
+    <div class="move" id="dd" style="margin-top:-8px"></div>
+    <div id="body"></div>
+    <div class="legend" id="legend"></div>
+    <div class="split">
+      <p class="caps">Allocation · asset class</p>
+      <div class="bar"><span style="flex:67;background:#5b4fc4"></span><span style="flex:24;background:var(--teal)"></span><span style="flex:7;background:var(--gold)"></span><span style="flex:3;background:var(--amber)"></span></div>
+      <div class="kinds"><span><i style="background:#5b4fc4"></i>STOCKS €14,390 · 67%</span><span><i style="background:var(--teal)"></i>ETFS €5,155 · 24%</span><span><i style="background:var(--gold)"></i>GOLD €1,504 · 7%</span><span><i style="background:var(--amber)"></i>CRYPTO €431 · 2%</span></div>
+    </div>
+  </div>
+</div>
+<script>
+/* 24 Nov, his "calculate vs not only total money we have now but as
+   well total money we dumped in the market": a COST BASIS line under
+   MARKET VALUE, the gap between them the P/L, shaded green or red.
+   P/L HIGH, P/L LOW and P/L NOW replace HIGH / LOW — buys move both lines
+   alike, so they never read as a gain. */
+const RANGES = [['1D',1],['1W',7],['1M',30],['3M',91],['1Y',365]]
+const eur = (n, d = 2) => '€' + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d })
+const sgn = (n) => (n < 0 ? '−' : '+') + eur(n)
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const TODAY = new Date(2026, 10, 22)
+const dayName = (d) => `${d.getDate()} ${MON[d.getMonth()]}`
+
+/* Made-up closes and what was paid for what was held each day. */
+function series() {
+  let seed = 7
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280)
+  const buys = { 300: 2000, 250: 1500, 200: 1000, 150: 1000, 100: 2500, 60: 1500, 30: 1000, 16: 1000, 5: 500 }
+  const out = []
+  let v = 14200, cost = 13600
+  for (let i = 364; i >= 0; i--) {
+    const d = new Date(TODAY); d.setDate(d.getDate() - i)
+    const drift = i < 22 ? -0.0024 : 0.0006
+    v = v * (1 + drift + (rnd() - 0.5) * 0.016)
+    const buy = buys[i] ?? 0
+    v += buy; cost += buy
+    out.push({ d, v, cost, buy })
+  }
+  const k = 21480.55 / out.at(-1).v
+  const r = (x) => Math.round(x * k * 100) / 100
+  return out.map((p) => ({ d: p.d, v: r(p.v), cost: r(p.cost), buy: r(p.buy) }))
+}
+const ALL = series()
+let scen = 'year', range = '1M'
+const pl = (p) => p.v - p.cost
+
+function draw() {
+  const data = scen === 'short' ? ALL.slice(-12) : ALL
+  const have = data.length
+  document.getElementById('ranges').innerHTML = RANGES.map(([id], k) =>
+    `<button data-r="${id}" class="${id === range ? 'on' : ''}" ${k > 1 && RANGES[k - 1][1] >= have ? 'disabled' : ''}>${id}</button>`).join('')
+  const move = document.getElementById('move'), hlEl = document.getElementById('dd')
+  const body = document.getElementById('body'), legend = document.getElementById('legend')
+  if (range === '1D') {
+    const a = data.at(-2), b = data.at(-1)
+    const diff = pl(b) - pl(a), pct = diff / a.v * 100, cls = diff < 0 ? 'dn' : 'up'
+    move.innerHTML = `<span>DAY'S CHANGE</span><span class="pill ${cls}">${diff < 0 ? '▼' : '▲'} ${sgn(diff)} ${pct.toFixed(1)}%</span>`
+    hlEl.innerHTML = ''
+    body.innerHTML = `<div class="day1">
+      <div class="box"><span class="caps">Prev. close · ${dayName(a.d)}</span><b>${eur(a.v)}</b></div>
+      <div class="mid"><span>→</span><span class="pill ${cls}" style="font-size:12px">${diff < 0 ? '▼' : '▲'} ${pct.toFixed(1)}%</span></div>
+      <div class="box"><span class="caps">Last · ${dayName(b.d)}</span><b>${eur(b.v)}</b></div></div>`
+    legend.innerHTML = ''
+    return
+  }
+  const n = RANGES.find((r) => r[0] === range)[1]
+  const pts = data.slice(-Math.min(n + 1, have))
+  const first = pts[0], last = pts.at(-1)
+  /* RETURN: the P/L's move over the range. */
+  const ret = pl(last) - pl(first), retPct = ret / (first.cost + (last.cost - first.cost)) * 100
+  move.innerHTML = `<span>RETURN</span><span class="pill ${ret < 0 ? 'dn' : 'up'}">${ret < 0 ? '▼' : '▲'} ${sgn(ret)} ${retPct.toFixed(1)}%</span><span>${dayName(first.d).toUpperCase()} → ${dayName(last.d).toUpperCase()}</span>`
+  let hi = pts[0], lo = pts[0]
+  for (const p of pts) { if (pl(p) >= pl(hi)) hi = p; if (pl(p) < pl(lo)) lo = p }
+  const pc = (p) => `${pl(p) < 0 ? '−' : '+'}${Math.abs(pl(p) / p.cost * 100).toFixed(1)}%`
+  const tone = (p) => pl(p) < 0 ? 'down' : 'up'
+  /* PEAK: the highest MARKET VALUE in the range, as the broker apps show it; FROM PEAK: now minus it. */
+  let pk = pts[0]
+  for (const p of pts) if (p.v >= pk.v) pk = p
+  const fromPk = last.v - pk.v, fromPct = fromPk / pk.v * 100
+  hlEl.innerHTML = `<div class="row">${pl(hi) > 0 ? `<span>MAX PROFIT</span><b class="up">${sgn(pl(hi))} ${pc(hi)}</b>` : ''}${pl(lo) < 0 ? `<span>· MAX LOSS</span><b class="down">${sgn(pl(lo))} ${pc(lo)}</b>` : ''}<span>· NOW</span><span class="pill ${pl(last) < 0 ? 'dn' : 'up'}">${pl(last) < 0 ? '▼' : '▲'} ${sgn(pl(last))} ${pc(last)}</span></div><div class="row new"><span>PEAK</span><b>${eur(pk.v)}</b><span>· FROM PEAK</span>${fromPk === 0 ? '<span class="pill up">AT PEAK</span>' : `<span class="pill dn">▼ ${sgn(fromPk)} ${fromPct.toFixed(1)}%</span>`}</div>`
+  const W = 1000, H = 220
+  const vs = pts.flatMap((p) => [p.v, p.cost])
+  const lo2 = Math.min(...vs) * 0.985, hi2 = Math.max(...vs) * 1.01
+  const x = (i) => 8 + (i / Math.max(1, pts.length - 1)) * (W - 16)
+  const y = (v) => H - 18 - ((v - lo2) / (hi2 - lo2)) * (H - 40)
+  const valLine = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('')
+  /* Cost steps: flat until a buy, then straight up. */
+  const costLine = pts.map((p, i) => i ? `L${x(i).toFixed(1)},${y(pts[i - 1].cost).toFixed(1)}L${x(i).toFixed(1)},${y(p.cost).toFixed(1)}` : `M${x(0)},${y(p.cost)}`).join('')
+  /* The gap, day by day: green where value is over cost, red under. */
+  const gaps = pts.slice(1).map((p, k) => {
+    const a = pts[k], i = k + 1
+    const up = pl(a) + pl(p) >= 0
+    return `<path d="M${x(i - 1)},${y(a.v)}L${x(i)},${y(p.v)}L${x(i)},${y(p.cost)}L${x(i - 1)},${y(a.cost)}Z" fill="${up ? 'oklch(0.55 0.15 155)' : 'oklch(0.55 0.19 25)'}" fill-opacity=".16"/>`
+  }).join('')
+  const ticks = [0, Math.floor((pts.length - 1) / 2), pts.length - 1].map((i) =>
+    `<span style="position:absolute;bottom:0;left:${x(i) / W * 100}%;transform:translateX(${i === 0 ? '0' : i === pts.length - 1 ? '-100%' : '-50%'});font-family:var(--mono);font-size:11px;color:var(--ink-500);white-space:nowrap">${dayName(pts[i].d)}</span>`).join('')
+  const mk = (p, label, cls) => { const i = pts.indexOf(p); return `<span class="dot" style="left:${x(i) / W * 100}%;top:${y(p.v)}px"></span><span class="mk ${cls}" style="left:${Math.min(96, Math.max(4, x(i) / W * 100))}%;top:${y(p.v)}px">${label}</span>` }
+  body.innerHTML = `<div class="chart" id="chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${gaps}
+    <path d="${costLine}" fill="none" stroke="#55516a" stroke-width="1.6" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
+    <path d="${valLine}" fill="none" stroke="#7b6fe0" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" style="animation:pop .4s both"/>
+    <line id="cross" x1="0" x2="0" y1="10" y2="${H - 18}" stroke="#55516a" stroke-dasharray="3 4" vector-effect="non-scaling-stroke" style="display:none"/>
+    </svg>${mk(hi, 'MAX PROFIT', '')}${mk(lo, 'MAX LOSS', 'low')}${pk !== hi ? mk(pk, 'PEAK', 'peak') : ''}${ticks}<div class="tag" id="tag"></div></div>`
+  legend.innerHTML = `<span><i style="background:#7b6fe0"></i>Market value</span><span><i style="background:none;border-radius:0;border-top:2px dashed #55516a;height:0;width:14px;vertical-align:3px"></i>Cost basis</span><span><i style="background:oklch(0.55 0.15 155 / .3);border-radius:2px"></i>Profit</span><span><i style="background:oklch(0.55 0.19 25 / .3);border-radius:2px"></i>Loss</span>`
+  const chart = document.getElementById('chart'), tag = document.getElementById('tag'), cross = document.getElementById('cross')
+  chart.addEventListener('mousemove', (e) => {
+    const r = chart.getBoundingClientRect()
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((e.clientX - r.left) / r.width * W - 8) / (W - 16) * (pts.length - 1))))
+    const p = pts[i]
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.style.display = ''
+    tag.style.display = 'block'; tag.style.left = `${x(i) / W * 100}%`
+    tag.innerHTML = `<small>${dayName(p.d).toUpperCase()}</small> ${eur(p.v)} <small>· COST ${eur(p.cost)} · P/L</small> <span class="${tone(p)}">${sgn(pl(p))}</span>${p.buy ? ` <small>· BUY ${eur(p.buy, 0)}</small>` : ''}`
+  })
+  chart.addEventListener('mouseleave', () => { tag.style.display = 'none'; cross.style.display = 'none' })
+}
+document.getElementById('ranges').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.disabled) return; range = b.dataset.r; draw() })
+document.getElementById('scen').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  document.querySelectorAll('#scen button').forEach((x) => x.classList.toggle('on', x === b))
+  scen = b.dataset.s; if (scen === 'short' && ['3M','1Y'].includes(range)) range = '1M'; draw()
+})
+draw()
+</script>
+</body>
+</html>

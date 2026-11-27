@@ -1,3 +1,4 @@
+import { shortDay } from '@/components/finances/PortfolioList'
 import { Link2, Pencil } from 'lucide-react'
 
 import type { api } from '../../../convex/_generated/api'
@@ -34,6 +35,7 @@ export function AccountCard({
   month,
   monthStart,
   held,
+  pricedAt,
   line,
   onEdit,
   onUpdate,
@@ -64,6 +66,8 @@ export function AccountCard({
   monthStart: number
   /** A broker's positions: paid and worth where both are known. */
   held: { paid: number; value: number; known: number } | null
+  /** Its positions valued at Trade Republic's statement of this day. */
+  pricedAt?: number | null
   line: Array<number | null>
   onEdit: () => void
   onUpdate: () => void
@@ -240,6 +244,14 @@ export function AccountCard({
           <span className="flex items-center justify-between gap-2">
             <span className="text-ink-400">investments{fromT212}</span>
             <span className="text-ink-500">no investments</span>
+          </span>
+        ) : null}
+        {pricedAt && invested !== null && invested > 0 ? (
+          <span
+            data-testid="priced-by-tr"
+            className="self-start rounded-full bg-lav-400/10 px-2 py-0.5 text-[9.5px] tracking-[0.12em] text-lav-300 uppercase ring-1 ring-lav-400/30 ring-inset"
+          >
+            prices · Trade Republic · {shortDay(pricedAt)}
           </span>
         ) : null}
         {a.kinds.includes('broker') && !a.kinds.includes('bank') ? (

@@ -56,8 +56,20 @@ export type Position = {
   price: number | null
   priceAsOf: number | null
   valueEur: number | null
+  /** Valued at Trade Republic's statement of this day (22 Nov). */
+  statementAt: number | null
   staked: number
 }
+
+/** The day of Trade Republic's statement a part is valued at, if any. */
+export const pricedAt = (
+  parts: ReadonlyArray<{ statementAt?: number | null }>,
+): number | null => {
+  const days = parts.flatMap((p) => (p.statementAt ? [p.statementAt] : []))
+  return days.length ? Math.max(...days) : null
+}
+export const shortDay = (at: number) =>
+  new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
 /** Sold things shown before "all", newest first. */
 const SOLD_FIRST = 10
@@ -458,6 +470,14 @@ function OwnedRow({
               <Veiled>{euros(owned.valueEur)}</Veiled>
             )}
           </span>
+          {pricedAt(owned.at) !== null ? (
+            <span
+              data-testid="priced-by-tr"
+              className="rounded-full bg-lav-400/10 px-1.5 py-px text-[9.5px] tracking-[0.1em] text-lav-300 uppercase ring-1 ring-lav-400/30 ring-inset"
+            >
+              TR · {shortDay(pricedAt(owned.at) as number)}
+            </span>
+          ) : null}
           {gain === null ? (
             owned.valueEur === null ? (
               <span className="text-[11px] text-state-warn">no price</span>

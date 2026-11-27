@@ -147,6 +147,33 @@ export async function buildReview(
       taken.add(j)
     }
   }
+  /* The same top-up saved as what arrived (500.00) and read as what was
+     sent and its fee (505.20, −5.20) — 22 Nov, Trade Republic's 3 Oct:
+     one payment, so both the move and its fee are the saved row. */
+  for (const [i, r] of read.entries()) {
+    if (dups[i] !== null || !own[i]) continue
+    const f = read.findIndex(
+      (x, k) =>
+        k !== i &&
+        dups[k] === null &&
+        x.amount < 0 &&
+        x.occurredAt === r.occurredAt &&
+        merchantKey(x.merchant) === merchantKey('Transfer fee'),
+    )
+    if (f < 0) continue
+    const net = r.amount + read[f].amount
+    const j = existing.findIndex(
+      (l, k) =>
+        !taken.has(k) &&
+        l.kind === 'move' &&
+        Math.abs((l.value ?? 0) - net) < 0.005 &&
+        Math.abs(l.occurredAt - r.occurredAt) <= 2 * DAY_MS + 3_600_000,
+    )
+    if (j < 0) continue
+    dups[i] = j
+    dups[f] = j
+    taken.add(j)
+  }
 
   const rules = new Map<string, string>()
   for (const key of new Set(read.map((r) => merchantKey(r.merchant)))) {

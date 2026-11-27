@@ -156,6 +156,13 @@ SIGNALS tab:
   money. His alert price is his own number (like a target); the 21:30
   job rings once when a stored close reaches it, that close and the
   close before it on the push.
+- **Trade Republic's own price** (22 Nov, "go" on the mockup
+  `design/treasury-mockup/tr-prices.html`, his "price from TR" after his
+  Net Worth PDF and the app valued the same shares about 1% apart): what that statement printed a position is worth, stored on
+  its holding (`holdings.valueEur`), attributed to Trade Republic and
+  shown with its day. It values the position — never derived, never a
+  price for another account — while no Yahoo close is newer and the
+  shares are the ones it counted (`src/lib/statementValue.ts`).
 - **News** (13 Oct, "we simply fetch it and show"): headlines with
   publisher, time and link, fetched on open, never stored, never
   summarised, not an input to the verdict.
@@ -171,6 +178,40 @@ and broker cash) is split to the buckets under their min in proportion
 to what each misses; what is left STAYS as cash — `src/lib/targets.ts`,
 nothing stored, every line showing its now and its target beside the €.
 Never an input to `verdict()`.
+
+PORTFOLIO's chart was allowed on 2026-11-23 ("Go, build it" on the
+mockup `design/treasury-mockup/portfolio-chart.html`; his "we dont have
+chart of total portfolio … day week month year", "use financial terms"),
+and its COST BASIS on 2026-11-24 ("Go, build it" on the same mockup; his
+"calculate vs not only total money we have now but as well total money
+we dumped in the market"). Only on PORTFOLIO's head, all in
+`src/lib/portfolioReturn.ts`, nothing stored, never an input to
+`verdict()`:
+
+- **Two lines** over 1W · 1M · 3M · 1Y: MARKET VALUE (`worthHistory`'s
+  invested) and COST BASIS — what the priced shares held that day cost,
+  by the rule Portfolio's paid uses (`reconcile`; a position no file
+  gives a cost for counts at its value). The gap is the P/L, shaded green
+  over cost and red under: a state, never a grade.
+- **RETURN**: the P/L at the range's last day minus at its first, over
+  the last day's cost — a buy moves both lines alike and is never a
+  gain. Its two days beside it.
+- **MAX PROFIT, MAX LOSS, NOW**: the most and least the shares held
+  were up on what they cost in the range, and today, each € and % with
+  no date beside it (24 Nov: "simple and understandable, not some date");
+  the two are marked on the line, and hover gives their day. They
+  replaced a range HIGH/LOW and a MAX DRAWDOWN that buys made read upside
+  down (his "how is peak lower than low?").
+- **PEAK, FROM PEAK** (27 Nov, "Go, build it" on the same mockup; his
+  brokers show their top and how far below it he is now): the
+  highest MARKET VALUE in the range and the last day's value minus it
+  (`valuePeak()`), marked on the line. Like the brokers' own, a buy lifts
+  it.
+- **1D**: DAY'S CHANGE, PREV. CLOSE (the last weekday's close) and LAST.
+- **Hover**: the day's value, COST, P/L, and BUY / SELL — the day's
+  trades at their own prices (`netDeposits()`, a sum of trade rows). Both ends, their days and the net
+  deposits are always beside it; a deposit is a dot on the line; nothing
+  stored, never an input to `verdict()`.
 
 Insights, Finances' fourth room, was allowed on 2026-10-19 ("go" on the
 mockup `design/treasury-mockup/insights.html`, spec

@@ -1103,6 +1103,12 @@ export default defineSchema({
     sharesCalculated: v.optional(v.boolean()),
     asOf: v.number(),
     importId: v.optional(v.id('intakes')),
+    /* Source 4 (22 Nov, "price from TR" on the mockup tr-prices.html):
+       what Trade Republic's Net Worth statement printed these shares are
+       worth, in euros at its own price — stored, attributed to Trade
+       Republic, dated by asOf. Values the position while no Yahoo close
+       is newer (src/lib/statementValue.ts). */
+    valueEur: v.optional(v.number()),
   })
     .index('by_owner_account', ['ownerId', 'accountId'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId']),
@@ -1354,6 +1360,11 @@ export default defineSchema({
       }),
     ),
     cashEur: v.optional(v.number()),
+    /* Uninvested cash per currency, as printed (22 Nov, Revolut's USD
+       and EUR parts); applied in euros at the stored ECB rate. */
+    cashLines: v.optional(
+      v.array(v.object({ currency: v.string(), amount: v.number() })),
+    ),
     totalEur: v.optional(v.number()),
     error: v.optional(v.string()),
     model: v.optional(v.string()),

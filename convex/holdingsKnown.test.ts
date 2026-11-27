@@ -2,56 +2,60 @@
 import { convexTest } from 'convex-test'
 import { expect, test } from 'vitest'
 
-import { inStatement } from './holdingsKnown'
 import schema from './schema'
+import { tradedAs, tradedInstruments } from './holdingsKnown'
 
 const modules = import.meta.glob('./**/*.ts')
 const ME = 'https://clerk.test|user_me'
 
-/* The screen's code against the statement's ticker (19 Oct): his Revolut
-   Invest prints XAU for the gold his statement keeps as GC=F. */
-test('XAU on the screen is the statement’s GC=F; another account’s is not', async () => {
+/* 22 Nov: Trade Republic's Net Worth PDF read Alphabet as GOOGL and
+   Rheinmetall as RHM.F; the account's trades hold GOOG and RHM.DE. */
+test('another listing of a company the trades hold is that company', async () => {
   const t = convexTest(schema, modules)
-  await t.run(async (ctx) => {
-    const account = (name: string) =>
-      ctx.db.insert('accounts', {
-        ownerId: ME,
-        name,
-        kinds: ['bank', 'broker'],
-        currencies: ['EUR'],
-        ibanTails: [],
-        cardTails: [],
-        order: 0,
-      })
-    const revolut = await account('Revolut')
-    const other = await account('Other')
-    for (const symbol of ['GC=F', 'AMZN']) {
+  const found = await t.run(async (ctx) => {
+    const tr = await ctx.db.insert('accounts', {
+      ownerId: ME,
+      name: 'Trade Republic',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      ibanTails: [],
+      cardTails: [],
+      order: 0,
+    })
+    for (const [symbol, name, isin] of [
+      ['GOOG', 'Alphabet Inc.', 'US02079K3059'],
+      ['RHM.DE', 'Rheinmetall AG', undefined],
+      ['NVDA', 'NVIDIA Corporation', undefined],
+    ] as const) {
       const instrumentId = await ctx.db.insert('instruments', {
         ownerId: ME,
         symbol,
-        name: symbol,
-        exchange: 'NMS',
+        name,
+        type: 'EQUITY',
         currency: 'USD',
-        type: symbol === 'GC=F' ? 'FUTURE' : 'EQUITY',
+        exchange: 'X',
+        ...(isin ? { isin } : {}),
       })
       await ctx.db.insert('trades', {
         ownerId: ME,
-        accountId: revolut,
+        accountId: tr,
         instrumentId,
         side: 'buy',
         shares: 1,
-        priceEur: 10,
-        occurredAt: 0,
+        priceEur: 100,
+        occurredAt: Date.UTC(2026, 9, 1),
       })
     }
-    expect(await inStatement(ctx, ME, revolut, { symbol: 'XAU' })).toBe(true)
-    expect(
-      await inStatement(ctx, ME, revolut, { symbol: 'AMZN', type: 'EQUITY' }),
-    ).toBe(true)
-    expect(await inStatement(ctx, ME, revolut, { symbol: 'NFLX' })).toBe(false)
-    expect(await inStatement(ctx, ME, other, { symbol: 'AMZN' })).toBe(false)
-    expect(
-      await inStatement(ctx, 'someone|else', revolut, { symbol: 'AMZN' }),
-    ).toBe(false)
+    const traded = await tradedInstruments(ctx, ME, tr)
+    return [
+      tradedAs(
+        { symbol: 'GOOGL', name: 'Alphabet Inc.', isin: 'US02079K3059' },
+        traded,
+      )?.symbol,
+      tradedAs({ symbol: 'RHM.F', name: 'Rheinmetall AG' }, traded)?.symbol,
+      tradedAs({ symbol: 'NVDA', name: 'NVIDIA Corp.' }, traded)?.symbol,
+      tradedAs({ symbol: 'MSFT', name: 'Microsoft Corp.' }, traded),
+    ]
   })
+  expect(found).toEqual(['GOOG', 'RHM.DE', 'NVDA', null])
 })

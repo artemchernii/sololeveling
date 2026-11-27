@@ -25,6 +25,12 @@ import { SkeletonRows } from '@/components/Skeleton'
 import { WatchList } from '@/components/finances/WatchList'
 import { WatchPosition } from '@/components/finances/WatchPosition'
 import { useWatchList } from '@/components/finances/useWatch'
+import {
+  PortfolioChart,
+  RangePicker,
+  usePortfolioHistory,
+} from '@/components/finances/PortfolioChart'
+import type { RangeId } from '@/components/finances/PortfolioChart'
 
 const NONE: ReadonlyArray<Position> = []
 
@@ -52,6 +58,8 @@ export function Portfolio({ position }: { position?: string }) {
   const [part, setPart] = useState<Part>(null)
   const tags = useTags(data?.rows ?? NONE)
   const watched = useWatchList()
+  const [range, setRange] = useState<RangeId>('1M')
+  const chart = usePortfolioHistory()
 
   if (
     data === undefined ||
@@ -68,7 +76,6 @@ export function Portfolio({ position }: { position?: string }) {
   const holders = accounts.filter((a) =>
     data.rows.some((r) => r.accountId === a._id),
   )
-  const sums = paidSums(data.rows, data.usdRate)
 
   /* One position has the room to itself (13 Oct): its own address — and
      so has a thing sold out, read with the accounts it was in. */
@@ -101,7 +108,14 @@ export function Portfolio({ position }: { position?: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Panel title="portfolio · all accounts">
+      <Panel
+        title="portfolio · all accounts"
+        aside={
+          data.rows.length > 0 ? (
+            <RangePicker range={range} onRange={setRange} drawn={chart.drawn} />
+          ) : null
+        }
+      >
         {data.rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-6 text-center">
             <span className="text-[22px] font-light text-foreground">
@@ -115,30 +129,14 @@ export function Portfolio({ position }: { position?: string }) {
         ) : (
           <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
             <div className="flex flex-col gap-1">
-              <span className="label-caps">worth now</span>
+              <span className="label-caps">market value</span>
               <span className="text-[38px] leading-none font-light text-foreground">
                 <EurUsd eur={data.totalEur} usdRate={data.usdRate} />
               </span>
             </div>
-            {sums.known > 0 ? (
-              <ProfitPill
-                profit={sums.value - sums.paid}
-                base={sums.paid}
-                label={
-                  sums.known === data.rows.length ? 'since bought' : undefined
-                }
-              />
-            ) : null}
-            {sums.knownUsd > 0 ? (
-              <ProfitPill
-                profit={sums.valueUsd - sums.paidUsd}
-                base={sums.paidUsd}
-                usd
-              />
-            ) : null}
             <span className="font-mono text-[11px] text-ink-500">
               {data.oldestPriceAsOf !== null
-                ? `prices from ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
+                ? `as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
                 : ''}
               {data.unvalued > 0
                 ? ` · ${data.unvalued} without a price yet`
@@ -146,6 +144,9 @@ export function Portfolio({ position }: { position?: string }) {
             </span>
           </div>
         )}
+        {data.rows.length > 0 ? (
+          <PortfolioChart range={range} {...chart} />
+        ) : null}
         {data.rows.length > 0 ? (
           <MoneyMap
             rows={data.rows}

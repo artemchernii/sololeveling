@@ -1,3 +1,4 @@
+import { statementOf } from '../src/lib/statementValue'
 import { v } from 'convex/values'
 import type { Infer } from 'convex/values'
 import { hasBrokerCash } from './accounts'
@@ -22,6 +23,7 @@ import { internalQuery, query } from './_generated/server'
 import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { MAX_ROWS, MONEY_ROWS } from './reads/limits'
+import { netDeposits } from '../src/lib/portfolioReturn'
 import {
   TRADE_ROWS,
   closeAtEnd,
@@ -1664,6 +1666,12 @@ const worthReturns = {
   cashAccounts: accountSeries,
   investedAccounts: accountSeries,
   unpriced: v.array(v.number()),
+  /** NET DEPOSITS per day: bought minus sold, at each trade's own price
+      (src/lib/portfolioReturn.ts) — PORTFOLIO's RETURN takes them out. */
+  deposits: v.array(v.number()),
+  /** COST BASIS per day: what the priced positions held cost
+      (src/lib/worthHistory.ts) — PORTFOLIO's P/L is invested minus it. */
+  cost: daySeries,
   /** His moves between his own accounts in the range, once each. */
   moves: v.array(
     v.object({
@@ -1737,6 +1745,11 @@ export const worthHistory = query({
       cashAccounts: cash.accounts,
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
+      cost: invested.cost,
+      deposits: netDeposits(
+        dayEnds,
+        slots.flatMap((p) => p.trades),
+      ),
       moves: cash.moves,
       starts: cash.starts,
     }
@@ -1761,6 +1774,12 @@ const worthTodayArgs = {
       base: v.union(v.string(), v.null()),
       close: v.union(
         v.object({ asOf: v.number(), price: v.number() }),
+        v.null(),
+      ),
+      paid: v.union(v.number(), v.null()),
+      /** Trade Republic's statement value for these shares (22 Nov). */
+      statement: v.union(
+        v.object({ valueEur: v.number(), asOf: v.number() }),
         v.null(),
       ),
     }),
@@ -1852,10 +1871,10 @@ export const worthPast = query({
     for (const p of slots) {
       const instrument = instruments.get(p.instrumentId)
       if (instrument === undefined) continue
-      const shares = reconcile(
+      const { shares, paid } = reconcile(
         p.trades.filter((t) => t.occurredAt <= end),
         p.looks.filter((o) => o.asOf <= end),
-      ).shares
+      )
       if (shares <= 0) continue
       const { base, divide } = quoteToRate(instrument.currency)
       held.push({
@@ -1865,6 +1884,11 @@ export const worthPast = query({
         divide,
         base: base === 'EUR' ? null : base,
         close: closesOf.get(p.instrumentId)?.at(-1) ?? null,
+        paid,
+        statement: statementOf(
+          p.looks.filter((o) => o.asOf <= end),
+          shares,
+        ),
       })
     }
     return {
@@ -1874,6 +1898,11 @@ export const worthPast = query({
       cashAccounts: cash.accounts,
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
+      cost: invested.cost,
+      deposits: netDeposits(
+        dayEnds,
+        slots.flatMap((p) => p.trades),
+      ),
       moves: cash.moves,
       starts: cash.starts,
       today: {
@@ -1909,6 +1938,7 @@ export const worthToday = query({
       }),
     ),
     unpriced: v.number(),
+    cost: v.union(v.number(), v.null()),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -1939,10 +1969,12 @@ export const worthToday = query({
         shares: p.shares,
         divide: p.divide,
         close: closes.get(p.instrumentId) ?? p.close,
+        statement: p.statement,
         rate:
           p.base === null
             ? { rate: 1 }
             : (rates.get(p.base) ?? fallback.get(p.base) ?? null),
+        paid: p.paid,
       })),
       args.accounts,
       args.totalBefore,

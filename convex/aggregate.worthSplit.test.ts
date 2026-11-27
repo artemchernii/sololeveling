@@ -226,4 +226,19 @@ describe('worthHistory split into the past and today', () => {
         expect(d.joined).toEqual(d.whole)
       }
     }, 120_000)
+
+  /* PORTFOLIO's RETURN (23 Nov): each day's buys in and sells out, at the
+     trade's own price, on the day it was made — the same in both halves. */
+  test('net deposits by day: buys in, sells out, on their own day', async () => {
+    const { me } = await fixture({ tickers: 0 })
+    const { whole, joined } = await both(me, year)
+    const on = (back: number) => whole.deposits[365 - back]
+    expect(on(100)).toBe(20)
+    expect(on(21)).toBe(100)
+    expect(on(60)).toBe(-50)
+    expect(on(8)).toBe(-60)
+    expect(on(0)).toBe(60)
+    expect(on(1)).toBe(0)
+    expect(joined.deposits).toEqual(whole.deposits)
+  }, 120_000)
 })

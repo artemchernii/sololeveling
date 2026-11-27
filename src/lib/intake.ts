@@ -20,7 +20,7 @@ export const INTAKE_MODEL = 'claude-haiku-5-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
-export const READER_VERSION = 11
+export const READER_VERSION = 12
 export const INTAKE_MODEL_NAME = 'Claude Haiku 5.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
@@ -167,6 +167,18 @@ export const INTAKE_SCHEMA = {
     closing_balance: { type: ['number', 'null'] },
     closing_balance_date: { type: ['string', 'null'] },
     cash_eur: { type: ['number', 'null'] },
+    cash_lines: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          currency: { type: 'string' },
+          amount: { type: 'number' },
+        },
+        required: ['currency', 'amount'],
+        additionalProperties: false,
+      },
+    },
     total_eur: { type: ['number', 'null'] },
   },
   required: [
@@ -182,6 +194,7 @@ export const INTAKE_SCHEMA = {
     'closing_balance',
     'closing_balance_date',
     'cash_eur',
+    'cash_lines',
     'total_eur',
   ],
   additionalProperties: false,
@@ -230,7 +243,7 @@ export function intakePrompt(opts: {
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     "closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null. A bank app's history prints a running balance under or beside each row and no total: closing_balance is then the one printed with the newest row, and closing_balance_date that row's date — never null when the newest row shows one.",
-    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
+    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; cash_lines: every uninvested cash amount printed, one line per currency in its own currency, exactly as printed (a statement with a USD part and a EUR part has two lines: "USD", 1200.5 and "EUR", 300; never converted); total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
     'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency, fee as printed (in the same currency, else null), paid = the whole amount printed beside the trade as what left or came into the account for it, in the same currency and without its sign (−€300 beside a buy is 300; 0 when none is printed). Skip cancelled or rejected orders. crypto = false for shares and funds.',
     "A bank app's list of one metal's buys and sells (\"Buy XAU · 0,08275 units · €3 607,63\", the amount paid beside it) is trades: name = the metal's code as printed (XAU, XAG), shares = the units, price = the price printed for one unit and its currency, crypto = false.",
     'A crypto statement (e.g. Revolut Digital Assets) is trades: name = the coin\'s symbol as printed (BTC, ETH, SOL), crypto = true, each buy and sell with its quantity, price, currency and fee; each staking reward is side "reward" with its quantity, price 0, currency "EUR". Its account summary\'s closing amount of every coin still held (more than 0) goes in positions: symbol and name = the coin\'s symbol, shares = the closing amount, value_eur = its closing value. closing_balance = the statement\'s total closing value and closing_balance_date = the last day of its period.',
@@ -293,7 +306,29 @@ export type Reading = {
   positions: Array<ReadPosition>
   balance?: { value: number; asOf: number }
   cashEur?: number
+  /** Uninvested cash per currency, as printed (22 Nov: Revolut's
+      statement has a USD part and a EUR part — one cash_eur kept only
+      the euros). */
+  cash?: Array<{ currency: string; amount: number }>
   totalEur?: number
+}
+
+/* Cash per currency: a 3-letter code and an amount not below zero. */
+function cashLines(
+  v: unknown,
+): Array<{ currency: string; amount: number }> | undefined {
+  if (!Array.isArray(v)) return undefined
+  const out: Array<{ currency: string; amount: number }> = []
+  for (const l of v as Array<Record<string, unknown>>) {
+    const currency =
+      typeof l.currency === 'string' ? l.currency.trim().toUpperCase() : ''
+    const amount = num(l.amount)
+    if (!/^[A-Z]{3}$/.test(currency) || amount === undefined || amount < 0)
+      continue
+    if (!out.some((o) => o.currency === currency))
+      out.push({ currency, amount })
+  }
+  return out.length ? out : undefined
 }
 
 const num = (v: unknown) =>
@@ -390,6 +425,7 @@ export function parseReading(
         ? { value: balanceValue, asOf: balanceAt ?? Date.now() }
         : undefined,
     cashEur: cash !== undefined && cash >= 0 ? cash : undefined,
+    cash: cashLines(j.cash_lines),
     totalEur: pos(j.total_eur),
   }
 }
@@ -1140,13 +1176,19 @@ export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
    phone bill ("Vodafone carregamento"), so only money in counts. */
 const TOP_UP = /\b(top[- ]?up|carregamento)\b/i
 
+/* Revolut's euros turned into a coin, a metal or another currency (23 Nov:
+   "Exchanged to BTC" −€100 from the bank was counted as spent): his own
+   money in another form, either way. */
+const EXCHANGE = /\bexchanged? (to|from)\b/i
+
 const plain = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /**
  * His own money, whatever the reader thought (1 Oct: ActivoBank's "TRF.
  * P/O ARTEM CHERNII" +€400 was filed as income). True for a transfer from
- * or to his own name, cash out of an ATM, money arriving on a top-up.
+ * or to his own name, cash out of an ATM, money arriving on a top-up,
+ * euros exchanged to a coin, a metal or a currency and back.
  * `names` are his — the statement's holder, his sign-in — and a name
  * counts only whole, every word of it, in either order.
  */
@@ -1162,6 +1204,7 @@ export function ownMoney(
   const said = `${row.merchant} ${row.raw ?? ''}`
   if (WITHDRAWAL.test(said)) return true
   if (row.amount > 0 && TOP_UP.test(said)) return true
+  if (EXCHANGE.test(said)) return true
   /* Only who is on the other side counts — the merchant or counterparty
      the reader named — never the whole printed line: going out, "From:
      ARTEM" is the sender, him; coming in, a salary can print "To: ARTEM"

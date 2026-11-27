@@ -463,6 +463,34 @@ describe('parseReading', () => {
     ])
     expect(r.balance).toEqual({ value: 799.47, asOf: dayToMs('2026-09-26') })
   })
+  test('holdings: cash per currency kept, never one of them only', () => {
+    const r = parseReading(
+      JSON.stringify({
+        kind: 'holdings',
+        institution: 'Revolut',
+        holder_name: null,
+        title: 'Revolut statement · USD + EUR',
+        currency: 'USD',
+        transactions: [],
+        positions: [],
+        closing_balance: null,
+        closing_balance_date: null,
+        cash_eur: 500,
+        cash_lines: [
+          { currency: 'usd', amount: 1000.5 },
+          { currency: 'EUR', amount: 500 },
+          { currency: 'EUR', amount: 7 },
+          { currency: 'X', amount: 3 },
+        ],
+        total_eur: null,
+      }),
+    )
+    if (!r.ok) throw new Error(r.error)
+    expect(r.cash).toEqual([
+      { currency: 'USD', amount: 1000.5 },
+      { currency: 'EUR', amount: 500 },
+    ])
+  })
   test('holdings: value and % since buy, no shares invented', () => {
     const r = parseReading(
       JSON.stringify({
@@ -884,6 +912,13 @@ describe('his own money', () => {
     expect(ownMoney(row(500, 'Apple Pay Top up'), [])).toBe(true)
     expect(ownMoney(row(1000, 'Top-up by *2789'), [])).toBe(true)
     expect(ownMoney(row(-10, 'Vodafone carregamento'), [])).toBe(false)
+  })
+
+  test('euros exchanged to a coin, a metal or a currency, and back', () => {
+    expect(ownMoney(row(-100, 'Exchanged to BTC'), [])).toBe(true)
+    expect(ownMoney(row(-50, 'Exchanged to XAU'), [])).toBe(true)
+    expect(ownMoney(row(80, 'Exchanged from ETH'), [])).toBe(true)
+    expect(ownMoney(row(-12, 'Currency Exchange Bureau'), [])).toBe(false)
   })
 
   test('a salary printing him as its receiver stays income', () => {

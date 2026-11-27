@@ -61,6 +61,19 @@ export function paysBill(bill: AheadBill, row: AheadRow): boolean {
   )
 }
 
+/** A row that is his salary: one that pays its bill, or a bigger pay
+    from the same payer (25 Nov: the salary came with the Christmas
+    bonus, more than twice the usual, so no pay month opened — "where is
+    november"). A smaller one from that payer stays its own (commute pay). */
+export function paysSalary(salary: AheadBill, row: AheadRow): boolean {
+  if (paysBill(salary, row)) return true
+  return (
+    row.kind === 'income' &&
+    sameKey(row.key, salary.key) &&
+    row.amount >= salary.amount
+  )
+}
+
 /** His salary of the income bills: the biggest. The same payer can pay
     twice a month — on 23 Oct BNP Paribas sent €80 of commute pay beside
     the €2,674.76 salary, the app found the €80 as a bill of its own, and

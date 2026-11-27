@@ -245,3 +245,26 @@ describe('payMonthDetail', () => {
     expect(d.groups.reduce((sum, g) => sum + g.sum, 0)).toBe(p.current.dayToDay)
   })
 })
+
+/* 25 Nov: the salary came with the Christmas bonus, more than twice the
+   usual, and no pay month opened ("where is november"). */
+describe('a salary with a bonus in it', () => {
+  it('still opens its pay month; a small pay from the same payer does not', () => {
+    const p = payMonths({
+      rows: [
+        row(10, 25, 'ACME', 2500, 'income'),
+        row(11, 20, 'ACME', 80, 'income'),
+        row(11, 25, 'ACME', 6000, 'income'),
+        row(11, 26, 'CAFE', 30),
+      ],
+      bills: [SALARY],
+      today: today(11, 27),
+    })!
+    expect(p.current).toMatchObject({
+      start: at(11, 25),
+      salary: 6000,
+      dayToDay: 30,
+    })
+    expect(p.past.at(-1)).toMatchObject({ salary: 2500, other: 80 })
+  })
+})

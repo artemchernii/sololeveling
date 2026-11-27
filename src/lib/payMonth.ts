@@ -9,7 +9,7 @@
    what he holds. Moves between his accounts are never rows here. */
 
 import { dueDay, dueOn } from './bills'
-import { noonOf, paysBill, salaryBill } from './ahead'
+import { noonOf, paysBill, paysSalary, salaryBill } from './ahead'
 import type { AheadBill, AheadRow } from './ahead'
 
 const DAY = 86_400_000
@@ -58,7 +58,7 @@ function split(
     const t = dayOf(r.t)
     if (t < start || t >= end) continue
     if (r.kind === 'income') {
-      if (paysBill(salary, r)) s += r.amount
+      if (paysSalary(salary, r)) s += r.amount
       else o += r.amount
       continue
     }
@@ -100,7 +100,7 @@ export function payMonths(input: {
   const landed: Array<number> = []
   for (const r of [...input.rows].sort((a, b) => a.t - b.t)) {
     const day = dayOf(r.t)
-    if (r.kind !== 'income' || day > today || !paysBill(salary, r)) continue
+    if (r.kind !== 'income' || day > today || !paysSalary(salary, r)) continue
     if (landed.length && day - (landed.at(-1) ?? 0) < 7 * DAY) continue
     landed.push(day)
   }
@@ -263,7 +263,7 @@ export function payMonthDetail(input: {
       .sort((a, b) => b.sum - a.sum),
     moneyIn: rows
       .filter((r) => r.kind === 'income')
-      .map((r) => ({ row: r, salary: salary ? paysBill(salary, r) : false }))
+      .map((r) => ({ row: r, salary: salary ? paysSalary(salary, r) : false }))
       .sort((a, b) => a.row.t - b.row.t),
   }
 }

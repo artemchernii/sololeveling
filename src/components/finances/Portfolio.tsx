@@ -76,7 +76,6 @@ export function Portfolio({ position }: { position?: string }) {
   const holders = accounts.filter((a) =>
     data.rows.some((r) => r.accountId === a._id),
   )
-  const sums = paidSums(data.rows, data.usdRate)
 
   /* One position has the room to itself (13 Oct): its own address — and
      so has a thing sold out, read with the accounts it was in. */
@@ -135,22 +134,6 @@ export function Portfolio({ position }: { position?: string }) {
                 <EurUsd eur={data.totalEur} usdRate={data.usdRate} />
               </span>
             </div>
-            {sums.known > 0 ? (
-              <ProfitPill
-                profit={sums.value - sums.paid}
-                base={sums.paid}
-                label={
-                  sums.known === data.rows.length ? 'since bought' : undefined
-                }
-              />
-            ) : null}
-            {sums.knownUsd > 0 ? (
-              <ProfitPill
-                profit={sums.valueUsd - sums.paidUsd}
-                base={sums.paidUsd}
-                usd
-              />
-            ) : null}
             <span className="font-mono text-[11px] text-ink-500">
               {data.oldestPriceAsOf !== null
                 ? `as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`

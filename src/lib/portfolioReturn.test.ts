@@ -6,6 +6,7 @@ import {
   plHighLow,
   plPct,
   rangeReturn,
+  valuePeak,
 } from './portfolioReturn'
 
 const DAY = 86_400_000
@@ -130,5 +131,28 @@ describe('plHighLow', () => {
 
   test('one day is no range', () => {
     expect(plHighLow([pt(1, 100, 100)])).toBeNull()
+  })
+})
+
+describe('valuePeak', () => {
+  const pt = (at: number, value: number) => ({
+    at,
+    value,
+    cost: value,
+    deposit: 0,
+  })
+
+  test('the highest market value of the range, and now minus it', () => {
+    const p = valuePeak([pt(1, 1000), pt(2, 1200), pt(3, 1150), pt(4, 1140)])
+    expect(p).toMatchObject({ change: -60, pct: -5 })
+    expect(p?.peak.at).toBe(2)
+  })
+
+  test('today at the top: nothing from the peak', () => {
+    expect(valuePeak([pt(1, 900), pt(2, 1000)])).toMatchObject({ change: 0 })
+  })
+
+  test('one day is no range', () => {
+    expect(valuePeak([pt(1, 100)])).toBeNull()
   })
 })

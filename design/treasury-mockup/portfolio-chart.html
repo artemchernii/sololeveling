@@ -56,6 +56,10 @@
   .mid { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--mono); font-size: 20px; color: var(--ink-500) }
   .mk { position: absolute; transform: translate(-50%, -150%); font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; color: var(--ink-300); background: #fff; padding: 1px 5px; border-radius: 5px; box-shadow: 0 2px 8px -4px rgba(0,0,0,.3); pointer-events: none }
   .mk.low { transform: translate(-50%, 70%) }
+  .mk.peak { color: var(--lav-400, #7b6fe0) }
+  #dd { flex-direction: column; align-items: flex-start; gap: 6px }
+  #dd .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+  #dd .row.new { outline: 1.5px dashed #7b6fe0; outline-offset: 4px; border-radius: 6px }
   .move b.up { color: var(--good) } .move b.down { color: var(--danger) }
   .mk { white-space: nowrap }
   .dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-100); transform: translate(-50%, -50%); pointer-events: none }
@@ -169,7 +173,11 @@ function draw() {
   for (const p of pts) { if (pl(p) >= pl(hi)) hi = p; if (pl(p) < pl(lo)) lo = p }
   const pc = (p) => `${pl(p) < 0 ? '−' : '+'}${Math.abs(pl(p) / p.cost * 100).toFixed(1)}%`
   const tone = (p) => pl(p) < 0 ? 'down' : 'up'
-  hlEl.innerHTML = `<span>P/L HIGH ${dayName(hi.d).toUpperCase()}</span><b class="${tone(hi)}">${sgn(pl(hi))} ${pc(hi)}</b><span>· P/L LOW ${dayName(lo.d).toUpperCase()}</span><b class="${tone(lo)}">${sgn(pl(lo))} ${pc(lo)}</b><span>· P/L NOW</span><span class="pill ${pl(last) < 0 ? 'dn' : 'up'}">${pl(last) < 0 ? '▼' : '▲'} ${sgn(pl(last))} ${pc(last)}</span>`
+  /* PEAK: the highest MARKET VALUE in the range, as the broker apps show it; FROM PEAK: now minus it. */
+  let pk = pts[0]
+  for (const p of pts) if (p.v >= pk.v) pk = p
+  const fromPk = last.v - pk.v, fromPct = fromPk / pk.v * 100
+  hlEl.innerHTML = `<div class="row">${pl(hi) > 0 ? `<span>MAX PROFIT</span><b class="up">${sgn(pl(hi))} ${pc(hi)}</b>` : ''}${pl(lo) < 0 ? `<span>· MAX LOSS</span><b class="down">${sgn(pl(lo))} ${pc(lo)}</b>` : ''}<span>· NOW</span><span class="pill ${pl(last) < 0 ? 'dn' : 'up'}">${pl(last) < 0 ? '▼' : '▲'} ${sgn(pl(last))} ${pc(last)}</span></div><div class="row new"><span>PEAK</span><b>${eur(pk.v)}</b><span>· FROM PEAK</span>${fromPk === 0 ? '<span class="pill up">AT PEAK</span>' : `<span class="pill dn">▼ ${sgn(fromPk)} ${fromPct.toFixed(1)}%</span>`}</div>`
   const W = 1000, H = 220
   const vs = pts.flatMap((p) => [p.v, p.cost])
   const lo2 = Math.min(...vs) * 0.985, hi2 = Math.max(...vs) * 1.01
@@ -192,7 +200,7 @@ function draw() {
     <path d="${costLine}" fill="none" stroke="#55516a" stroke-width="1.6" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
     <path d="${valLine}" fill="none" stroke="#7b6fe0" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" style="animation:pop .4s both"/>
     <line id="cross" x1="0" x2="0" y1="10" y2="${H - 18}" stroke="#55516a" stroke-dasharray="3 4" vector-effect="non-scaling-stroke" style="display:none"/>
-    </svg>${mk(hi, 'P/L HIGH', '')}${mk(lo, 'P/L LOW', 'low')}${ticks}<div class="tag" id="tag"></div></div>`
+    </svg>${mk(hi, 'MAX PROFIT', '')}${mk(lo, 'MAX LOSS', 'low')}${pk !== hi ? mk(pk, 'PEAK', 'peak') : ''}${ticks}<div class="tag" id="tag"></div></div>`
   legend.innerHTML = `<span><i style="background:#7b6fe0"></i>Market value</span><span><i style="background:none;border-radius:0;border-top:2px dashed #55516a;height:0;width:14px;vertical-align:3px"></i>Cost basis</span><span><i style="background:oklch(0.55 0.15 155 / .3);border-radius:2px"></i>Profit</span><span><i style="background:oklch(0.55 0.19 25 / .3);border-radius:2px"></i>Loss</span>`
   const chart = document.getElementById('chart'), tag = document.getElementById('tag'), cross = document.getElementById('cross')
   chart.addEventListener('mousemove', (e) => {

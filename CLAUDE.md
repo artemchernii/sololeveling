@@ -202,11 +202,16 @@ we dumped in the market"). Only on PORTFOLIO's head, all in
   the two are marked on the line, and hover gives their day. They
   replaced a range HIGH/LOW and a MAX DRAWDOWN that buys made read upside
   down (his "how is peak lower than low?").
+- **PEAK, FROM PEAK** (27 Nov, "Go, build it" on the same mockup; his
+  brokers show their top and how far below it he is now): the
+  highest MARKET VALUE in the range and the last day's value minus it
+  (`valuePeak()`), marked on the line. Like the brokers' own, a buy lifts
+  it.
 - **1D**: DAY'S CHANGE, PREV. CLOSE (the last weekday's close) and LAST.
 - **Hover**: the day's value, COST, P/L, and BUY / SELL — the day's
   trades at their own prices (`netDeposits()`, a sum of trade rows). Both ends, their days and the net
-deposits are always beside it; a deposit is a dot on the line; nothing
-stored, never an input to `verdict()`.
+  deposits are always beside it; a deposit is a dot on the line; nothing
+  stored, never an input to `verdict()`.
 
 Insights, Finances' fourth room, was allowed on 2026-10-19 ("go" on the
 mockup `design/treasury-mockup/insights.html`, spec

@@ -153,3 +153,24 @@ export function plHighLow(points: ReadonlyArray<PlPoint>): {
   }
   return { high, low, now: points[points.length - 1] }
 }
+
+/**
+ * PEAK and FROM PEAK (27 Nov, "go" on the mockup's PEAK row; his broker apps show the top
+ * market value and how far below it he is now): the day of the range with the highest MARKET VALUE, and the
+ * last day's value minus it. Like the brokers' own, a buy lifts it.
+ */
+export function valuePeak(points: ReadonlyArray<PlPoint>): {
+  peak: PlPoint
+  change: number
+  pct: number
+} | null {
+  if (points.length < 2) return null
+  let peak = points[0]
+  for (const p of points) if (p.value >= peak.value) peak = p
+  const change = cents(points[points.length - 1].value - peak.value)
+  return {
+    peak,
+    change,
+    pct: peak.value > 0 ? Math.round((change / peak.value) * 1000) / 10 : 0,
+  }
+}

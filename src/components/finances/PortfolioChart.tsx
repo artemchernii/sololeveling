@@ -9,6 +9,7 @@ import {
   dayReturn,
   pl,
   plHighLow,
+  valuePeak,
   plPct,
   rangeReturn,
 } from '@/lib/portfolioReturn'
@@ -161,6 +162,7 @@ export function PortfolioChart({
 
   const pts = r.points
   const hl = plHighLow(pts)
+  const top = valuePeak(pts)
   const all = pts.flatMap((p) => [p.value, p.cost])
   const lo = Math.min(...all) * 0.985
   const hi = Math.max(...all) * 1.01
@@ -231,6 +233,22 @@ export function PortfolioChart({
           ) : null}
           <span className={caps}>· NOW</span>
           <Pill amount={pl(hl.now)} pct={plPct(hl.now)} k={`now${range}`} />
+        </div>
+      ) : null}
+      {top ? (
+        <div className="-mt-2 flex min-h-[30px] flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span className={caps}>PEAK</span>
+          <span className={num}>
+            <Veiled>{euros(top.peak.value)}</Veiled>
+          </span>
+          <span className={caps}>· FROM PEAK</span>
+          {top.change === 0 ? (
+            <span className="motion-arrive inline-flex items-center rounded-[8px] bg-state-good/12 px-2.5 py-1 font-mono text-[13px] text-state-good">
+              AT PEAK
+            </span>
+          ) : (
+            <Pill amount={top.change} pct={top.pct} k={`peak${range}`} />
+          )}
         </div>
       ) : null}
       <div
@@ -307,6 +325,7 @@ export function PortfolioChart({
           <>
             {pl(hl.high) > 0 ? mark(hl.high, 'MAX PROFIT', true) : null}
             {pl(hl.low) < 0 ? mark(hl.low, 'MAX LOSS', false) : null}
+            {top && top.peak !== hl.high ? mark(top.peak, 'PEAK', true) : null}
           </>
         ) : null}
         {at !== null && hover !== null ? (
